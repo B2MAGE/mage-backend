@@ -89,6 +89,7 @@ docker compose ps
 ```
 
 When the stack is healthy, PostgreSQL should report a healthy status and the backend should remain up.
+Once startup completes, `/health` and `/ready` should both return `200 OK`.
 
 View logs:
 
@@ -177,13 +178,31 @@ Look for lines showing:
 - Tomcat started on port `8080`
 - Hikari connected to PostgreSQL
 
-3. Open the backend URL:
+3. Check the backend liveness endpoint:
 
-```text
-http://localhost:8080
+```bash
+curl http://localhost:8080/health
 ```
 
-At the moment, this repository does not expose application endpoints yet, so a `404` response at `/` is expected. The important check is that the backend container starts and stays healthy.
+Expected response:
+
+```json
+{"status":"UP"}
+```
+
+4. Check the backend readiness endpoint:
+
+```bash
+curl http://localhost:8080/ready
+```
+
+Expected response once PostgreSQL is reachable:
+
+```json
+{"status":"UP","database":"UP"}
+```
+
+If `/ready` returns `503`, the backend is up but not ready to serve traffic yet. Check the backend logs and PostgreSQL health status.
 
 ## 10. Troubleshooting
 
@@ -236,7 +255,7 @@ docker compose up --build
 
 As this project grows, this guide can expand to cover:
 
-- Backend health and readiness endpoints
+- Wiring the backend container health check to `/ready`
 - Database migrations
 - Seed data
 - Alternate Spring profiles

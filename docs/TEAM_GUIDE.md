@@ -2,6 +2,8 @@
 
 This document is for contributors who are new to Spring Boot and need a practical mental model for this repository.
 
+If you need the local container setup, use [development/docker.md](development/docker.md). This guide focuses on the Spring Boot codebase itself.
+
 ## 1. What Spring Boot Is
 
 Spring Boot is a Java framework for building backend applications. It handles common setup automatically so we can focus on writing application code.
@@ -65,11 +67,31 @@ If you create a class outside that package tree, Spring usually will not find it
 
 ## 5. How To Run The Project
 
+Recommended local setup:
+
+```powershell
+docker compose up --build
+```
+
+Detailed Docker instructions live in [development/docker.md](development/docker.md).
+
+For Docker Compose, copy `.env.example` to `.env` first. That file is only for local Compose variable substitution. Spring Boot itself still reads normal environment variables.
+
+Direct Maven run:
+
+If you want to run the Spring Boot app directly, you must provide datasource environment variables that point to a reachable PostgreSQL instance.
+
 Windows PowerShell:
 
 ```powershell
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/mage"
+$env:SPRING_DATASOURCE_USERNAME="postgres"
+$env:SPRING_DATASOURCE_PASSWORD="change-me"
+docker compose up -d postgres
 .\mvnw.cmd spring-boot:run
 ```
+
+If you changed the values in `.env`, use matching datasource values when you run Maven directly.
 
 Run tests:
 
@@ -85,13 +107,17 @@ Build:
 
 The Maven wrapper downloads the correct Maven version for the project, so use it instead of relying on a local Maven install.
 
+If you run the app directly instead of using Docker, you must also provide datasource environment variables because the application expects PostgreSQL connection settings from the environment.
+
 ## 6. Current Dependencies And Why They Matter
 
 The dependencies are declared in [pom.xml](../pom.xml).
 
 - `spring-boot-starter-webmvc`: lets us build HTTP APIs with controllers and JSON responses
+- `spring-boot-starter-data-jpa`: adds persistence support and database integration
 - `spring-boot-devtools`: improves local development by supporting restarts
 - `lombok`: reduces boilerplate like getters, setters, and constructors
+- `postgresql`: PostgreSQL JDBC driver for the local database connection
 - `spring-boot-starter-webmvc-test`: gives us testing support for Spring MVC applications
 
 ## 7. What To Add When You Build A Feature
@@ -155,8 +181,7 @@ Good default rule:
 Be aware of these gaps before assuming the backend already supports them:
 
 - No REST endpoints
-- No persistence layer
-- No PostgreSQL integration
+- No domain entities or repository implementations yet
 - No authentication or authorization
 - No validation layer
 - No API documentation like Swagger/OpenAPI

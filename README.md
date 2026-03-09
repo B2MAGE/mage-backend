@@ -14,7 +14,9 @@ Start here:
 As of March 9, 2026, this repository contains:
 
 - A single Spring Boot application entry point in [src/main/java/com/bdmage/mage_backend/MageBackendApplication.java](src/main/java/com/bdmage/mage_backend/MageBackendApplication.java)
-- One basic context-loading test in [src/test/java/com/bdmage/mage_backend/MageBackendApplicationTests.java](src/test/java/com/bdmage/mage_backend/MageBackendApplicationTests.java)
+- Custom PostgreSQL datasource validation and startup wiring in [src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java](src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java)
+- Health endpoints at `/health` and `/ready`
+- Real PostgreSQL-backed integration tests via Testcontainers
 - Application config in [src/main/resources/application.properties](src/main/resources/application.properties)
 - A Docker image build in [Dockerfile](Dockerfile)
 - A local development stack in [docker-compose.yml](docker-compose.yml)
@@ -46,11 +48,18 @@ mage-backend/
 |- src/
 |  |- main/
 |  |  |- java/com/bdmage/mage_backend/
+|  |  |  |- config/
+|  |  |  |- controller/
+|  |  |  |- dto/
+|  |  |  |- service/
 |  |  |  `- MageBackendApplication.java
 |  |  `- resources/
 |  |     `- application.properties
 |  `- test/
 |     `- java/com/bdmage/mage_backend/
+|        |- controller/
+|        |- service/
+|        |- support/
 |        `- MageBackendApplicationTests.java
 |- .dockerignore
 |- .env.example
@@ -101,6 +110,11 @@ The local development stack starts:
 - Backend: `http://localhost:8080`
 - PostgreSQL: `localhost:5432`
 
+Useful backend checks once the app is up:
+
+- `http://localhost:8080/health`
+- `http://localhost:8080/ready`
+
 For the full Docker workflow, see [docs/development/docker.md](docs/development/docker.md).
 
 The `.env` file is only a Docker Compose convenience for local development. The Spring Boot app still reads normal environment variables.
@@ -148,6 +162,8 @@ macOS/Linux:
 ```bash
 ./mvnw test
 ```
+
+The test suite starts PostgreSQL with Testcontainers, so Docker Desktop must be running.
 
 ### Build a jar
 

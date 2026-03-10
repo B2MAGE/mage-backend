@@ -146,13 +146,15 @@ Current documented environment variables:
 - `SPRING_APPLICATION_NAME`
 - `SERVER_PORT`
 - `SPRING_PROFILES_ACTIVE`
-- `SPRING_JPA_HIBERNATE_DDL_AUTO`
+- `SPRING_JPA_HIBERNATE_DDL_AUTO` (defaults to `validate` in local Docker)
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`
 - `SPRING_DATASOURCE_PASSWORD`
+
+Flyway uses the default `classpath:db/migration` location, so no separate environment variable is required for the default Docker setup.
 
 ## 9. Verifying Everything Works
 
@@ -172,6 +174,7 @@ Look for lines showing:
 
 - Tomcat started on port `8080`
 - Hikari connected to PostgreSQL
+- Flyway applied migration `1 - initial baseline`
 
 3. Check the backend liveness endpoint:
 
@@ -246,12 +249,20 @@ docker compose down -v
 docker compose up --build
 ```
 
+### Migrations do not match the database
+
+Check:
+
+- New migration files were added under [src/main/resources/db/migration](../../src/main/resources/db/migration)
+- Filenames use Flyway's `V<version>__<description>.sql` convention
+- `SPRING_JPA_HIBERNATE_DDL_AUTO` is still `validate` unless you are intentionally overriding it
+- If your local volume predates Flyway, reset it with `docker compose down -v`
+
 ## 11. Future Improvements
 
 As this project grows, this guide can expand to cover:
 
 - Wiring the backend container health check to `/ready`
-- Database migrations
 - Seed data
 - Alternate Spring profiles
 - Admin tools such as pgAdmin

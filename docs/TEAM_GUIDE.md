@@ -17,11 +17,12 @@ For this repo, that mainly means:
 
 ## 2. What Exists In This Repo Right Now
 
-There are only three real application files at the moment:
+There are a few core pieces in place already:
 
 - [src/main/java/com/bdmage/mage_backend/MageBackendApplication.java](../src/main/java/com/bdmage/mage_backend/MageBackendApplication.java): the application entry point
 - [src/main/resources/application.properties](../src/main/resources/application.properties): application configuration
-- [src/test/java/com/bdmage/mage_backend/MageBackendApplicationTests.java](../src/test/java/com/bdmage/mage_backend/MageBackendApplicationTests.java): a test that checks whether Spring can start
+- [src/main/resources/db/migration](../src/main/resources/db/migration): versioned SQL migrations applied by Flyway
+- [src/test/java/com/bdmage/mage_backend/MageBackendApplicationTests.java](../src/test/java/com/bdmage/mage_backend/MageBackendApplicationTests.java): an integration test that checks startup, PostgreSQL connectivity, and the initial migration
 
 That means this project currently starts, but it does not do useful backend work yet.
 
@@ -79,6 +80,7 @@ The dependencies are declared in [pom.xml](../pom.xml).
 
 - `spring-boot-starter-webmvc`: lets us build HTTP APIs with controllers and JSON responses
 - `spring-boot-starter-data-jpa`: adds persistence support and database integration
+- `spring-boot-flyway`, `flyway-core`, and `flyway-database-postgresql`: enable and run versioned schema migrations at startup
 - `spring-boot-devtools`: improves local development by supporting restarts
 - `lombok`: reduces boilerplate like getters, setters, and constructors
 - `postgresql`: PostgreSQL JDBC driver for the local database connection
@@ -91,14 +93,15 @@ If you are adding a normal API feature, use this checklist:
 1. Create or update a `controller` class for the endpoint
 2. Create or update a `service` class for the business logic
 3. Add request/response DTOs if the API shape is not trivial
-4. Add tests for the new behavior
-5. Add configuration only if the feature requires it
+4. Add or update a Flyway migration in [src/main/resources/db/migration](../src/main/resources/db/migration) if the feature changes the database schema
+5. Add tests for the new behavior
+6. Add configuration only if the feature requires it
 
-Once database work begins, we will also add:
+When persistence is involved, we will also add:
 
 1. Model/entity classes
 2. Repository interfaces
-3. Database migration files
+3. Matching database migration files
 
 ## 8. Suggested Package Layout
 

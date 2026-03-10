@@ -3,6 +3,7 @@ package com.bdmage.mage_backend;
 import java.sql.Connection;
 
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -59,6 +60,9 @@ class MageBackendApplicationTests extends PostgresIntegrationTestSupport {
 	@Autowired
 	private DataSource dataSource;
 
+	@Autowired
+	private Flyway flyway;
+
 	/**
 	 * Test: contextLoadsWithPostgres
 	 *
@@ -66,6 +70,7 @@ class MageBackendApplicationTests extends PostgresIntegrationTestSupport {
 	 *
 	 * 1) The Spring Boot application starts successfully.
 	 * 2) The datasource can obtain a working connection to PostgreSQL.
+	 * 3) Flyway applies the initial schema migration during startup.
 	 *
 	 * If either of these steps fails, the test will fail.
 	 */
@@ -85,6 +90,10 @@ class MageBackendApplicationTests extends PostgresIntegrationTestSupport {
 			 */
 			assertThat(connection.isValid(1)).isTrue();
 		}
+
+		assertThat(flyway.info().current()).isNotNull();
+		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
+		assertThat(flyway.info().current().getDescription()).isEqualTo("initial baseline");
 	}
 
 }

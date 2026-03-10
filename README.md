@@ -22,15 +22,9 @@ As of March 9, 2026, this repository contains:
 ## Tech Stack
 
 - Java 21
-- Spring Boot 4.0.3
-- Spring Web MVC
-- Spring Data JPA
+- Spring Boot
 - PostgreSQL
-- Spring Boot DevTools
-- Lombok
-- JUnit 5 with Spring Boot test support
-- Maven Wrapper (`mvnw`, `mvnw.cmd`)
-- Docker / Docker Compose for local development
+- Docker / Docker Compose
 
 The dependency list lives in [pom.xml](pom.xml).
 
@@ -73,7 +67,6 @@ mage-backend/
 ### Prerequisites
 
 - Docker Desktop installed for the default local setup
-- JDK 21 installed if you want to run the app directly with Maven
 - Git installed
 
 ### Run with Docker

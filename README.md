@@ -10,10 +10,11 @@ Start here:
 
 ## Current Repo State
 
-As of March 9, 2026, this repository contains:
+As of March 10, 2026, this repository contains:
 
 - A single Spring Boot application entry point in [src/main/java/com/bdmage/mage_backend/MageBackendApplication.java](src/main/java/com/bdmage/mage_backend/MageBackendApplication.java)
 - PostgreSQL datasource validation and startup wiring in [src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java](src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java)
+- Flyway-based database migrations in [src/main/resources/db/migration](src/main/resources/db/migration)
 - Health endpoints at `/health` and `/ready`
 - PostgreSQL-backed integration tests via Testcontainers
 - A Docker image build in [Dockerfile](Dockerfile)
@@ -45,7 +46,8 @@ mage-backend/
 |  |  |  |- service/
 |  |  |  `- MageBackendApplication.java
 |  |  `- resources/
-|  |     `- application.properties
+|  |     |- application.properties
+|  |     `- db/migration/
 |  `- test/
 |     `- java/com/bdmage/mage_backend/
 |        |- controller/
@@ -115,7 +117,8 @@ server.port=${SERVER_PORT:8080}
 spring.datasource.url=${SPRING_DATASOURCE_URL}
 spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
 spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
-spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+spring.flyway.locations=classpath:db/migration
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
 ```
 
 Environment variables currently documented for local development:
@@ -130,6 +133,24 @@ Environment variables currently documented for local development:
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`
 - `SPRING_DATASOURCE_PASSWORD`
+
+## Database Migrations
+
+Flyway runs automatically during application startup against the configured PostgreSQL database.
+
+Migration files live in [src/main/resources/db/migration](src/main/resources/db/migration) and use the standard versioned naming format:
+
+```text
+V1__initial_baseline.sql
+V2__create_users_table.sql
+V3__add_user_status.sql
+```
+
+Practical rule:
+
+- Add schema changes through new versioned SQL files instead of relying on Hibernate to mutate the schema
+- Keep `spring.jpa.hibernate.ddl-auto` at `validate` unless you have a very specific temporary reason to override it
+- If your local Docker database has stale state from before Flyway was added, reset it with `docker compose down -v`
 
 ## Recommended Next Structure
 

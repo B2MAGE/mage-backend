@@ -67,47 +67,11 @@ If you create a class outside that package tree, Spring usually will not find it
 
 ## 5. How To Run The Project
 
-Recommended local setup:
-
 ```powershell
 docker compose up --build
 ```
 
 Detailed Docker instructions live in [development/docker.md](development/docker.md).
-
-For Docker Compose, copy `.env.example` to `.env` first. That file is only for local Compose variable substitution. Spring Boot itself still reads normal environment variables.
-
-Direct Maven run:
-
-If you want to run the Spring Boot app directly, you must provide datasource environment variables that point to a reachable PostgreSQL instance.
-
-Windows PowerShell:
-
-```powershell
-$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/mage"
-$env:SPRING_DATASOURCE_USERNAME="postgres"
-$env:SPRING_DATASOURCE_PASSWORD="change-me"
-docker compose up -d postgres
-.\mvnw.cmd spring-boot:run
-```
-
-If you changed the values in `.env`, use matching datasource values when you run Maven directly.
-
-Run tests:
-
-```powershell
-.\mvnw.cmd test
-```
-
-Build:
-
-```powershell
-.\mvnw.cmd clean package
-```
-
-The Maven wrapper downloads the correct Maven version for the project, so use it instead of relying on a local Maven install.
-
-If you run the app directly instead of using Docker, you must also provide datasource environment variables because the application expects PostgreSQL connection settings from the environment.
 
 ## 6. Current Dependencies And Why They Matter
 

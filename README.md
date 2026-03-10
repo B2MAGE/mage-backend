@@ -6,7 +6,6 @@ Start here:
 
 - New to Spring Boot: read [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md)
 - Want to run the project with Docker: read [docs/development/docker.md](docs/development/docker.md)
-- Want to run the project without Docker: use the commands in `Getting Started`
 - Want to know what already exists: read `Current Repo State`
 
 ## Current Repo State
@@ -14,13 +13,11 @@ Start here:
 As of March 9, 2026, this repository contains:
 
 - A single Spring Boot application entry point in [src/main/java/com/bdmage/mage_backend/MageBackendApplication.java](src/main/java/com/bdmage/mage_backend/MageBackendApplication.java)
-- Custom PostgreSQL datasource validation and startup wiring in [src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java](src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java)
+- PostgreSQL datasource validation and startup wiring in [src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java](src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java)
 - Health endpoints at `/health` and `/ready`
-- Real PostgreSQL-backed integration tests via Testcontainers
-- Application config in [src/main/resources/application.properties](src/main/resources/application.properties)
+- PostgreSQL-backed integration tests via Testcontainers
 - A Docker image build in [Dockerfile](Dockerfile)
 - A local development stack in [docker-compose.yml](docker-compose.yml)
-- Maven wrapper scripts so the team can build without installing Maven globally
 
 ## Tech Stack
 
@@ -79,8 +76,6 @@ mage-backend/
 - JDK 21 installed if you want to run the app directly with Maven
 - Git installed
 
-You do not need Maven installed globally because this repo includes the Maven wrapper.
-
 ### Run with Docker
 
 Before the first Docker run, copy the example env file:
@@ -116,78 +111,6 @@ Useful backend checks once the app is up:
 - `http://localhost:8080/ready`
 
 For the full Docker workflow, see [docs/development/docker.md](docs/development/docker.md).
-
-The `.env` file is only a Docker Compose convenience for local development. The Spring Boot app still reads normal environment variables.
-
-### Run the app without Docker
-
-If you want to run the Spring Boot app directly, you must point it at a reachable PostgreSQL instance.
-
-One simple option is to start only PostgreSQL with Docker and run the backend with Maven.
-
-Windows PowerShell:
-
-```powershell
-$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/mage"
-$env:SPRING_DATASOURCE_USERNAME="postgres"
-$env:SPRING_DATASOURCE_PASSWORD="change-me"
-docker compose up -d postgres
-.\mvnw.cmd spring-boot:run
-```
-
-macOS/Linux:
-
-```bash
-docker compose up -d postgres
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/mage \
-SPRING_DATASOURCE_USERNAME=postgres \
-SPRING_DATASOURCE_PASSWORD=change-me \
-./mvnw spring-boot:run
-```
-
-If you changed the values in `.env`, use matching datasource values when you run Maven directly.
-
-Any other reachable PostgreSQL instance also works as long as the datasource environment variables match it.
-
-### Run tests
-
-Windows PowerShell:
-
-```powershell
-.\mvnw.cmd test
-```
-
-macOS/Linux:
-
-```bash
-./mvnw test
-```
-
-The test suite starts PostgreSQL with Testcontainers, so Docker Desktop must be running.
-
-### Build a jar
-
-Windows PowerShell:
-
-```powershell
-.\mvnw.cmd clean package
-```
-
-macOS/Linux:
-
-```bash
-./mvnw clean package
-```
-
-## How The App Starts
-
-The application boots from [src/main/java/com/bdmage/mage_backend/MageBackendApplication.java](src/main/java/com/bdmage/mage_backend/MageBackendApplication.java).
-
-- `@SpringBootApplication` tells Spring Boot to start auto-configuration and component scanning
-- `SpringApplication.run(...)` starts the application
-- Spring scans classes under the `com.bdmage.mage_backend` package
-
-That package choice matters. If you add new controllers, services, or configuration classes, keep them under `com.bdmage.mage_backend` unless you intentionally change the scan setup.
 
 ## Configuration
 

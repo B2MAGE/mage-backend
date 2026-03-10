@@ -4,7 +4,7 @@ This guide covers the local Docker development setup for this repository.
 
 ## 1. Purpose
 
-Use Docker Compose when you want a repeatable local environment for the backend and PostgreSQL without installing PostgreSQL directly on your machine.
+We use Docker Compose because it gives us a reusable local environment for the backend and PostgreSQL without installing PostgreSQL directly on our machines.
 
 This setup is for local development only. It is not a production deployment guide.
 
@@ -153,11 +153,6 @@ Current documented environment variables:
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`
 - `SPRING_DATASOURCE_PASSWORD`
-
-Important note:
-
-- When running the app outside Docker, provide the environment variables directly in your shell or IDE run configuration.
-- `.env` is for local Docker Compose convenience only. It is not parsed by the Spring Boot application.
 
 ## 9. Verifying Everything Works
 

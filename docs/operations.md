@@ -1,0 +1,207 @@
+# Operations
+
+## Purpose
+
+This document focuses on what a developer or operator needs to know to start the service, verify it, inspect failures, reset local state, and understand the repository's current operational behavior.
+
+## Current Operational Model
+
+The local stack currently contains two services:
+
+- `backend`: the Spring Boot application built from this repository
+- `postgres`: a PostgreSQL 16 container used for local development
+
+Operationally important behavior:
+
+- PostgreSQL exposes a health check through `pg_isready`
+- the backend waits for PostgreSQL to become healthy in Docker Compose
+- the backend validates datasource settings at startup
+- the backend opens a real database connection during startup and fails if the connection cannot be made
+- Flyway applies migrations automatically on startup
+
+## Local Startup Runbook
+
+```bash
+docker compose up --build
+```
+
+Use this when:
+
+- validating Docker-based local behavior
+- testing migration behavior against a clean containerized stack
+
+## Health Checks
+
+The backend currently exposes two operational endpoints:
+
+- `GET /health`
+- `GET /ready`
+
+### `/health`
+
+Purpose:
+
+- liveness check
+
+Meaning:
+
+- the application process is up and can respond to a minimal HTTP request
+
+Expected response:
+
+```json
+{ "status": "UP" }
+```
+
+### `/ready`
+
+Purpose:
+
+- readiness check
+
+Meaning:
+
+- the application is accepting traffic
+- PostgreSQL is reachable through the configured datasource
+
+Expected ready response:
+
+```json
+{ "status": "UP", "database": "UP" }
+```
+
+Expected not-ready behavior:
+
+- HTTP `503 Service Unavailable`
+- response body shows the application and database status
+
+## Operational Verification Checklist
+
+After startup, verify these items in order:
+
+1. `docker compose ps` shows healthy PostgreSQL if you are using Docker Compose
+2. backend logs show Hikari datasource startup
+3. backend logs show Flyway applying or validating migrations
+4. `curl http://localhost:8080/health` returns `200`
+5. `curl http://localhost:8080/ready` returns `200`
+
+If step 5 fails with `503`, the app is running but not ready to serve traffic.
+
+## Logs and What to Look For
+
+Useful log commands:
+
+```bash
+docker compose logs -f
+docker compose logs -f backend
+docker compose logs -f postgres
+```
+
+During a healthy startup, expect to see:
+
+- backend startup on port `8080`
+- Hikari datasource creation
+- successful PostgreSQL connection
+- Flyway validation and migration output
+
+If the backend fails early, focus on the first infrastructure error rather than the final stack trace tail.
+
+## Database Operations
+
+### Where Schema Changes Live
+
+Schema changes belong in:
+
+`src/main/resources/db/migration`
+
+### How Migrations Run
+
+Flyway runs automatically during application startup.
+
+### Migration Rules
+
+- add a new versioned file for every schema change
+- do not rewrite previously shared migrations
+- keep Hibernate schema mode at `validate`
+
+### Reset Local Database State
+
+If local schema state becomes inconsistent:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+This removes the PostgreSQL volume and recreates the local database from scratch.
+
+## Troubleshooting
+
+### The backend fails with a datasource validation or connection error
+
+Check:
+
+- `SPRING_DATASOURCE_URL` is present
+- the URL starts with `jdbc:postgresql:`
+- username and password are present
+- the hostname matches the runtime mode you are using
+
+### PostgreSQL never becomes healthy in Docker Compose
+
+Check:
+
+- Docker is actually running
+- port `5432` is not already taken
+- the configured database username and password are valid in `.env`
+
+If needed, reset the volume:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+### `/ready` returns `503`
+
+Interpretation:
+
+- the backend process is up
+- either Spring is not yet accepting traffic or the database probe failed
+
+Check:
+
+- backend logs
+- PostgreSQL container health
+- datasource environment variables
+
+### Tests fail before running assertions
+
+Likely cause:
+
+- Docker is unavailable, so Testcontainers cannot start PostgreSQL
+
+### The database seems out of sync with migrations
+
+Check:
+
+- migration files are in the correct folder
+- filenames use Flyway naming conventions
+- local state was not carried forward from an old incompatible volume
+
+Resetting the local volume is usually the fastest way to recover.
+
+## Test Operations
+
+Run the full backend suite with:
+
+Windows PowerShell:
+
+```powershell
+.\mvnw.cmd test
+```
+
+macOS/Linux:
+
+```bash
+./mvnw test
+```

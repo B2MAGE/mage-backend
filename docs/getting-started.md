@@ -43,6 +43,8 @@ Important details:
 
 - the backend connects to PostgreSQL using the hostname `postgres`
 - this hostname works because both containers run in the same Docker network
+- `MAGE_AUTH_GOOGLE_CLIENT_IDS` must be set to the Google OAuth client ID used by the frontend
+- multiple Google client IDs can be provided as a comma-separated list if more than one frontend must be trusted
 
 Avoid changing these values unless you understand the container network configuration.
 
@@ -66,6 +68,7 @@ Once the backend is running, open the following endpoints:
 
 - http://localhost:8080/health
 - http://localhost:8080/ready
+- POST http://localhost:8080/auth/google
 
 Expected responses:
 
@@ -73,6 +76,12 @@ Expected responses:
 - `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
 
 If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
+
+To exercise the Google auth endpoint, send a Google ID token issued for one of the configured client IDs:
+
+    curl -X POST http://localhost:8080/auth/google \
+      -H "Content-Type: application/json" \
+      -d '{"idToken":"<google-id-token>"}'
 
 ## Running Tests
 
@@ -157,6 +166,7 @@ If you are new to the repository, this sequence builds the fastest mental model 
 5. read `architecture.md`
 6. read `engineering-standards.md`
 7. trace the `/ready` endpoint from controller to service to datasource
+8. trace `POST /auth/google` from controller to service to verifier to repository
 
 ## Expected Change Workflow
 

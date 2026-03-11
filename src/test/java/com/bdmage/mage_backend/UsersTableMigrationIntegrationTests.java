@@ -47,25 +47,49 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 				columns.add(resultSet.getString("column_name"));
 			}
 
-			assertThat(columns).containsExactly("id", "email", "password_hash", "display_name", "created_at");
+			assertThat(columns).containsExactly(
+					"id",
+					"email",
+					"password_hash",
+					"display_name",
+					"created_at",
+					"auth_provider",
+					"google_subject");
 		}
 	}
 
 	@Test
-	void usersTableEnforcesUniqueEmailAndRecordsCreatedAtAutomatically() throws Exception {
+	void usersTableSupportsLocalAndGoogleAccountsAndRecordsCreatedAtAutomatically() throws Exception {
 		try (Connection connection = dataSource.getConnection()) {
-			String firstEmail = "unique-email-" + System.nanoTime() + "@example.com";
+			String sharedEmail = "shared-email-" + System.nanoTime() + "@example.com";
+			String googleSubject = "google-subject-" + System.nanoTime();
 
-			Timestamp createdAt = insertUserAndReturnCreatedAt(connection, firstEmail);
+			Timestamp localCreatedAt = insertLocalUserAndReturnCreatedAt(connection, sharedEmail);
+			Timestamp googleCreatedAt = insertGoogleUserAndReturnCreatedAt(connection, sharedEmail, googleSubject);
 
-			assertThat(createdAt).isNotNull();
+			assertThat(localCreatedAt).isNotNull();
+			assertThat(googleCreatedAt).isNotNull();
 
-			assertThatThrownBy(() -> insertUserAndReturnCreatedAt(connection, firstEmail))
+			assertThatThrownBy(() -> insertLocalUserAndReturnCreatedAt(connection, sharedEmail))
+					.isInstanceOf(SQLException.class);
+
+			assertThatThrownBy(() -> insertGoogleUserAndReturnCreatedAt(connection, "other-" + sharedEmail, googleSubject))
 					.isInstanceOf(SQLException.class);
 		}
 	}
 
-	private Timestamp insertUserAndReturnCreatedAt(Connection connection, String email) throws SQLException {
+	@Test
+	void usersTableRejectsInvalidProviderSpecificFieldCombinations() throws Exception {
+		try (Connection connection = dataSource.getConnection()) {
+			assertThatThrownBy(() -> insertGoogleUserWithoutSubject(connection))
+					.isInstanceOf(SQLException.class);
+
+			assertThatThrownBy(() -> insertLocalUserWithoutPasswordHash(connection))
+					.isInstanceOf(SQLException.class);
+		}
+	}
+
+	private Timestamp insertLocalUserAndReturnCreatedAt(Connection connection, String email) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
 				INSERT INTO users (email, password_hash, display_name)
 				VALUES (?, ?, ?)
@@ -79,6 +103,46 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 				assertThat(resultSet.next()).isTrue();
 				return resultSet.getTimestamp("created_at");
 			}
+		}
+	}
+
+	private Timestamp insertGoogleUserAndReturnCreatedAt(Connection connection, String email, String googleSubject)
+			throws SQLException {
+		try (PreparedStatement statement = connection.prepareStatement("""
+				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name)
+				VALUES (?, 'GOOGLE', NULL, ?, ?)
+				RETURNING created_at
+				""")) {
+			statement.setString(1, email);
+			statement.setString(2, googleSubject);
+			statement.setString(3, "Google User");
+
+			try (ResultSet resultSet = statement.executeQuery()) {
+				assertThat(resultSet.next()).isTrue();
+				return resultSet.getTimestamp("created_at");
+			}
+		}
+	}
+
+	private void insertGoogleUserWithoutSubject(Connection connection) throws SQLException {
+		try (PreparedStatement statement = connection.prepareStatement("""
+				INSERT INTO users (email, auth_provider, password_hash, display_name)
+				VALUES (?, 'GOOGLE', NULL, ?)
+				""")) {
+			statement.setString(1, "google-missing-subject-" + System.nanoTime() + "@example.com");
+			statement.setString(2, "Google User");
+			statement.executeUpdate();
+		}
+	}
+
+	private void insertLocalUserWithoutPasswordHash(Connection connection) throws SQLException {
+		try (PreparedStatement statement = connection.prepareStatement("""
+				INSERT INTO users (email, auth_provider, password_hash, display_name)
+				VALUES (?, 'LOCAL', NULL, ?)
+				""")) {
+			statement.setString(1, "local-missing-password-" + System.nanoTime() + "@example.com");
+			statement.setString(2, "Local User");
+			statement.executeUpdate();
 		}
 	}
 }

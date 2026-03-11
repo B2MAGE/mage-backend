@@ -7,6 +7,7 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * before a teammate discovers them while running the application manually.
  */
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 
 /*
  * @SpringBootTest starts the entire Spring Boot application context.
@@ -70,7 +72,7 @@ class MageBackendApplicationTests extends PostgresIntegrationTestSupport {
 	 *
 	 * 1) The Spring Boot application starts successfully.
 	 * 2) The datasource can obtain a working connection to PostgreSQL.
-	 * 3) Flyway applies the initial schema migration during startup.
+	 * 3) Flyway applies the current schema migrations during startup.
 	 *
 	 * If either of these steps fails, the test will fail.
 	 */
@@ -92,8 +94,8 @@ class MageBackendApplicationTests extends PostgresIntegrationTestSupport {
 		}
 
 		assertThat(flyway.info().current()).isNotNull();
-		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
-		assertThat(flyway.info().current().getDescription()).isEqualTo("initial baseline");
+		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
+		assertThat(flyway.info().current().getDescription()).isEqualTo("support multiple auth providers in users");
 	}
 
 }

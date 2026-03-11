@@ -1,42 +1,79 @@
 # MAGE Backend
 
-Backend service for the MAGE platform.
+## Overview
 
-Start here:
+This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, Docker-based local development, and integrated testing.
 
-- New to Spring Boot: read [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md)
-- Want to run the project with Docker: read [docs/development/docker.md](docs/development/docker.md)
-- Want to know what already exists: read `Current Repo State`
-
-## Current Repo State
-
-As of March 10, 2026, this repository contains:
-
-- A single Spring Boot application entry point in [src/main/java/com/bdmage/mage_backend/MageBackendApplication.java](src/main/java/com/bdmage/mage_backend/MageBackendApplication.java)
-- PostgreSQL datasource validation and startup wiring in [src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java](src/main/java/com/bdmage/mage_backend/config/DatabaseConfiguration.java)
-- Flyway-based database migrations in [src/main/resources/db/migration](src/main/resources/db/migration)
-- Health endpoints at `/health` and `/ready`
-- PostgreSQL-backed integration tests via Testcontainers
-- A Docker image build in [Dockerfile](Dockerfile)
-- A local development stack in [docker-compose.yml](docker-compose.yml)
+The codebase is small at the moment, but the documentation and engineering expectations are structured like a team-owned backend project. New contributors should be able to clone the repository, run it locally, understand the architecture, and make disciplined changes without relying on extra explanation.
 
 ## Tech Stack
 
 - Java 21
-- Spring Boot
-- PostgreSQL
-- Docker / Docker Compose
+- Spring Boot 4.0.3
+- Spring Web MVC
+- Spring Data JPA
+- PostgreSQL 16
+- Flyway
+- Maven Wrapper
+- JUnit 5, AssertJ, Mockito, and Testcontainers
+- Docker and Docker Compose
 
-The dependency list lives in [pom.xml](pom.xml).
+## Quick Start
 
-## Project Layout
+For a first run, use the Docker workflow.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+macOS/Linux:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Once the stack is healthy:
+
+- backend: `http://localhost:8080`
+- liveness: `http://localhost:8080/health`
+- readiness: `http://localhost:8080/ready`
+
+Run the test suite with:
+
+Windows PowerShell:
+
+```powershell
+.\mvnw.cmd test
+```
+
+macOS/Linux:
+
+```bash
+./mvnw test
+```
+
+## Environment and Local Run Notes
+
+- `.env.example` is designed for Docker Compose.
+- if the backend runs inside Docker, the datasource host is `postgres`
+- Flyway runs automatically during application startup
+- the test suite requires Docker because integration tests use Testcontainers
+
+Full local setup instructions live in [docs/getting-started.md](docs/getting-started.md).
+
+## Project Structure
 
 ```text
 mage-backend/
 |- docs/
-|  |- development/
-|  |  `- docker.md
-|  `- TEAM_GUIDE.md
+|  |- architecture.md
+|  |- engineering-standards.md
+|  |- getting-started.md
+|  `- operations.md
 |- src/
 |  |- main/
 |  |  |- java/com/bdmage/mage_backend/
@@ -50,12 +87,13 @@ mage-backend/
 |  |     `- db/migration/
 |  `- test/
 |     `- java/com/bdmage/mage_backend/
+|        |- config/
 |        |- controller/
 |        |- service/
 |        |- support/
 |        `- MageBackendApplicationTests.java
-|- .dockerignore
 |- .env.example
+|- CONTRIBUTING.md
 |- docker-compose.yml
 |- Dockerfile
 |- pom.xml
@@ -64,108 +102,10 @@ mage-backend/
 `- README.md
 ```
 
-## Getting Started
+## Documentation
 
-### Prerequisites
-
-- Docker Desktop installed for the default local setup
-- Git installed
-
-### Run with Docker
-
-Before the first Docker run, copy the example env file:
-
-Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-macOS/Linux:
-
-```bash
-cp .env.example .env
-```
-
-Windows PowerShell, macOS, or Linux:
-
-```bash
-docker compose up --build
-```
-
-This is the default local development workflow for this repository.
-
-The local development stack starts:
-
-- Backend: `http://localhost:8080`
-- PostgreSQL: `localhost:5432`
-
-Useful backend checks once the app is up:
-
-- `http://localhost:8080/health`
-- `http://localhost:8080/ready`
-
-For the full Docker workflow, see [docs/development/docker.md](docs/development/docker.md).
-
-## Configuration
-
-Current application config in [src/main/resources/application.properties](src/main/resources/application.properties):
-
-```properties
-spring.application.name=${SPRING_APPLICATION_NAME:mage-backend}
-server.port=${SERVER_PORT:8080}
-spring.datasource.url=${SPRING_DATASOURCE_URL}
-spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
-spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
-spring.flyway.locations=classpath:db/migration
-spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
-```
-
-Environment variables currently documented for local development:
-
-- `SPRING_APPLICATION_NAME`
-- `SERVER_PORT`
-- `SPRING_PROFILES_ACTIVE`
-- `SPRING_JPA_HIBERNATE_DDL_AUTO`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `SPRING_DATASOURCE_URL`
-- `SPRING_DATASOURCE_USERNAME`
-- `SPRING_DATASOURCE_PASSWORD`
-
-## Database Migrations
-
-Flyway runs automatically during application startup against the configured PostgreSQL database.
-
-Migration files live in [src/main/resources/db/migration](src/main/resources/db/migration) and use the standard versioned naming format:
-
-```text
-V1__initial_baseline.sql
-V2__create_users_table.sql
-V3__add_user_status.sql
-```
-
-Practical rule:
-
-- Add schema changes through new versioned SQL files instead of relying on Hibernate to mutate the schema
-- Keep `spring.jpa.hibernate.ddl-auto` at `validate` unless you have a very specific temporary reason to override it
-- If your local Docker database has stale state from before Flyway was added, reset it with `docker compose down -v`
-
-## Recommended Next Structure
-
-When features start getting added, this is a reasonable package layout to follow:
-
-```text
-com.bdmage.mage_backend
-|- config
-|- controller
-|- service
-|- repository
-|- model
-|- dto
-|- exception
-`- util
-```
-
-This keeps responsibilities clear and makes it easier for new contributors to find the right place for a change.
+- [docs/getting-started.md](docs/getting-started.md): setup, environment variables, local run, tests, migrations, and first-week workflow
+- [docs/architecture.md](docs/architecture.md): current codebase structure and the intended layered backend design
+- [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, persistence, testing, logging, security, and collaboration standards
+- [docs/operations.md](docs/operations.md): operational runbook for Docker, health checks, logs, migrations, and troubleshooting
+- [CONTRIBUTING.md](CONTRIBUTING.md): pull request and contribution workflow

@@ -5,7 +5,9 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health` and `/ready`
+- exposing `/health`, `/ready`, and `POST /auth/google`
+- verifying Google ID tokens server-side against configured Google OAuth client IDs
+- creating or reusing Google-backed user records through the shared `users` table
 - proving the runtime wiring with unit and integration tests
 
 The repository does not yet contain product-focused business features, but it already has the basic structure those features should use.
@@ -22,42 +24,54 @@ The configuration package currently contains:
 
 - `DatabaseProperties`
 - `DatabaseConfiguration`
+- `GoogleAuthProperties`
+- `GoogleAuthConfiguration`
 
-Together they do three important jobs:
+Together they do four important jobs:
 
 - bind datasource configuration from environment variables
 - validate that required settings exist and use a PostgreSQL JDBC URL
 - create the Hikari `DataSource` and fail startup immediately if PostgreSQL is unreachable
+- bind and validate the allowed Google OAuth client IDs used for server-side token verification
 
 This is intentionally stricter than letting the application start with bad infrastructure settings and fail later on the first request.
 
 ### API Layer
 
-The API layer currently consists of one controller:
+The API layer currently consists of two controllers:
 
 - `HealthController`
+- `AuthController`
 
 Endpoints:
 
 - `GET /health`
 - `GET /ready`
+- `POST /auth/google`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
+
+`POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
 
 ### Service Layer
 
 The service layer currently consists of:
 
 - `ReadinessService`
+- `GoogleAuthenticationService`
 
-This service combines:
+These services combine:
 
 - Spring's `ApplicationAvailability`
 - a live database connection check through the configured `DataSource`
+- a Google token verifier client
+- provider-aware user lookups plus first-login account creation rules
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
+
+The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
 
 ### DTO Layer
 
@@ -65,8 +79,17 @@ The DTO package currently contains:
 
 - `HealthResponse`
 - `ReadinessResponse`
+- `GoogleAuthenticationRequest`
+- `GoogleAuthenticationResponse`
+- `ApiErrorResponse`
 
 These are explicit API contracts. Even for small endpoints, the repository prefers returning named response types rather than anonymous maps or loosely shaped JSON.
+
+### Client and Exception Layers
+
+- `GoogleTokenVerifier` is the external-integration boundary used by the auth service
+- `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, invalid Google tokens, and account conflicts
 
 ### Persistence and Database Layer
 
@@ -85,8 +108,10 @@ src/
 |- main/
 |  |- java/com/bdmage/mage_backend/
 |  |  |- config/
+|  |  |- client/
 |  |  |- controller/
 |  |  |- dto/
+|  |  |- exception/
 |  |  |- model/
 |  |  |- repository/
 |  |  |- service/
@@ -105,9 +130,11 @@ src/
 ```
 
 - `config/` is for wiring and infrastructure setup
+- `client/` is for external service verification or transport adapters
 - `controller/` is for HTTP entry points
 - `service/` is for business or application logic
 - `dto/` is for public request and response contracts
+- `exception/` is for centralized API error mapping and custom exceptions
 - `model/` is for JPA entities and domain objects
 - `repository/` is for persistence interfaces and query intent
 - `resources/db/migration/` is for schema evolution
@@ -148,8 +175,9 @@ As a result, the expected way to change the schema is straightforward:
 
 The codebase does not currently include:
 
-- authentication or authorization
-- request validation beyond current simple endpoints
+- authorization
+- local-password authentication endpoints
+- session or token issuance after authentication
 
 ## Target Architecture as the Backend Grows
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, Docker-based local development, and integrated testing.
+This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flow: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, Google authentication account provisioning, Docker-based local development, and integrated testing.
 
 The codebase is small at the moment, but the documentation and engineering expectations are structured like a team-owned backend project. New contributors should be able to clone the repository, run it locally, understand the architecture, and make disciplined changes without relying on extra explanation.
 
@@ -14,6 +14,7 @@ The codebase is small at the moment, but the documentation and engineering expec
 - Spring Data JPA
 - PostgreSQL 16
 - Flyway
+- Google API Client
 - Maven Wrapper
 - JUnit 5, AssertJ, Mockito, and Testcontainers
 - Docker and Docker Compose
@@ -41,6 +42,7 @@ Once the stack is healthy:
 - backend: `http://localhost:8080`
 - liveness: `http://localhost:8080/health`
 - readiness: `http://localhost:8080/ready`
+- Google auth: `POST http://localhost:8080/auth/google`
 
 Run the test suite with:
 
@@ -59,6 +61,7 @@ macOS/Linux:
 ## Environment and Local Run Notes
 
 - `.env.example` is designed for Docker Compose.
+- `MAGE_AUTH_GOOGLE_CLIENT_IDS` must contain the Google OAuth client ID used by the frontend.
 - if the backend runs inside Docker, the datasource host is `postgres`
 - Flyway runs automatically during application startup
 - the test suite requires Docker because integration tests use Testcontainers
@@ -78,8 +81,10 @@ mage-backend/
 |  |- main/
 |  |  |- java/com/bdmage/mage_backend/
 |  |  |  |- config/
+|  |  |  |- client/
 |  |  |  |- controller/
 |  |  |  |- dto/
+|  |  |  |- exception/
 |  |  |  |- service/
 |  |  |  `- MageBackendApplication.java
 |  |  `- resources/
@@ -104,8 +109,8 @@ mage-backend/
 
 ## Documentation
 
-- [docs/getting-started.md](docs/getting-started.md): setup, environment variables, local run, tests, migrations, and first-week workflow
-- [docs/architecture.md](docs/architecture.md): current codebase structure and the intended layered backend design
+- [docs/getting-started.md](docs/getting-started.md): setup, environment variables, local run, tests, migrations, and Google auth configuration
+- [docs/architecture.md](docs/architecture.md): current codebase structure and the layered design behind health and Google auth features
 - [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, persistence, testing, logging, security, and collaboration standards
-- [docs/operations.md](docs/operations.md): operational runbook for Docker, health checks, logs, migrations, and troubleshooting
+- [docs/operations.md](docs/operations.md): operational runbook for Docker, health checks, Google auth behavior, logs, migrations, and troubleshooting
 - [CONTRIBUTING.md](CONTRIBUTING.md): pull request and contribution workflow

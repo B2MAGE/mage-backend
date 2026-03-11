@@ -73,8 +73,8 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 - PostgreSQL is the only database
 - Flyway owns schema migration
 - Spring Data JPA is available on the classpath
-- `User` is the first JPA entity and maps to the `users` table
-- `UserRepository` is the first Spring Data repository and supports account lookups by email
+- `User` is the first JPA entity and maps shared local and Google-backed account data to the `users` table
+- `UserRepository` is the first Spring Data repository and supports provider-aware account lookups plus Google subject lookups
 
 At the moment, the persistence layer supports shared account storage for authentication-related features. More domain entities and repositories should follow the same package and layering conventions.
 

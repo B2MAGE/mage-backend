@@ -86,5 +86,6 @@ public abstract class PostgresIntegrationTestSupport {
 		 * Provide the database password.
 		 */
 		registry.add("spring.datasource.password", postgres::getPassword);
+		registry.add("mage.auth.google.client-ids", () -> "test-google-client-id.apps.googleusercontent.com");
 	}
 }

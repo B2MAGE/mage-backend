@@ -73,9 +73,10 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 - PostgreSQL is the only database
 - Flyway owns schema migration
 - Spring Data JPA is available on the classpath
-- no entities or repositories have been added yet
+- `User` is the first JPA entity and maps to the `users` table
+- `UserRepository` is the first Spring Data repository and supports account lookups by email
 
-At the moment, database access exists only for runtime readiness checks. There is no domain persistence layer because there are no domain features yet.
+At the moment, the persistence layer supports shared account storage for authentication-related features. More domain entities and repositories should follow the same package and layering conventions.
 
 ## Folder Structure
 
@@ -86,6 +87,8 @@ src/
 |  |  |- config/
 |  |  |- controller/
 |  |  |- dto/
+|  |  |- model/
+|  |  |- repository/
 |  |  |- service/
 |  |  `- MageBackendApplication.java
 |  `- resources/
@@ -95,6 +98,7 @@ src/
    `- java/com/bdmage/mage_backend/
       |- config/
       |- controller/
+      |- repository/
       |- service/
       |- support/
       `- MageBackendApplicationTests.java
@@ -104,6 +108,8 @@ src/
 - `controller/` is for HTTP entry points
 - `service/` is for business or application logic
 - `dto/` is for public request and response contracts
+- `model/` is for JPA entities and domain objects
+- `repository/` is for persistence interfaces and query intent
 - `resources/db/migration/` is for schema evolution
 - `test/support/` is for reusable testing infrastructure
 
@@ -142,8 +148,6 @@ As a result, the expected way to change the schema is straightforward:
 
 The codebase does not currently include:
 
-- domain entities
-- repository interfaces
 - authentication or authorization
 - request validation beyond current simple endpoints
 

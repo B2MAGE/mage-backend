@@ -18,6 +18,7 @@ Operationally important behavior:
 - the backend validates datasource settings at startup
 - the backend opens a real database connection during startup and fails if the connection cannot be made
 - Flyway applies migrations automatically on startup
+- Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
 
 ## Local Startup Runbook
 
@@ -30,12 +31,15 @@ Use this when:
 - validating Docker-based local behavior
 - testing migration behavior against a clean containerized stack
 
+Before using `POST /auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
+
 ## Health Checks
 
-The backend currently exposes two operational endpoints:
+The backend currently exposes three operational endpoints:
 
 - `GET /health`
 - `GET /ready`
+- `POST /auth/google`
 
 ### `/health`
 
@@ -75,6 +79,31 @@ Expected not-ready behavior:
 - HTTP `503 Service Unavailable`
 - response body shows the application and database status
 
+### `POST /auth/google`
+
+Purpose:
+
+- authenticate a frontend-supplied Google ID token
+- create a Google-backed user on first successful authentication
+- reuse that same Google-backed user on later authentications
+
+Request:
+
+```json
+{ "idToken": "<google-id-token>" }
+```
+
+Success behavior:
+
+- HTTP `201 Created` when the backend creates a new Google-backed user
+- HTTP `200 OK` when the backend reuses an existing Google-backed user
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or blank `idToken`
+- HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
+- HTTP `409 Conflict` when the Google-authenticated email conflicts with existing account rules
+
 ## Operational Verification Checklist
 
 After startup, verify these items in order:
@@ -84,6 +113,7 @@ After startup, verify these items in order:
 3. backend logs show Flyway applying or validating migrations
 4. `curl http://localhost:8080/health` returns `200`
 5. `curl http://localhost:8080/ready` returns `200`
+6. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -103,6 +133,7 @@ During a healthy startup, expect to see:
 - Hikari datasource creation
 - successful PostgreSQL connection
 - Flyway validation and migration output
+- no Google tokens or raw auth payloads in logs
 
 If the backend fails early, focus on the first infrastructure error rather than the final stack trace tail.
 
@@ -146,6 +177,14 @@ Check:
 - username and password are present
 - the hostname matches the runtime mode you are using
 
+### The backend fails during Google auth configuration
+
+Check:
+
+- `MAGE_AUTH_GOOGLE_CLIENT_IDS` is present
+- the value contains the frontend Google OAuth client ID
+- multiple client IDs, if used, are comma-separated without extra quoting
+
 ### PostgreSQL never becomes healthy in Docker Compose
 
 Check:
@@ -173,6 +212,24 @@ Check:
 - backend logs
 - PostgreSQL container health
 - datasource environment variables
+
+### `POST /auth/google` returns `401`
+
+Interpretation:
+
+- the Google ID token was invalid, expired, missing required claims, or the email was not verified
+
+Check:
+
+- the frontend sent an ID token, not an access token
+- the token was issued for a client ID listed in `MAGE_AUTH_GOOGLE_CLIENT_IDS`
+- the token has not expired
+
+### `POST /auth/google` returns `409`
+
+Interpretation:
+
+- the verified Google email conflicts with an existing account and account linking is not implemented yet
 
 ### Tests fail before running assertions
 

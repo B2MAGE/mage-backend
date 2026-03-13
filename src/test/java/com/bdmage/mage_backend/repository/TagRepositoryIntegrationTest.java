@@ -1,32 +1,50 @@
 package com.bdmage.mage_backend.repository;
-import org.springframework.test.context.ActiveProfiles;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.bdmage.mage_backend.model.Tag;
+import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 @ActiveProfiles("test")
-class TagRepositoryIntegrationTest {
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@SpringBootTest
+@Testcontainers
+class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
 
     @Autowired
     private TagRepository tagRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Test
     void savesTagAndNormalizesName() {
-        Tag saved = tagRepository.save(new Tag("  Chill  "));
+        Tag saved = tagRepository.saveAndFlush(new Tag("  Chill  "));
+
+        entityManager.clear();
+
+        Tag found = tagRepository.findByName("chill").orElseThrow();
+
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo("chill");
+        assertThat(found.getId()).isEqualTo(saved.getId());
     }
 
     @Test
     void rejectsDuplicateTagNames() {
-        tagRepository.save(new Tag("edm"));
+        tagRepository.saveAndFlush(new Tag("edm"));
 
-        assertThatThrownBy(() -> tagRepository.save(new Tag("EDM")))
-                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> tagRepository.saveAndFlush(new Tag("EDM")))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

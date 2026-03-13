@@ -4,6 +4,7 @@ import java.sql.Connection;
 
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -93,9 +94,18 @@ class MageBackendApplicationTests extends PostgresIntegrationTestSupport {
 			assertThat(connection.isValid(1)).isTrue();
 		}
 
-		assertThat(flyway.info().current()).isNotNull();
-		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
-		assertThat(flyway.info().current().getDescription()).isEqualTo("support multiple auth providers in users");
+		MigrationInfo currentMigration = flyway.info().current();
+		MigrationInfo[] migrations = flyway.info().all();
+
+		assertThat(currentMigration).isNotNull();
+		assertThat(migrations).isNotEmpty();
+		assertThat(flyway.info().pending()).isEmpty();
+
+		assertThat(currentMigration.getVersion())
+				.isEqualTo(migrations[migrations.length - 1].getVersion());
+
+		assertThat(currentMigration.getDescription())
+				.isEqualTo(migrations[migrations.length - 1].getDescription());
 	}
 
 }

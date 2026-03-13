@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.model;
 
+import java.util.Locale;
 import java.util.Objects;
 
 import jakarta.persistence.Column;
@@ -33,7 +34,7 @@ public class Tag {
     @PrePersist
     @PreUpdate
     private void normalize() {
-        this.name = this.name.trim().toLowerCase();
+        this.name = this.name.trim().toLowerCase(Locale.ROOT);
     }
 
     public Long getId() {

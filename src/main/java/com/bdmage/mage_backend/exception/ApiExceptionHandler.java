@@ -71,6 +71,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(EmailAlreadyRegisteredException.class)
+	ResponseEntity<ApiErrorResponse> handleEmailAlreadyRegistered(
+			EmailAlreadyRegisteredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"EMAIL_ALREADY_REGISTERED",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(GoogleAuthenticationUnavailableException.class)
 	ResponseEntity<ApiErrorResponse> handleGoogleAuthenticationUnavailable(
 			GoogleAuthenticationUnavailableException ex,

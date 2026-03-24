@@ -5,9 +5,12 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, and `POST /auth/google`
+- exposing `/health`, `/ready`, `POST /auth/register`, and `POST /auth/google`
+- registering local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
+- hashing local-account passwords through a shared password hashing service
+- exposing shared tag persistence through the `tags` table
 - proving the runtime wiring with unit and integration tests
 
 The repository does not yet contain product-focused business features, but it already has the basic structure those features should use.
@@ -47,11 +50,14 @@ Endpoints:
 
 - `GET /health`
 - `GET /ready`
+- `POST /auth/register`
 - `POST /auth/google`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
+
+`POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
 `POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
 
@@ -60,16 +66,22 @@ Endpoints:
 The service layer currently consists of:
 
 - `ReadinessService`
+- `PasswordHashingService`
+- `RegistrationService`
 - `GoogleAuthenticationService`
 
 These services combine:
 
 - Spring's `ApplicationAvailability`
 - a live database connection check through the configured `DataSource`
+- BCrypt-backed password hashing for local accounts
+- provider-aware user lookups plus local-account creation rules
 - a Google token verifier client
 - provider-aware user lookups plus first-login account creation rules
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
+
+The registration service owns local-account creation rules, including duplicate-account checks and password hashing before persistence.
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
 
@@ -79,6 +91,8 @@ The DTO package currently contains:
 
 - `HealthResponse`
 - `ReadinessResponse`
+- `RegistrationRequest`
+- `RegistrationResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
 - `ApiErrorResponse`
@@ -89,15 +103,17 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, invalid Google tokens, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid Google tokens, and account conflicts
 
 ### Persistence and Database Layer
 
 - PostgreSQL is the only database
 - Flyway owns schema migration
 - Spring Data JPA is available on the classpath
-- `User` is the first JPA entity and maps shared local and Google-backed account data to the `users` table
-- `UserRepository` is the first Spring Data repository and supports provider-aware account lookups plus Google subject lookups
+- `User` maps shared local and Google-backed account data to the `users` table
+- `UserRepository` supports provider-aware account lookups plus Google subject lookups
+- `Tag` maps normalized tag names to the `tags` table
+- `TagRepository` provides shared access to persisted tags used by tagging and discovery features
 
 At the moment, the persistence layer supports shared account storage for authentication-related features. More domain entities and repositories should follow the same package and layering conventions.
 
@@ -176,7 +192,7 @@ As a result, the expected way to change the schema is straightforward:
 The codebase does not currently include:
 
 - authorization
-- local-password authentication endpoints
+- local-password login
 - session or token issuance after authentication
 
 ## Target Architecture as the Backend Grows

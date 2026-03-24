@@ -33,12 +33,13 @@ Use this when:
 
 Before using `POST /auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
 
-## Health Checks
+## Health Checks and Auth Endpoints
 
-The backend currently exposes three operational endpoints:
+The backend currently exposes four relevant HTTP endpoints:
 
 - `GET /health`
 - `GET /ready`
+- `POST /auth/register`
 - `POST /auth/google`
 
 ### `/health`
@@ -79,6 +80,33 @@ Expected not-ready behavior:
 - HTTP `503 Service Unavailable`
 - response body shows the application and database status
 
+### `POST /auth/register`
+
+Purpose:
+
+- create a local email-and-password account
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "example-password",
+  "displayName": "Example User"
+}
+```
+
+Success behavior:
+
+- HTTP `201 Created` for a newly created local account
+- response includes the new user identity fields and auth provider
+- response never includes the raw password or stored password hash
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `409 Conflict` when the email is already registered for an existing account
+
 ### `POST /auth/google`
 
 Purpose:
@@ -113,7 +141,8 @@ After startup, verify these items in order:
 3. backend logs show Flyway applying or validating migrations
 4. `curl http://localhost:8080/health` returns `200`
 5. `curl http://localhost:8080/ready` returns `200`
-6. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
+6. `POST /auth/register` succeeds for a new local email address
+7. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -133,7 +162,7 @@ During a healthy startup, expect to see:
 - Hikari datasource creation
 - successful PostgreSQL connection
 - Flyway validation and migration output
-- no Google tokens or raw auth payloads in logs
+- no Google tokens, passwords, or raw auth payloads in logs
 
 If the backend fails early, focus on the first infrastructure error rather than the final stack trace tail.
 
@@ -230,6 +259,12 @@ Check:
 Interpretation:
 
 - the verified Google email conflicts with an existing account and account linking is not implemented yet
+
+### `POST /auth/register` returns `409`
+
+Interpretation:
+
+- the supplied email already belongs to an existing local or Google-backed account
 
 ### Tests fail before running assertions
 

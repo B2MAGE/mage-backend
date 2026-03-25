@@ -2,6 +2,7 @@ package com.bdmage.mage_backend.controller;
 
 import java.time.Instant;
 
+import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.User;
@@ -41,7 +42,7 @@ class UserControllerTests {
 		when(this.userProfileService.getAuthenticatedUser(51L)).thenReturn(user);
 
 		this.mockMvc.perform(get("/users/me")
-				.sessionAttr(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 51L))
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.userId").value(51L))
 				.andExpect(jsonPath("$.email").value("profile-user@example.com"))
@@ -54,7 +55,7 @@ class UserControllerTests {
 	}
 
 	@Test
-	void meReturnsUnauthorizedWhenNoAuthenticatedSessionExists() throws Exception {
+	void meReturnsUnauthorizedWhenNoAuthenticatedRequestIdentityExists() throws Exception {
 		when(this.userProfileService.getAuthenticatedUser(null))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 

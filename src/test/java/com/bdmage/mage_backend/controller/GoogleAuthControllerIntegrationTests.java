@@ -54,7 +54,8 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
-				.andExpect(jsonPath("$.created").value(true));
+				.andExpect(jsonPath("$.created").value(true))
+				.andExpect(jsonPath("$.accessToken").isNotEmpty());
 
 		User savedUser = this.userRepository.findByGoogleSubject(subject).orElseThrow();
 
@@ -63,7 +64,8 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 				.content(requestBody(token)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.userId").value(savedUser.getId()))
-				.andExpect(jsonPath("$.created").value(false));
+				.andExpect(jsonPath("$.created").value(false))
+				.andExpect(jsonPath("$.accessToken").isNotEmpty());
 
 		assertThat(this.userRepository.count()).isEqualTo(countBefore + 1);
 	}

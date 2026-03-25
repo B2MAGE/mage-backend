@@ -20,7 +20,8 @@ Operationally important behavior:
 - Flyway applies migrations automatically on startup
 - local passwords are hashed and verified with BCrypt through the shared password hashing service
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
-- successful `POST /auth/login` and `POST /auth/google` requests establish a server-side HTTP session used by `GET /users/me`
+- successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens
+- authentication middleware validates bearer tokens for protected `/users/**` endpoints and stores the authenticated user in request context
 
 ## Local Startup Runbook
 
@@ -129,7 +130,7 @@ Request:
 Success behavior:
 
 - HTTP `200 OK` for a valid local account credential pair
-- response includes the authenticated user identity fields and auth provider
+- response includes the authenticated user identity fields, auth provider, and an `accessToken`
 - response never includes the raw password or stored password hash
 
 Failure behavior:
@@ -155,6 +156,7 @@ Success behavior:
 
 - HTTP `201 Created` when the backend creates a new Google-backed user
 - HTTP `200 OK` when the backend reuses an existing Google-backed user
+- both success responses include an `accessToken`
 
 Failure behavior:
 
@@ -170,17 +172,17 @@ Purpose:
 
 Request notes:
 
-- requires the session cookie established by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
 
 Success behavior:
 
-- HTTP `200 OK` for an authenticated session
+- HTTP `200 OK` for a valid authenticated bearer token
 - response includes the authenticated user's identity fields, auth provider, and creation timestamp
 - response never includes the raw password, stored password hash, or Google subject
 
 Failure behavior:
 
-- HTTP `401 Unauthorized` when the request has no authenticated session or the session user no longer exists
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
 ## Operational Verification Checklist
 
@@ -192,9 +194,9 @@ After startup, verify these items in order:
 4. `curl http://localhost:8080/health` returns `200`
 5. `curl http://localhost:8080/ready` returns `200`
 6. `POST /auth/register` succeeds for a new local email address
-7. `POST /auth/login` succeeds for that local account
-8. `GET /users/me` succeeds when called with the login session cookie
-9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
+7. `POST /auth/login` succeeds for that local account and returns an `accessToken`
+8. `GET /users/me` succeeds when called with `Authorization: Bearer <accessToken>`
+9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -328,7 +330,7 @@ Interpretation:
 
 Interpretation:
 
-- the request was missing the authenticated session cookie, or the session points to a user record that no longer exists
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
 ### Tests fail before running assertions
 

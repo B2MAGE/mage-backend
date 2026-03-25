@@ -10,7 +10,8 @@ Today the backend is responsible for:
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
-- establishing a server-side authenticated session after successful local login and Google auth
+- issuing bearer tokens after successful local login and Google auth
+- validating bearer tokens in middleware for protected endpoints
 - returning the authenticated user's profile from the shared `users` table
 - hashing local-account passwords through a shared password hashing service
 - exposing shared tag persistence through the `tags` table
@@ -33,14 +34,16 @@ The configuration package currently contains:
 - `GoogleAuthProperties`
 - `GoogleAuthConfiguration`
 - `PasswordHashingConfiguration`
+- `AuthenticationConfiguration`
 
-Together they do five important jobs:
+Together they do six important jobs:
 
 - bind datasource configuration from environment variables
 - validate that required settings exist and use a PostgreSQL JDBC URL
 - create the Hikari `DataSource` and fail startup immediately if PostgreSQL is unreachable
 - bind and validate the allowed Google OAuth client IDs used for server-side token verification
 - expose the shared BCrypt-backed `PasswordEncoder` used by authentication services
+- register the bearer-token authentication middleware used by protected endpoints
 
 This is intentionally stricter than letting the application start with bad infrastructure settings and fail later on the first request.
 
@@ -65,13 +68,13 @@ Endpoints:
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
 
-`POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
+`POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record plus a bearer access token.
 
 `POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
-`POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account without exposing password material.
+`POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account plus a bearer access token without exposing password material.
 
-`GET /users/me` reads the authenticated user identity from the server-side HTTP session, delegates user lookup to the service layer, and returns the current user profile without exposing password hashes or Google subject identifiers.
+`GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
 
 ### Service Layer
 
@@ -82,6 +85,7 @@ The service layer currently consists of:
 - `RegistrationService`
 - `LoginService`
 - `GoogleAuthenticationService`
+- `AuthenticationTokenService`
 - `UserProfileService`
 
 These services combine:
@@ -93,7 +97,9 @@ These services combine:
 - provider-aware user lookups plus local-account credential verification rules
 - a Google token verifier client
 - provider-aware user lookups plus first-login account creation rules
-- authenticated-user profile lookup by the session-backed user identity
+- bearer-token generation plus secure token persistence
+- request-time bearer-token validation for protected routes
+- authenticated-user profile lookup by the middleware-authenticated user identity
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
@@ -124,7 +130,7 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid local credentials, invalid Google tokens, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, and account conflicts
 
 ### Persistence and Database Layer
 
@@ -133,6 +139,8 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 - Spring Data JPA is available on the classpath
 - `User` maps shared local and Google-backed account data to the `users` table
 - `UserRepository` supports provider-aware account lookups plus Google subject lookups
+- `AuthenticationToken` maps issued bearer tokens to the `auth_tokens` table
+- `AuthenticationTokenRepository` supports bearer-token hash lookups
 - `Tag` maps normalized tag names to the `tags` table
 - `TagRepository` provides shared access to persisted tags used by tagging and discovery features
 
@@ -213,9 +221,10 @@ As a result, the expected way to change the schema is straightforward:
 The codebase does not currently include:
 
 - authorization
-- token issuance after authentication
+- logout or token revocation
+- token expiration
 
-The current authentication model is session-based for `POST /auth/login`, `POST /auth/google`, and `GET /users/me`.
+The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, and `GET /users/me`.
 
 ## Target Architecture as the Backend Grows
 

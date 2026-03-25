@@ -4,5 +4,6 @@ public record LoginResponse(
 		Long userId,
 		String email,
 		String displayName,
-		String authProvider) {
+		String authProvider,
+		String accessToken) {
 }

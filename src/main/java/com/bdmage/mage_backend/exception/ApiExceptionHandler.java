@@ -110,6 +110,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(InvalidCredentialsException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
+			InvalidCredentialsException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.UNAUTHORIZED,
+				"INVALID_CREDENTIALS",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(GoogleAuthenticationUnavailableException.class)
 	ResponseEntity<ApiErrorResponse> handleGoogleAuthenticationUnavailable(
 			GoogleAuthenticationUnavailableException ex,

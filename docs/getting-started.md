@@ -69,6 +69,7 @@ Once the backend is running, open the following endpoints:
 - http://localhost:8080/health
 - http://localhost:8080/ready
 - POST http://localhost:8080/auth/register
+- POST http://localhost:8080/auth/login
 - POST http://localhost:8080/auth/google
 
 Expected responses:
@@ -76,6 +77,7 @@ Expected responses:
 - `/health` returns `200 OK` with `{"status":"UP"}`
 - `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
 - `POST /auth/register` returns `201 Created` for a new local account and never returns the raw password or stored password hash
+- `POST /auth/login` returns `200 OK` when a local account's credentials are valid and never returns the raw password or stored password hash
 
 If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
 
@@ -84,6 +86,12 @@ To exercise the local registration endpoint:
     curl -X POST http://localhost:8080/auth/register \
       -H "Content-Type: application/json" \
       -d '{"email":"user@example.com","password":"example-password","displayName":"Example User"}'
+
+To exercise the local login endpoint:
+
+    curl -X POST http://localhost:8080/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"email":"user@example.com","password":"example-password"}'
 
 To exercise the Google auth endpoint, send a Google ID token issued for one of the configured client IDs:
 
@@ -175,7 +183,8 @@ If you are new to the repository, this sequence builds the fastest mental model 
 6. read `engineering-standards.md`
 7. trace the `/ready` endpoint from controller to service to datasource
 8. trace `POST /auth/register` from controller to service to repository and password hashing
-9. trace `POST /auth/google` from controller to service to verifier to repository
+9. trace `POST /auth/login` from controller to service to repository and password hashing
+10. trace `POST /auth/google` from controller to service to verifier to repository
 
 ## Expected Change Workflow
 

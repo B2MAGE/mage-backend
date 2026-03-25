@@ -5,8 +5,9 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, and `POST /auth/google`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, and `POST /auth/google`
 - registering local email-and-password accounts through the shared `users` table
+- authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
 - hashing local-account passwords through a shared password hashing service
@@ -53,6 +54,7 @@ Endpoints:
 - `GET /health`
 - `GET /ready`
 - `POST /auth/register`
+- `POST /auth/login`
 - `POST /auth/google`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
@@ -63,6 +65,10 @@ Endpoints:
 
 `POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
 
+`POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
+
+`POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account without exposing password material.
+
 ### Service Layer
 
 The service layer currently consists of:
@@ -70,6 +76,7 @@ The service layer currently consists of:
 - `ReadinessService`
 - `PasswordHashingService`
 - `RegistrationService`
+- `LoginService`
 - `GoogleAuthenticationService`
 
 These services combine:
@@ -78,12 +85,15 @@ These services combine:
 - a live database connection check through the configured `DataSource`
 - BCrypt-backed password hashing for local accounts
 - provider-aware user lookups plus local-account creation rules
+- provider-aware user lookups plus local-account credential verification rules
 - a Google token verifier client
 - provider-aware user lookups plus first-login account creation rules
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
 The registration service owns local-account creation rules, including duplicate-account checks and password hashing before persistence.
+
+The login service owns local credential verification rules and ensures only `LOCAL` accounts can authenticate through the password flow.
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
 
@@ -95,6 +105,8 @@ The DTO package currently contains:
 - `ReadinessResponse`
 - `RegistrationRequest`
 - `RegistrationResponse`
+- `LoginRequest`
+- `LoginResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
 - `ApiErrorResponse`
@@ -105,7 +117,7 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid Google tokens, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid local credentials, invalid Google tokens, and account conflicts
 
 ### Persistence and Database Layer
 
@@ -194,7 +206,6 @@ As a result, the expected way to change the schema is straightforward:
 The codebase does not currently include:
 
 - authorization
-- local-password login
 - session or token issuance after authentication
 
 ## Target Architecture as the Backend Grows

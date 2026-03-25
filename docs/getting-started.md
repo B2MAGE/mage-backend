@@ -78,8 +78,9 @@ Expected responses:
 - `/health` returns `200 OK` with `{"status":"UP"}`
 - `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
 - `POST /auth/register` returns `201 Created` for a new local account and never returns the raw password or stored password hash
-- `POST /auth/login` returns `200 OK` when a local account's credentials are valid and never returns the raw password or stored password hash
-- `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes the session cookie established by `POST /auth/login` or `POST /auth/google`
+- `POST /auth/login` returns `200 OK` when a local account's credentials are valid and includes an `accessToken` for protected endpoints without exposing the raw password or stored password hash
+- `POST /auth/google` returns either `201 Created` or `200 OK` and includes an `accessToken` for protected endpoints
+- `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
 
 If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
 
@@ -91,15 +92,18 @@ To exercise the local registration endpoint:
 
 To exercise the local login endpoint:
 
-    curl -c cookies.txt -X POST http://localhost:8080/auth/login \
+    curl -X POST http://localhost:8080/auth/login \
       -H "Content-Type: application/json" \
       -d '{"email":"user@example.com","password":"example-password"}'
 
-    curl -b cookies.txt http://localhost:8080/users/me
+Use the `accessToken` from the login response or Google auth response when calling protected endpoints.
+
+    curl http://localhost:8080/users/me \
+      -H "Authorization: Bearer <access-token>"
 
 To exercise the Google auth endpoint, send a Google ID token issued for one of the configured client IDs:
 
-    curl -c cookies.txt -X POST http://localhost:8080/auth/google \
+    curl -X POST http://localhost:8080/auth/google \
       -H "Content-Type: application/json" \
       -d '{"idToken":"<google-id-token>"}'
 
@@ -189,7 +193,7 @@ If you are new to the repository, this sequence builds the fastest mental model 
 8. trace `POST /auth/register` from controller to service to repository and password hashing
 9. trace `POST /auth/login` from controller to service to repository and password hashing
 10. trace `POST /auth/google` from controller to service to verifier to repository
-11. trace `GET /users/me` from controller to session-backed user lookup to repository
+11. trace `GET /users/me` from authentication middleware to controller to service to repository
 
 ## Expected Change Workflow
 

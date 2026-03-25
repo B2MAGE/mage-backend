@@ -1,0 +1,81 @@
+package com.bdmage.mage_backend.controller;
+
+import com.bdmage.mage_backend.model.AuthProvider;
+import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.service.PasswordHashingService;
+import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@SpringBootTest
+@AutoConfigureMockMvc
+@Testcontainers
+class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupport {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Autowired
+	private PasswordHashingService passwordHashingService;
+
+	@Test
+	void registrationCreatesLocalUserWithHashedPassword() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "local-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+		String displayName = "Local User";
+
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, password, displayName)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.displayName").value(displayName))
+				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
+				.andExpect(jsonPath("$.password").doesNotExist())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+
+		User savedUser = this.userRepository.findByEmailAndAuthProvider(email, AuthProvider.LOCAL).orElseThrow();
+		assertThat(savedUser.getDisplayName()).isEqualTo(displayName);
+		assertThat(savedUser.getPasswordHash()).isNotEqualTo(password);
+		assertThat(this.passwordHashingService.matches(password, savedUser.getPasswordHash())).isTrue();
+	}
+
+	@Test
+	void registrationReturnsConflictWhenEmailIsAlreadyRegistered() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "registered-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(User.google(email, "google-subject-" + uniqueSuffix, "Google User"));
+
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, password, "Local User")))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
+				.andExpect(jsonPath("$.message").value("An account with this email address is already registered."));
+	}
+
+	private static String requestBody(String email, String password, String displayName) {
+		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\",\"displayName\":\"" + displayName + "\"}";
+	}
+}

@@ -1,11 +1,13 @@
 package com.bdmage.mage_backend.controller;
 
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
+import com.bdmage.mage_backend.exception.EmailAlreadyRegisteredException;
 import com.bdmage.mage_backend.exception.GoogleAccountConflictException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
+import com.bdmage.mage_backend.service.RegistrationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,16 +27,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerTests {
 
 	private GoogleAuthenticationService googleAuthenticationService;
+	private RegistrationService registrationService;
 	private MockMvc mockMvc;
 	private LocalValidatorFactoryBean validator;
 
 	@BeforeEach
 	void setUp() {
 		this.googleAuthenticationService = mock(GoogleAuthenticationService.class);
+		this.registrationService = mock(RegistrationService.class);
 		this.validator = new LocalValidatorFactoryBean();
 		this.validator.afterPropertiesSet();
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(new AuthController(this.googleAuthenticationService))
+				.standaloneSetup(new AuthController(this.googleAuthenticationService, this.registrationService))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.setValidator(this.validator)
 				.build();
@@ -125,5 +129,58 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("ACCOUNT_CONFLICT"));
+	}
+
+	@Test
+	void registrationReturnsCreatedLocalUser() throws Exception {
+		User localUser = new User("new-user@example.com", "hashed-password", "New User");
+		ReflectionTestUtils.setField(localUser, "id", 31L);
+
+		when(this.registrationService.register("new-user@example.com", "secret-value", "New User"))
+				.thenReturn(localUser);
+
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"new-user@example.com","password":"secret-value","displayName":"New User"}
+						"""))
+				.andExpect(status().isCreated())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.userId").value(31L))
+				.andExpect(jsonPath("$.email").value("new-user@example.com"))
+				.andExpect(jsonPath("$.displayName").value("New User"))
+				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
+				.andExpect(jsonPath("$.password").doesNotExist())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+	}
+
+	@Test
+	void registrationRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":" ","password":" ","displayName":" "}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.email").value("email must not be blank"))
+				.andExpect(jsonPath("$.details.password").value("password must not be blank"))
+				.andExpect(jsonPath("$.details.displayName").value("displayName must not be blank"));
+	}
+
+	@Test
+	void registrationReturnsConflictWhenEmailAlreadyExists() throws Exception {
+		when(this.registrationService.register("existing@example.com", "secret-value", "Existing User"))
+				.thenThrow(new EmailAlreadyRegisteredException(
+						"An account with this email address is already registered."));
+
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"existing@example.com","password":"secret-value","displayName":"Existing User"}
+						"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
+				.andExpect(jsonPath("$.message").value("An account with this email address is already registered."));
 	}
 }

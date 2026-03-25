@@ -21,11 +21,18 @@ public class ApiExceptionHandler {
 	ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValid(
 			MethodArgumentNotValidException ex,
 			HttpServletRequest request) {
-		Map<String, String> details = new LinkedHashMap<>();
+		Map<String, FieldError> fieldErrors = new LinkedHashMap<>();
 
 		for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-			details.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+			String field = fieldError.getField();
+			FieldError existingFieldError = fieldErrors.get(field);
+			if (existingFieldError == null || isHigherPriorityValidationError(fieldError, existingFieldError)) {
+				fieldErrors.put(field, fieldError);
+			}
 		}
+
+		Map<String, String> details = new LinkedHashMap<>();
+		fieldErrors.forEach((field, fieldError) -> details.put(field, fieldError.getDefaultMessage()));
 
 		return buildResponse(
 				HttpStatus.BAD_REQUEST,
@@ -33,6 +40,26 @@ public class ApiExceptionHandler {
 				"Request validation failed.",
 				details,
 				request.getRequestURI());
+	}
+
+	private static boolean isHigherPriorityValidationError(FieldError fieldError, FieldError existingFieldError) {
+		return validationPriority(fieldError.getCode()) < validationPriority(existingFieldError.getCode());
+	}
+
+	private static int validationPriority(String constraintCode) {
+		if ("NotBlank".equals(constraintCode)) {
+			return 0;
+		}
+		if ("NotNull".equals(constraintCode)) {
+			return 1;
+		}
+		if ("Email".equals(constraintCode)) {
+			return 2;
+		}
+		if ("Size".equals(constraintCode)) {
+			return 3;
+		}
+		return 4;
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
@@ -66,6 +93,18 @@ public class ApiExceptionHandler {
 		return buildResponse(
 				HttpStatus.CONFLICT,
 				"ACCOUNT_CONFLICT",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(EmailAlreadyRegisteredException.class)
+	ResponseEntity<ApiErrorResponse> handleEmailAlreadyRegistered(
+			EmailAlreadyRegisteredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"EMAIL_ALREADY_REGISTERED",
 				ex.getMessage(),
 				Map.of(),
 				request.getRequestURI());

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class AuthControllerTests {
@@ -68,6 +69,7 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(request().sessionAttribute(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 21L))
 				.andExpect(jsonPath("$.userId").value(21L))
 				.andExpect(jsonPath("$.email").value("user@example.com"))
 				.andExpect(jsonPath("$.displayName").value("Google User"))
@@ -89,6 +91,7 @@ class AuthControllerTests {
 						{"idToken":"repeat-token"}
 						"""))
 				.andExpect(status().isOk())
+				.andExpect(request().sessionAttribute(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 22L))
 				.andExpect(jsonPath("$.created").value(false))
 				.andExpect(jsonPath("$.userId").value(22L));
 	}
@@ -203,6 +206,7 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(request().sessionAttribute(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 41L))
 				.andExpect(jsonPath("$.userId").value(41L))
 				.andExpect(jsonPath("$.email").value("local-user@example.com"))
 				.andExpect(jsonPath("$.displayName").value("Local User"))

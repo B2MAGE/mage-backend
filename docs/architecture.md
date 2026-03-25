@@ -5,11 +5,13 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, and `POST /auth/google`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, and `GET /users/me`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
+- establishing a server-side authenticated session after successful local login and Google auth
+- returning the authenticated user's profile from the shared `users` table
 - hashing local-account passwords through a shared password hashing service
 - exposing shared tag persistence through the `tags` table
 - proving the runtime wiring with unit and integration tests
@@ -44,10 +46,11 @@ This is intentionally stricter than letting the application start with bad infra
 
 ### API Layer
 
-The API layer currently consists of two controllers:
+The API layer currently consists of three controllers:
 
 - `HealthController`
 - `AuthController`
+- `UserController`
 
 Endpoints:
 
@@ -56,18 +59,19 @@ Endpoints:
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/google`
+- `GET /users/me`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
-
-`POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
 `POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
 
 `POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
 `POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account without exposing password material.
+
+`GET /users/me` reads the authenticated user identity from the server-side HTTP session, delegates user lookup to the service layer, and returns the current user profile without exposing password hashes or Google subject identifiers.
 
 ### Service Layer
 
@@ -78,6 +82,7 @@ The service layer currently consists of:
 - `RegistrationService`
 - `LoginService`
 - `GoogleAuthenticationService`
+- `UserProfileService`
 
 These services combine:
 
@@ -88,6 +93,7 @@ These services combine:
 - provider-aware user lookups plus local-account credential verification rules
 - a Google token verifier client
 - provider-aware user lookups plus first-login account creation rules
+- authenticated-user profile lookup by the session-backed user identity
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
@@ -109,6 +115,7 @@ The DTO package currently contains:
 - `LoginResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
+- `UserProfileResponse`
 - `ApiErrorResponse`
 
 These are explicit API contracts. Even for small endpoints, the repository prefers returning named response types rather than anonymous maps or loosely shaped JSON.
@@ -206,7 +213,9 @@ As a result, the expected way to change the schema is straightforward:
 The codebase does not currently include:
 
 - authorization
-- session or token issuance after authentication
+- token issuance after authentication
+
+The current authentication model is session-based for `POST /auth/login`, `POST /auth/google`, and `GET /users/me`.
 
 ## Target Architecture as the Backend Grows
 

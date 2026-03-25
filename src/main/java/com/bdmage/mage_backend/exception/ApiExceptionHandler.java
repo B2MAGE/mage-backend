@@ -122,6 +122,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(AuthenticationRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handleAuthenticationRequired(
+			AuthenticationRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.UNAUTHORIZED,
+				"AUTHENTICATION_REQUIRED",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(GoogleAuthenticationUnavailableException.class)
 	ResponseEntity<ApiErrorResponse> handleGoogleAuthenticationUnavailable(
 			GoogleAuthenticationUnavailableException ex,

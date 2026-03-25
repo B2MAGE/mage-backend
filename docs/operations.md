@@ -20,6 +20,7 @@ Operationally important behavior:
 - Flyway applies migrations automatically on startup
 - local passwords are hashed and verified with BCrypt through the shared password hashing service
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
+- successful `POST /auth/login` and `POST /auth/google` requests establish a server-side HTTP session used by `GET /users/me`
 
 ## Local Startup Runbook
 
@@ -36,13 +37,14 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes five operational endpoints:
+The backend currently exposes six operational endpoints:
 
 - `GET /health`
 - `GET /ready`
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/google`
+- `GET /users/me`
 
 ### `/health`
 
@@ -160,6 +162,26 @@ Failure behavior:
 - HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
 - HTTP `409 Conflict` when the Google-authenticated email conflicts with existing account rules
 
+### `GET /users/me`
+
+Purpose:
+
+- return the profile of the authenticated user
+
+Request notes:
+
+- requires the session cookie established by `POST /auth/login` or `POST /auth/google`
+
+Success behavior:
+
+- HTTP `200 OK` for an authenticated session
+- response includes the authenticated user's identity fields, auth provider, and creation timestamp
+- response never includes the raw password, stored password hash, or Google subject
+
+Failure behavior:
+
+- HTTP `401 Unauthorized` when the request has no authenticated session or the session user no longer exists
+
 ## Operational Verification Checklist
 
 After startup, verify these items in order:
@@ -171,7 +193,8 @@ After startup, verify these items in order:
 5. `curl http://localhost:8080/ready` returns `200`
 6. `POST /auth/register` succeeds for a new local email address
 7. `POST /auth/login` succeeds for that local account
-8. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
+8. `GET /users/me` succeeds when called with the login session cookie
+9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -300,6 +323,12 @@ Interpretation:
 Interpretation:
 
 - the supplied credentials did not match a local account
+
+### `GET /users/me` returns `401`
+
+Interpretation:
+
+- the request was missing the authenticated session cookie, or the session points to a user record that no longer exists
 
 ### Tests fail before running assertions
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flow: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, Google authentication account provisioning, Docker-based local development, and integrated testing.
+This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flows: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, local account registration and login, Google authentication account provisioning, Docker-based local development, and integrated testing.
 
 The codebase is small at the moment, but the documentation and engineering expectations are structured like a team-owned backend project. New contributors should be able to clone the repository, run it locally, understand the architecture, and make disciplined changes without relying on extra explanation.
 
@@ -11,6 +11,7 @@ The codebase is small at the moment, but the documentation and engineering expec
 - Java 21
 - Spring Boot 4.0.3
 - Spring Web MVC
+- Spring Security Crypto
 - Spring Data JPA
 - PostgreSQL 16
 - Flyway
@@ -42,6 +43,8 @@ Once the stack is healthy:
 - backend: `http://localhost:8080`
 - liveness: `http://localhost:8080/health`
 - readiness: `http://localhost:8080/ready`
+- local registration: `POST http://localhost:8080/auth/register`
+- local login: `POST http://localhost:8080/auth/login`
 - Google auth: `POST http://localhost:8080/auth/google`
 
 Run the test suite with:
@@ -109,8 +112,8 @@ mage-backend/
 
 ## Documentation
 
-- [docs/getting-started.md](docs/getting-started.md): setup, environment variables, local run, tests, migrations, and Google auth configuration
-- [docs/architecture.md](docs/architecture.md): current codebase structure and the layered design behind health and Google auth features
+- [docs/getting-started.md](docs/getting-started.md): setup, environment variables, local run, tests, migrations, and authentication endpoint usage
+- [docs/architecture.md](docs/architecture.md): current codebase structure and the layered design behind health and authentication features
 - [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, persistence, testing, logging, security, and collaboration standards
 - [docs/operations.md](docs/operations.md): operational runbook for Docker, health checks, Google auth behavior, logs, migrations, and troubleshooting
 - [CONTRIBUTING.md](CONTRIBUTING.md): pull request and contribution workflow

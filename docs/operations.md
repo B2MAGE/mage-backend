@@ -18,6 +18,7 @@ Operationally important behavior:
 - the backend validates datasource settings at startup
 - the backend opens a real database connection during startup and fails if the connection cannot be made
 - Flyway applies migrations automatically on startup
+- local passwords are hashed and verified with BCrypt through the shared password hashing service
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
 
 ## Local Startup Runbook
@@ -35,10 +36,12 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks
 
-The backend currently exposes three operational endpoints:
+The backend currently exposes five operational endpoints:
 
 - `GET /health`
 - `GET /ready`
+- `POST /auth/register`
+- `POST /auth/login`
 - `POST /auth/google`
 
 ### `/health`
@@ -79,6 +82,59 @@ Expected not-ready behavior:
 - HTTP `503 Service Unavailable`
 - response body shows the application and database status
 
+### `POST /auth/register`
+
+Purpose:
+
+- create a local email-and-password account
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "example-password",
+  "displayName": "Example User"
+}
+```
+
+Success behavior:
+
+- HTTP `201 Created` for a newly created local account
+- response includes the new user identity fields and auth provider
+- response never includes the raw password or stored password hash
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `409 Conflict` when the email is already registered for an existing account
+
+### `POST /auth/login`
+
+Purpose:
+
+- authenticate an existing local email-and-password account
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "example-password"
+}
+```
+
+Success behavior:
+
+- HTTP `200 OK` for a valid local account credential pair
+- response includes the authenticated user identity fields and auth provider
+- response never includes the raw password or stored password hash
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` when the credentials do not match a local account
+
 ### `POST /auth/google`
 
 Purpose:
@@ -113,7 +169,9 @@ After startup, verify these items in order:
 3. backend logs show Flyway applying or validating migrations
 4. `curl http://localhost:8080/health` returns `200`
 5. `curl http://localhost:8080/ready` returns `200`
-6. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
+6. `POST /auth/register` succeeds for a new local email address
+7. `POST /auth/login` succeeds for that local account
+8. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -133,7 +191,7 @@ During a healthy startup, expect to see:
 - Hikari datasource creation
 - successful PostgreSQL connection
 - Flyway validation and migration output
-- no Google tokens or raw auth payloads in logs
+- no Google tokens, passwords, or raw auth payloads in logs
 
 If the backend fails early, focus on the first infrastructure error rather than the final stack trace tail.
 
@@ -230,6 +288,18 @@ Check:
 Interpretation:
 
 - the verified Google email conflicts with an existing account and account linking is not implemented yet
+
+### `POST /auth/register` returns `409`
+
+Interpretation:
+
+- the supplied email already belongs to an existing local or Google-backed account
+
+### `POST /auth/login` returns `401`
+
+Interpretation:
+
+- the supplied credentials did not match a local account
 
 ### Tests fail before running assertions
 

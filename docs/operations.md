@@ -34,7 +34,7 @@ Use this when:
 
 Before using `POST /auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
 
-## Health Checks
+## Health Checks and Auth Endpoints
 
 The backend currently exposes five operational endpoints:
 

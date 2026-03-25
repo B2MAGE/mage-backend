@@ -143,7 +143,7 @@ Coming soon: a set of entity design standards for future domain models, includin
 - Configuration should come from environment variables or checked-in non-secret property files.
 - Secrets do not belong in source control.
 - The app should fail fast when required configuration is missing.
-- If a new feature needs configuration, document it in `README.md` and `docs/operations.md`.
+- If a new feature needs configuration, document it in `docs/getting-started.md` and `docs/operations.md`.
 
 ## Logging Standards
 
@@ -224,7 +224,7 @@ Use Testcontainers for database-backed integration tests. Do not assume every co
 ## Documentation Standards
 
 - Public APIs should be documented through explicit DTOs and clear route naming.
-- Developer workflow changes should update `README.md`, `docs/getting-started.md`, or `docs/operations.md` as appropriate.
+- Developer workflow changes should update `docs/getting-started.md` or `docs/operations.md` as appropriate.
 - Architecture changes should update `docs/architecture.md`.
 - Team-process changes should update `CONTRIBUTING.md`.
 

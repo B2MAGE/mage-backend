@@ -61,6 +61,8 @@ Endpoints:
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
 
+`POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
+
 `POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
 
 `POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.

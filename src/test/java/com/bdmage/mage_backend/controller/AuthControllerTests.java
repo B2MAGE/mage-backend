@@ -6,6 +6,7 @@ import com.bdmage.mage_backend.exception.GoogleAccountConflictException;
 import com.bdmage.mage_backend.exception.InvalidCredentialsException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
 import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
 import com.bdmage.mage_backend.service.LoginService;
@@ -24,11 +25,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class AuthControllerTests {
 
+	private AuthenticationTokenService authenticationTokenService;
 	private GoogleAuthenticationService googleAuthenticationService;
 	private LoginService loginService;
 	private RegistrationService registrationService;
@@ -37,13 +38,18 @@ class AuthControllerTests {
 
 	@BeforeEach
 	void setUp() {
+		this.authenticationTokenService = mock(AuthenticationTokenService.class);
 		this.googleAuthenticationService = mock(GoogleAuthenticationService.class);
 		this.loginService = mock(LoginService.class);
 		this.registrationService = mock(RegistrationService.class);
 		this.validator = new LocalValidatorFactoryBean();
 		this.validator.afterPropertiesSet();
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(new AuthController(this.googleAuthenticationService, this.loginService, this.registrationService))
+				.standaloneSetup(new AuthController(
+						this.authenticationTokenService,
+						this.googleAuthenticationService,
+						this.loginService,
+						this.registrationService))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.setValidator(this.validator)
 				.build();
@@ -61,6 +67,7 @@ class AuthControllerTests {
 
 		when(this.googleAuthenticationService.authenticate("valid-token"))
 				.thenReturn(new GoogleAuthenticationResult(googleUser, true));
+		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("issued-google-token");
 
 		this.mockMvc.perform(post("/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -69,12 +76,12 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-				.andExpect(request().sessionAttribute(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 21L))
 				.andExpect(jsonPath("$.userId").value(21L))
 				.andExpect(jsonPath("$.email").value("user@example.com"))
 				.andExpect(jsonPath("$.displayName").value("Google User"))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
-				.andExpect(jsonPath("$.created").value(true));
+				.andExpect(jsonPath("$.created").value(true))
+				.andExpect(jsonPath("$.accessToken").value("issued-google-token"));
 	}
 
 	@Test
@@ -84,6 +91,7 @@ class AuthControllerTests {
 
 		when(this.googleAuthenticationService.authenticate("repeat-token"))
 				.thenReturn(new GoogleAuthenticationResult(googleUser, false));
+		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("reissued-google-token");
 
 		this.mockMvc.perform(post("/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -91,9 +99,9 @@ class AuthControllerTests {
 						{"idToken":"repeat-token"}
 						"""))
 				.andExpect(status().isOk())
-				.andExpect(request().sessionAttribute(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 22L))
 				.andExpect(jsonPath("$.created").value(false))
-				.andExpect(jsonPath("$.userId").value(22L));
+				.andExpect(jsonPath("$.userId").value(22L))
+				.andExpect(jsonPath("$.accessToken").value("reissued-google-token"));
 	}
 
 	@Test
@@ -198,6 +206,7 @@ class AuthControllerTests {
 
 		when(this.loginService.login("local-user@example.com", "secret-value"))
 				.thenReturn(localUser);
+		when(this.authenticationTokenService.issueToken(localUser)).thenReturn("issued-login-token");
 
 		this.mockMvc.perform(post("/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -206,11 +215,11 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-				.andExpect(request().sessionAttribute(AuthenticatedUserSession.USER_ID_ATTRIBUTE, 41L))
 				.andExpect(jsonPath("$.userId").value(41L))
 				.andExpect(jsonPath("$.email").value("local-user@example.com"))
 				.andExpect(jsonPath("$.displayName").value("Local User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
+				.andExpect(jsonPath("$.accessToken").value("issued-login-token"))
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
 	}

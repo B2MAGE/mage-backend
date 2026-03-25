@@ -134,6 +134,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(InvalidAuthenticationTokenException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidAuthenticationToken(
+			InvalidAuthenticationTokenException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.UNAUTHORIZED,
+				"INVALID_AUTH_TOKEN",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(GoogleAuthenticationUnavailableException.class)
 	ResponseEntity<ApiErrorResponse> handleGoogleAuthenticationUnavailable(
 			GoogleAuthenticationUnavailableException ex,

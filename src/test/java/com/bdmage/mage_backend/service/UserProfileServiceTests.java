@@ -31,7 +31,7 @@ class UserProfileServiceTests {
 	}
 
 	@Test
-	void getAuthenticatedUserRejectsMissingSessionIdentity() {
+	void getAuthenticatedUserRejectsMissingRequestIdentity() {
 		UserRepository userRepository = mock(UserRepository.class);
 		UserProfileService userProfileService = new UserProfileService(userRepository);
 
@@ -43,7 +43,7 @@ class UserProfileServiceTests {
 	}
 
 	@Test
-	void getAuthenticatedUserRejectsUnknownSessionIdentity() {
+	void getAuthenticatedUserRejectsUnknownRequestIdentity() {
 		UserRepository userRepository = mock(UserRepository.class);
 		UserProfileService userProfileService = new UserProfileService(userRepository);
 

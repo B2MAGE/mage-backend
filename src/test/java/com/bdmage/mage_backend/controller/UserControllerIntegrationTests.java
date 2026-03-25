@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Optional;
 
 import com.bdmage.mage_backend.client.GoogleTokenVerifier;
@@ -17,13 +19,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,7 +49,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	private PasswordHashingService passwordHashingService;
 
 	@Test
-	void meReturnsUnauthorizedWhenRequestHasNoAuthenticatedSession() throws Exception {
+	void meReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
 		this.mockMvc.perform(get("/users/me"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
@@ -55,7 +57,16 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void meReturnsProfileForSessionAuthenticatedLocalUser() throws Exception {
+	void meReturnsUnauthorizedWhenRequestUsesInvalidAuthenticationToken() throws Exception {
+		this.mockMvc.perform(get("/users/me")
+				.header("Authorization", "Bearer invalid-token"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("INVALID_AUTH_TOKEN"))
+				.andExpect(jsonPath("$.message").value("Authentication token is invalid."));
+	}
+
+	@Test
+	void meReturnsProfileForTokenAuthenticatedLocalUser() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "profile-local-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -69,11 +80,13 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn();
 
-		MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
+		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(get("/users/me").session(session))
+		this.mockMvc.perform(get("/users/me")
+				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.displayName").value("Profile Local User"))
@@ -85,7 +98,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void meReturnsProfileForSessionAuthenticatedGoogleUser() throws Exception {
+	void meReturnsProfileForTokenAuthenticatedGoogleUser() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String subject = "google-profile-" + uniqueSuffix;
 		String email = "profile-google-" + uniqueSuffix + "@example.com";
@@ -94,11 +107,13 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(googleRequestBody(verifiedToken(subject, email, "Profile Google User"))))
 				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn();
 
-		MockHttpSession session = (MockHttpSession) authenticationResult.getRequest().getSession(false);
+		String accessToken = accessToken(authenticationResult);
 
-		this.mockMvc.perform(get("/users/me").session(session))
+		this.mockMvc.perform(get("/users/me")
+				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.displayName").value("Profile Google User"))
@@ -119,6 +134,13 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	private static String verifiedToken(String subject, String email, String displayName) {
 		return "verified|" + subject + "|" + email + "|" + displayName;
+	}
+
+	private static String accessToken(MvcResult result) throws Exception {
+		Matcher matcher = Pattern.compile("\"accessToken\":\"([^\"]+)\"")
+				.matcher(result.getResponse().getContentAsString());
+		assertThat(matcher.find()).isTrue();
+		return matcher.group(1);
 	}
 
 	@TestConfiguration(proxyBeanMethods = false)

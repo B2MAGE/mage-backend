@@ -5,5 +5,6 @@ public record GoogleAuthenticationResponse(
 		String email,
 		String displayName,
 		String authProvider,
-		boolean created) {
+		boolean created,
+		String accessToken) {
 }

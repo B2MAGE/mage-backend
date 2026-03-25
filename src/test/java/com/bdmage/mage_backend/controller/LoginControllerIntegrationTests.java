@@ -52,6 +52,7 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.displayName").value("Login User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
 	}

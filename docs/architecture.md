@@ -29,13 +29,15 @@ The configuration package currently contains:
 - `DatabaseConfiguration`
 - `GoogleAuthProperties`
 - `GoogleAuthConfiguration`
+- `PasswordHashingConfiguration`
 
-Together they do four important jobs:
+Together they do five important jobs:
 
 - bind datasource configuration from environment variables
 - validate that required settings exist and use a PostgreSQL JDBC URL
 - create the Hikari `DataSource` and fail startup immediately if PostgreSQL is unreachable
 - bind and validate the allowed Google OAuth client IDs used for server-side token verification
+- expose the shared BCrypt-backed `PasswordEncoder` used by authentication services
 
 This is intentionally stricter than letting the application start with bad infrastructure settings and fail later on the first request.
 

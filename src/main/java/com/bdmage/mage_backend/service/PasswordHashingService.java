@@ -1,6 +1,6 @@
 package com.bdmage.mage_backend.service;
 
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -16,13 +16,11 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class PasswordHashingService {
+	private final PasswordEncoder passwordEncoder;
 
-    /**
-     * BCryptPasswordEncoder is provided by Spring Security.
-     * The default cost factor (10) is used, which is appropriate for
-     * most production workloads.
-     */
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+	public PasswordHashingService(PasswordEncoder passwordEncoder) {
+		this.passwordEncoder = passwordEncoder;
+	}
 
     /**
      * hash(plainPassword)
@@ -35,9 +33,9 @@ public class PasswordHashingService {
      * @param plainPassword the raw password supplied by the user
      * @return a BCrypt hash string suitable for persistence
      */
-    public String hash(String plainPassword) {
-        return this.encoder.encode(plainPassword);
-    }
+	public String hash(String plainPassword) {
+		return this.passwordEncoder.encode(plainPassword);
+	}
 
     /**
      * matches(plainPassword, hash)
@@ -51,7 +49,7 @@ public class PasswordHashingService {
      * @param hash          the stored BCrypt hash to compare against
      * @return true if the password matches the hash, false otherwise
      */
-    public boolean matches(String plainPassword, String hash) {
-        return this.encoder.matches(plainPassword, hash);
-    }
+	public boolean matches(String plainPassword, String hash) {
+		return this.passwordEncoder.matches(plainPassword, hash);
+	}
 }

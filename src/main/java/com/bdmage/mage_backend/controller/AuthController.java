@@ -2,11 +2,14 @@ package com.bdmage.mage_backend.controller;
 
 import com.bdmage.mage_backend.dto.GoogleAuthenticationRequest;
 import com.bdmage.mage_backend.dto.GoogleAuthenticationResponse;
+import com.bdmage.mage_backend.dto.LoginRequest;
+import com.bdmage.mage_backend.dto.LoginResponse;
 import com.bdmage.mage_backend.dto.RegistrationRequest;
 import com.bdmage.mage_backend.dto.RegistrationResponse;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
+import com.bdmage.mage_backend.service.LoginService;
 import com.bdmage.mage_backend.service.RegistrationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,12 +24,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final GoogleAuthenticationService googleAuthenticationService;
+	private final LoginService loginService;
 	private final RegistrationService registrationService;
 
 	public AuthController(
 			GoogleAuthenticationService googleAuthenticationService,
+			LoginService loginService,
 			RegistrationService registrationService) {
 		this.googleAuthenticationService = googleAuthenticationService;
+		this.loginService = loginService;
 		this.registrationService = registrationService;
 	}
 
@@ -58,5 +64,16 @@ public class AuthController {
 						user.getEmail(),
 						user.getDisplayName(),
 						user.getAuthProvider().name()));
+	}
+
+	@PostMapping("/login")
+	ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+		User user = this.loginService.login(request.email(), request.password());
+
+		return ResponseEntity.ok(new LoginResponse(
+				user.getId(),
+				user.getEmail(),
+				user.getDisplayName(),
+				user.getAuthProvider().name()));
 	}
 }

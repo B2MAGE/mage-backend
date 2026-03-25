@@ -11,6 +11,7 @@ import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
 import com.bdmage.mage_backend.service.LoginService;
 import com.bdmage.mage_backend.service.RegistrationService;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,9 +39,11 @@ public class AuthController {
 
 	@PostMapping("/google")
 	ResponseEntity<GoogleAuthenticationResponse> authenticateWithGoogle(
-			@Valid @RequestBody GoogleAuthenticationRequest request) {
+			@Valid @RequestBody GoogleAuthenticationRequest request,
+			HttpSession session) {
 		GoogleAuthenticationResult result = this.googleAuthenticationService.authenticate(request.idToken());
 		HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+		AuthenticatedUserSession.authenticate(session, result.user());
 
 		return ResponseEntity.status(status)
 				.body(new GoogleAuthenticationResponse(
@@ -67,8 +70,9 @@ public class AuthController {
 	}
 
 	@PostMapping("/login")
-	ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+	ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpSession session) {
 		User user = this.loginService.login(request.email(), request.password());
+		AuthenticatedUserSession.authenticate(session, user);
 
 		return ResponseEntity.ok(new LoginResponse(
 				user.getId(),

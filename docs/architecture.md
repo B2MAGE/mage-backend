@@ -15,6 +15,7 @@ Today the backend is responsible for:
 - returning the authenticated user's profile from the shared `users` table
 - hashing local-account passwords through a shared password hashing service
 - exposing shared tag persistence through the `tags` table
+- exposing shared preset persistence through the `presets` table
 - proving the runtime wiring with unit and integration tests
 
 The repository does not yet contain product-focused business features, but it already has the basic structure those features should use.
@@ -143,8 +144,10 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 - `AuthenticationTokenRepository` supports bearer-token hash lookups
 - `Tag` maps normalized tag names to the `tags` table
 - `TagRepository` provides shared access to persisted tags used by tagging and discovery features
+- `Preset` maps preset records, owner references, and JSON scene payloads to the `presets` table
+- `PresetRepository` provides shared access to persisted presets for future preset endpoints
 
-At the moment, the persistence layer supports shared account storage for authentication-related features. More domain entities and repositories should follow the same package and layering conventions.
+At the moment, the persistence layer supports shared account, tag, and preset storage. More domain entities and repositories should follow the same package and layering conventions.
 
 ## Folder Structure
 

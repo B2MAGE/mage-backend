@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Service
 public class PresetService {
 
@@ -53,5 +55,13 @@ public class PresetService {
 		}
 
 		return thumbnailRef.trim();
+	}
+
+	public List<Preset> getAllPresets() {
+    	return presetRepository.findAll();
+	}
+
+	public List<Preset> getPresetsByTag(String tag) {
+    	return presetRepository.findByTagsName(tag); 
 	}
 }

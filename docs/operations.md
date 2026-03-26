@@ -21,7 +21,7 @@ Operationally important behavior:
 - local passwords are hashed and verified with BCrypt through the shared password hashing service
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
 - successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens
-- authentication middleware validates bearer tokens for protected `/users/**` endpoints and stores the authenticated user in request context
+- authentication middleware validates bearer tokens for protected `/users/**` and `/presets/**` endpoints and stores the authenticated user in request context
 
 ## Local Startup Runbook
 
@@ -38,7 +38,7 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes six operational endpoints:
+The backend currently exposes seven operational endpoints:
 
 - `GET /health`
 - `GET /ready`
@@ -46,6 +46,7 @@ The backend currently exposes six operational endpoints:
 - `POST /auth/login`
 - `POST /auth/google`
 - `GET /users/me`
+- `POST /presets`
 
 ### `/health`
 
@@ -184,6 +185,40 @@ Failure behavior:
 
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
+### `POST /presets`
+
+Purpose:
+
+- create a new preset owned by the authenticated user
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Request:
+
+```json
+{
+  "name": "Aurora Drift",
+  "sceneData": {
+    "visualizer": {
+      "shader": "nebula"
+    }
+  },
+  "thumbnailRef": "thumbnails/preset-1.png"
+}
+```
+
+Success behavior:
+
+- HTTP `201 Created` for a valid authenticated request
+- response includes the created preset id, owner user id, preset metadata, scene data, and creation timestamp
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+
 ## Operational Verification Checklist
 
 After startup, verify these items in order:
@@ -197,6 +232,7 @@ After startup, verify these items in order:
 7. `POST /auth/login` succeeds for that local account and returns an `accessToken`
 8. `GET /users/me` succeeds when called with `Authorization: Bearer <accessToken>`
 9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
+10. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -327,6 +363,12 @@ Interpretation:
 - the supplied credentials did not match a local account
 
 ### `GET /users/me` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `POST /presets` returns `401`
 
 Interpretation:
 

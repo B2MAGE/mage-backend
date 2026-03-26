@@ -5,7 +5,7 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, and `GET /users/me`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `GET /users/me`, and `POST /presets`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
@@ -50,11 +50,12 @@ This is intentionally stricter than letting the application start with bad infra
 
 ### API Layer
 
-The API layer currently consists of three controllers:
+The API layer currently consists of four controllers:
 
 - `HealthController`
 - `AuthController`
 - `UserController`
+- `PresetController`
 
 Endpoints:
 
@@ -64,6 +65,7 @@ Endpoints:
 - `POST /auth/login`
 - `POST /auth/google`
 - `GET /users/me`
+- `POST /presets`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
@@ -77,6 +79,8 @@ Endpoints:
 
 `GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
 
+`POST /presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset persistence to the service layer so future preset features share one creation path.
+
 ### Service Layer
 
 The service layer currently consists of:
@@ -88,6 +92,7 @@ The service layer currently consists of:
 - `GoogleAuthenticationService`
 - `AuthenticationTokenService`
 - `UserProfileService`
+- `PresetService`
 
 These services combine:
 
@@ -101,6 +106,7 @@ These services combine:
 - bearer-token generation plus secure token persistence
 - request-time bearer-token validation for protected routes
 - authenticated-user profile lookup by the middleware-authenticated user identity
+- authenticated-user preset creation through the shared `presets` table
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
@@ -109,6 +115,8 @@ The registration service owns local-account creation rules, including duplicate-
 The login service owns local credential verification rules and ensures only `LOCAL` accounts can authenticate through the password flow.
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
+
+The preset service owns authenticated preset creation rules and ensures new presets are linked to the authenticated user identity before persistence.
 
 ### DTO Layer
 
@@ -123,6 +131,8 @@ The DTO package currently contains:
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
 - `UserProfileResponse`
+- `CreatePresetRequest`
+- `PresetResponse`
 - `ApiErrorResponse`
 
 These are explicit API contracts. Even for small endpoints, the repository prefers returning named response types rather than anonymous maps or loosely shaped JSON.
@@ -227,7 +237,7 @@ The codebase does not currently include:
 - logout or token revocation
 - token expiration
 
-The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, and `GET /users/me`.
+The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, and `POST /presets`.
 
 ## Target Architecture as the Backend Grows
 

@@ -72,6 +72,7 @@ Once the backend is running, open the following endpoints:
 - POST http://localhost:8080/auth/login
 - POST http://localhost:8080/auth/google
 - GET http://localhost:8080/users/me
+- POST http://localhost:8080/presets
 
 Expected responses:
 
@@ -81,6 +82,7 @@ Expected responses:
 - `POST /auth/login` returns `200 OK` when a local account's credentials are valid and includes an `accessToken` for protected endpoints without exposing the raw password or stored password hash
 - `POST /auth/google` returns either `201 Created` or `200 OK` and includes an `accessToken` for protected endpoints
 - `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
+- `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
 
 If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
 
@@ -100,6 +102,11 @@ Use the `accessToken` from the login response or Google auth response when calli
 
     curl http://localhost:8080/users/me \
       -H "Authorization: Bearer <access-token>"
+
+    curl -X POST http://localhost:8080/presets \
+      -H "Authorization: Bearer <access-token>" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}},"thumbnailRef":"thumbnails/preset-1.png"}'
 
 To exercise the Google auth endpoint, send a Google ID token issued for one of the configured client IDs:
 
@@ -194,6 +201,7 @@ If you are new to the repository, this sequence builds the fastest mental model 
 9. trace `POST /auth/login` from controller to service to repository and password hashing
 10. trace `POST /auth/google` from controller to service to verifier to repository
 11. trace `GET /users/me` from authentication middleware to controller to service to repository
+12. trace `POST /presets` from authentication middleware to controller to service to repository
 
 ## Expected Change Workflow
 

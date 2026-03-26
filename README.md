@@ -2,7 +2,7 @@
 
 ## Overview
 
-This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flows: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, local account registration and login, Google authentication account provisioning, bearer-token authentication middleware, current-user profile lookup, Docker-based local development, and integrated testing.
+This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flows and preset persistence APIs: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, local account registration and login, Google authentication account provisioning, bearer-token authentication middleware, current-user profile lookup, preset creation, Docker-based local development, and integrated testing.
 
 The codebase is small at the moment, but the documentation and engineering expectations are structured like a team-owned backend project. New contributors should be able to clone the repository, run it locally, understand the architecture, and make disciplined changes without relying on extra explanation.
 
@@ -47,6 +47,7 @@ Once the stack is healthy:
 - local login: `POST http://localhost:8080/auth/login`
 - Google auth: `POST http://localhost:8080/auth/google`
 - current user profile: `GET http://localhost:8080/users/me`
+- preset creation: `POST http://localhost:8080/presets`
 
 Run the test suite with:
 

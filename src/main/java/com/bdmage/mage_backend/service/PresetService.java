@@ -1,15 +1,18 @@
 package com.bdmage.mage_backend.service;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.repository.PresetRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 @Service
 public class PresetService {
@@ -45,6 +48,12 @@ public class PresetService {
 			this.entityManager.refresh(savedPreset);
 		}
 		return savedPreset;
+	}
+
+	@Transactional(readOnly = true)
+	public Preset getPreset(Long presetId) {
+		return this.presetRepository.findById(presetId)
+			.orElseThrow(() -> new PresetNotFoundException("Preset not found."));
 	}
 
 	private static String normalizeThumbnailRef(String thumbnailRef) {

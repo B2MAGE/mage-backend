@@ -1,6 +1,7 @@
 package com.bdmage.mage_backend.service;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.repository.PresetRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
@@ -16,6 +17,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+
+import java.util.Optional;
 
 class PresetServiceTests {
 
@@ -114,5 +117,44 @@ class PresetServiceTests {
 
 		verify(userRepository).existsById(99L);
 		verify(presetRepository, never()).saveAndFlush(any(Preset.class));
+	}
+
+	@Test
+	void getPresetReturnsPresetWhenItExists() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = new PresetService(presetRepository, userRepository);
+
+		Preset preset = new Preset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"thumbnails/preset-1.png");
+
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		Preset foundPreset = presetService.getPreset(15L);
+
+		assertThat(foundPreset).isSameAs(preset);
+		verify(presetRepository).findById(15L);
+		verifyNoInteractions(userRepository);
+	}
+
+	@Test
+	void getPresetThrowsPresetNotFoundWhenItDoesNotExist() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = new PresetService(presetRepository, userRepository);
+
+		when(presetRepository.findById(15L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> presetService.getPreset(15L))
+				.isInstanceOf(PresetNotFoundException.class)
+				.hasMessage("Preset not found.");
+
+		verify(presetRepository).findById(15L);
+		verifyNoInteractions(userRepository);
 	}
 }

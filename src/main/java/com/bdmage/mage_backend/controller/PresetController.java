@@ -57,17 +57,15 @@ public class PresetController {
 	}
 
 	@GetMapping("/{id}")
-	ResponseEntity<PresetResponse> getPreset(
-		@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
-		@PathVariable Long id) {
-	Preset preset = this.presetService.getPreset(id);
+	ResponseEntity<PresetResponse> getPreset(@PathVariable Long id) {
+		Preset preset = this.presetService.getPreset(id);
 
-	return ResponseEntity.ok(new PresetResponse(
-			preset.getId(),
-			preset.getOwnerUserId(),
-			preset.getName(),
-			JSON_OBJECT_MAPPER.convertValue(preset.getSceneData(), SCENE_DATA_TYPE),
-			preset.getThumbnailRef(),
-			preset.getCreatedAt()));
+		return ResponseEntity.ok(new PresetResponse(
+				preset.getId(),
+				preset.getOwnerUserId(),
+				preset.getName(),
+				JSON_OBJECT_MAPPER.convertValue(preset.getSceneData(), SCENE_DATA_TYPE),
+				preset.getThumbnailRef(),
+				preset.getCreatedAt()));
 	}
 }

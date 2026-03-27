@@ -5,7 +5,7 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `GET /users/me`, and `POST /presets`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /presets`, and `GET /presets/{id}`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
@@ -66,6 +66,7 @@ Endpoints:
 - `POST /auth/google`
 - `GET /users/me`
 - `POST /presets`
+- `GET /presets/{id}`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
@@ -80,6 +81,8 @@ Endpoints:
 `GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
 
 `POST /presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset persistence to the service layer so future preset features share one creation path.
+
+`GET /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
 
 ### Service Layer
 
@@ -106,7 +109,7 @@ These services combine:
 - bearer-token generation plus secure token persistence
 - request-time bearer-token validation for protected routes
 - authenticated-user profile lookup by the middleware-authenticated user identity
-- authenticated-user preset creation through the shared `presets` table
+- authenticated-user preset creation plus preset retrieval through the shared `presets` table
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
@@ -116,7 +119,7 @@ The login service owns local credential verification rules and ensures only `LOC
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
 
-The preset service owns authenticated preset creation rules and ensures new presets are linked to the authenticated user identity before persistence.
+The preset service owns authenticated preset creation rules, ensures new presets are linked to the authenticated user identity before persistence, and centralizes preset lookup by id for retrieval endpoints.
 
 ### DTO Layer
 
@@ -141,7 +144,7 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, account conflicts, and missing presets
 
 ### Persistence and Database Layer
 
@@ -237,7 +240,7 @@ The codebase does not currently include:
 - logout or token revocation
 - token expiration
 
-The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, and `POST /presets`.
+The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /presets`, and `GET /presets/{id}`.
 
 ## Target Architecture as the Backend Grows
 

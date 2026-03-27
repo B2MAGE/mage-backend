@@ -8,6 +8,8 @@ import com.bdmage.mage_backend.service.PresetService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,5 +38,12 @@ public class PresetController {
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(PresetResponse.from(preset));
+	}
+
+	@GetMapping("/{id}")
+	ResponseEntity<PresetResponse> getPreset(@PathVariable Long id) {
+		Preset preset = this.presetService.getPreset(id);
+
+		return ResponseEntity.ok(PresetResponse.from(preset));
 	}
 }

@@ -38,7 +38,7 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes eight operational endpoints:
+The backend currently exposes nine operational endpoints:
 
 - `GET /health`
 - `GET /ready`
@@ -47,6 +47,7 @@ The backend currently exposes eight operational endpoints:
 - `POST /auth/google`
 - `GET /users/me`
 - `POST /presets`
+- `GET /presets/{id}`
 - `GET /users/{id}/presets`
 
 ### `/health`
@@ -220,6 +221,26 @@ Failure behavior:
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
+### `GET /presets/{id}`
+
+Purpose:
+
+- return a persisted preset by id
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Success behavior:
+
+- HTTP `200 OK` for a valid authenticated request when the preset exists
+- response includes the preset id, owner user id, preset metadata, scene data, thumbnail reference, and creation timestamp
+
+Failure behavior:
+
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+- HTTP `404 Not Found` when no preset exists for the supplied id
+
 ### `GET /users/{id}/presets`
 
 Purpose:
@@ -254,7 +275,8 @@ After startup, verify these items in order:
 8. `GET /users/me` succeeds when called with `Authorization: Bearer <accessToken>`
 9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
 10. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
-11. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
+11. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
+12. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -396,11 +418,23 @@ Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
+### `GET /presets/{id}` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
 ### `GET /users/{id}/presets` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `GET /presets/{id}` returns `404`
+
+Interpretation:
+
+- the request was authenticated successfully, but no preset exists for that id
 
 ### Tests fail before running assertions
 

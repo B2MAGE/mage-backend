@@ -5,6 +5,7 @@ import java.time.Instant;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.service.PresetService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -131,5 +133,42 @@ class PresetControllerTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void getPresetReturnsPresetById() throws Exception {
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						"""),
+				"thumbnails/preset-1.png");
+		ReflectionTestUtils.setField(preset, "id", 15L);
+		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.presetService.getPreset(15L)).thenReturn(preset);
+
+		this.mockMvc.perform(get("/presets/15"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
+				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
+	}
+
+	@Test
+	void getPresetReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		when(this.presetService.getPreset(99999L))
+				.thenThrow(new PresetNotFoundException("Preset not found."));
+
+		this.mockMvc.perform(get("/presets/99999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
 	}
 }

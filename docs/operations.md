@@ -38,7 +38,7 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes eight operational endpoints:
+The backend currently exposes nine operational endpoints:
 
 - `GET /health`
 - `GET /ready`
@@ -48,6 +48,7 @@ The backend currently exposes eight operational endpoints:
 - `GET /users/me`
 - `POST /presets`
 - `GET /presets/{id}`
+- `GET /users/{id}/presets`
 
 ### `/health`
 
@@ -240,6 +241,26 @@ Failure behavior:
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 - HTTP `404 Not Found` when no preset exists for the supplied id
 
+### `GET /users/{id}/presets`
+
+Purpose:
+
+- return presets owned by the requested user
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Success behavior:
+
+- HTTP `200 OK` for a valid authenticated request
+- response includes an array of preset records for the requested user id
+- returns an empty array when the requested user has no presets
+
+Failure behavior:
+
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+
 ## Operational Verification Checklist
 
 After startup, verify these items in order:
@@ -255,6 +276,7 @@ After startup, verify these items in order:
 9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
 10. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
 11. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
+12. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -397,6 +419,12 @@ Interpretation:
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
 ### `GET /presets/{id}` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `GET /users/{id}/presets` returns `401`
 
 Interpretation:
 

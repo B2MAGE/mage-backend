@@ -72,6 +72,7 @@ Once the backend is running, open the following endpoints:
 - POST http://localhost:8080/auth/login
 - POST http://localhost:8080/auth/google
 - GET http://localhost:8080/users/me
+- POST http://localhost:8080/tags
 - POST http://localhost:8080/presets
 - GET http://localhost:8080/presets/{presetId}
 - GET http://localhost:8080/users/{id}/presets
@@ -84,6 +85,7 @@ Expected responses:
 - `POST /auth/login` returns `200 OK` when a local account's credentials are valid and includes an `accessToken` for protected endpoints without exposing the raw password or stored password hash
 - `POST /auth/google` returns either `201 Created` or `200 OK` and includes an `accessToken` for protected endpoints
 - `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
+- `POST /tags` returns `201 Created` with the persisted normalized tag fields
 - `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
 - `GET /presets/{presetId}` returns `200 OK` with the preset metadata, scene data, thumbnail reference, and creation timestamp when the request includes `Authorization: Bearer <accessToken>` and the preset exists
 - `GET /users/{id}/presets` returns `200 OK` with an array of presets for the requested user when the request includes `Authorization: Bearer <accessToken>`
@@ -103,6 +105,10 @@ To exercise the local login endpoint:
       -d '{"email":"user@example.com","password":"example-password"}'
 
 Use the `accessToken` from the login response or Google auth response when calling protected endpoints.
+
+    curl -X POST http://localhost:8080/tags \
+      -H "Content-Type: application/json" \
+      -d '{"name":"Ambient"}'
 
     curl http://localhost:8080/users/me \
       -H "Authorization: Bearer <access-token>"
@@ -211,10 +217,10 @@ If you are new to the repository, this sequence builds the fastest mental model 
 9. trace `POST /auth/login` from controller to service to repository and password hashing
 10. trace `POST /auth/google` from controller to service to verifier to repository
 11. trace `GET /users/me` from authentication middleware to controller to service to repository
-12. trace `POST /presets` from authentication middleware to controller to service to repository
-13. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
-13. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
-14. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
+12. trace `POST /tags` from controller to service to repository
+13. trace `POST /presets` from authentication middleware to controller to service to repository
+14. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
+15. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
 
 ## Expected Change Workflow
 

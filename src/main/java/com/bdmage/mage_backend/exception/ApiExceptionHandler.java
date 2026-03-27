@@ -112,6 +112,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(TagAlreadyExistsException.class)
+	ResponseEntity<ApiErrorResponse> handleTagAlreadyExists(
+			TagAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"TAG_ALREADY_EXISTS",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
 			InvalidCredentialsException ex,

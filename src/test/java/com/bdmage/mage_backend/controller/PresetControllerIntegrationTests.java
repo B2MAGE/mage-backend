@@ -4,8 +4,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.PresetRepository;
+import com.bdmage.mage_backend.repository.PresetTagRepository;
+import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +45,12 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private PresetRepository presetRepository;
+
+	@Autowired
+	private PresetTagRepository presetTagRepository;
+
+	@Autowired
+	private TagRepository tagRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -144,6 +154,132 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 				.andExpect(jsonPath("$.details.name").value("name must not be blank"))
 				.andExpect(jsonPath("$.details.sceneData").value("sceneData must not be null"));
+	}
+
+	@Test
+	void attachTagToPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(post("/presets/15/tags")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void attachTagToPresetPersistsAssociationForAuthenticatedUser() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "attach-tag-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Attach Tag User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Tag savedTag = this.tagRepository.saveAndFlush(new Tag("ambient"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":%d}
+						""".formatted(savedTag.getId())))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.tagId").value(savedTag.getId()));
+
+		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId()))
+				.extracting(PresetTag::getTagId)
+				.containsExactly(savedTag.getId());
+	}
+
+	@Test
+	void attachTagToPresetReturnsConflictForDuplicateAssociation() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "duplicate-attach-tag-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Duplicate Attach Tag User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+		Tag savedTag = this.tagRepository.saveAndFlush(new Tag("showcase"));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":%d}
+						""".formatted(savedTag.getId())))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("PRESET_TAG_ALREADY_EXISTS"))
+				.andExpect(jsonPath("$.message").value("This tag is already attached to the preset."));
+
+		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId())).hasSize(1);
+	}
+
+	@Test
+	void attachTagToPresetReturnsNotFoundWhenTagDoesNotExist() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "missing-tag-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Missing Tag User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Polar Echo",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"glacier"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":99999}
+						"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("TAG_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Tag not found."));
 	}
 
 	@Test

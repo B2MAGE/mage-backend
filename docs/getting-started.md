@@ -74,6 +74,7 @@ Once the backend is running, open the following endpoints:
 - GET http://localhost:8080/users/me
 - POST http://localhost:8080/tags
 - POST http://localhost:8080/presets
+- POST http://localhost:8080/presets/{presetId}/tags
 - GET http://localhost:8080/presets/{presetId}
 - GET http://localhost:8080/users/{id}/presets
 
@@ -87,6 +88,7 @@ Expected responses:
 - `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
 - `POST /tags` returns `201 Created` with the persisted normalized tag fields
 - `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
+- `POST /presets/{presetId}/tags` returns `201 Created` with the preset/tag association fields when the request includes `Authorization: Bearer <accessToken>` and both records exist
 - `GET /presets/{presetId}` returns `200 OK` with the preset metadata, scene data, thumbnail reference, and creation timestamp when the request includes `Authorization: Bearer <accessToken>` and the preset exists
 - `GET /users/{id}/presets` returns `200 OK` with an array of presets for the requested user when the request includes `Authorization: Bearer <accessToken>`
 
@@ -117,6 +119,11 @@ Use the `accessToken` from the login response or Google auth response when calli
       -H "Authorization: Bearer <access-token>" \
       -H "Content-Type: application/json" \
       -d '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}},"thumbnailRef":"thumbnails/preset-1.png"}'
+
+    curl -X POST http://localhost:8080/presets/<preset-id>/tags \
+      -H "Authorization: Bearer <access-token>" \
+      -H "Content-Type: application/json" \
+      -d '{"tagId":<tag-id>}'
 
     curl http://localhost:8080/presets/<preset-id> \
       -H "Authorization: Bearer <access-token>"
@@ -219,8 +226,9 @@ If you are new to the repository, this sequence builds the fastest mental model 
 11. trace `GET /users/me` from authentication middleware to controller to service to repository
 12. trace `POST /tags` from controller to service to repository
 13. trace `POST /presets` from authentication middleware to controller to service to repository
-14. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
-15. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
+14. trace `POST /presets/{id}/tags` from authentication middleware to controller to service to repository
+15. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
+16. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
 
 ## Expected Change Workflow
 

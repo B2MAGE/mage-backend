@@ -6,12 +6,6 @@ For this repository, the recommended setup is Docker Desktop. Docker's current d
 
 ## Recommended Option: Docker Desktop
 
-Use Docker Desktop if you are developing on:
-
-- Windows
-- macOS
-- Linux desktop
-
 Official Docker installation pages:
 
 - Windows: https://docs.docker.com/desktop/setup/install/windows-install/
@@ -30,7 +24,7 @@ General Docker Compose install overview:
 4. Follow the installer prompts.
 5. Start Docker Desktop after installation.
 
-Docker's current Windows docs note that Docker Desktop on Windows supports current Windows 10 and 11 desktop editions, not Windows Server, and that Windows installs commonly use WSL 2.
+Docker's current Windows docs note that Docker Desktop on Windows supports current Windows 10 and 11 desktop editions.
 
 ### macOS
 

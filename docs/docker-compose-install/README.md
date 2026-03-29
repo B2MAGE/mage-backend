@@ -91,12 +91,6 @@ You should then be able to run:
 docker compose up --build
 ```
 
-## Important Notes
-
-- This repository uses `docker compose`, not the older `docker-compose` command.
-- Docker documents the standalone Docker Compose install as a legacy option for backward compatibility.
-- If you are on Windows Server, Docker's standalone Compose path is different from Docker Desktop and is not the normal setup assumed by this backend repository.
-
 ## Next Step
 
 Once Docker Compose is installed, continue with:

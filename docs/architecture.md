@@ -5,7 +5,7 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `GET /users/me`, and `POST /presets`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /tags`, `POST /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
@@ -16,6 +16,7 @@ Today the backend is responsible for:
 - hashing local-account passwords through a shared password hashing service
 - exposing shared tag persistence through the `tags` table
 - exposing shared preset persistence through the `presets` table
+- exposing shared preset/tag persistence through the `preset_tags` table
 - proving the runtime wiring with unit and integration tests
 
 The repository does not yet contain product-focused business features, but it already has the basic structure those features should use.
@@ -50,10 +51,11 @@ This is intentionally stricter than letting the application start with bad infra
 
 ### API Layer
 
-The API layer currently consists of four controllers:
+The API layer currently consists of five controllers:
 
 - `HealthController`
 - `AuthController`
+- `TagController`
 - `UserController`
 - `PresetController`
 
@@ -65,7 +67,11 @@ Endpoints:
 - `POST /auth/login`
 - `POST /auth/google`
 - `GET /users/me`
+- `POST /tags`
 - `POST /presets`
+- `POST /presets/{id}/tags`
+- `GET /presets/{id}`
+- `GET /users/{id}/presets`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
@@ -79,7 +85,15 @@ Endpoints:
 
 `GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
 
+`POST /tags` accepts a tag name, delegates normalization and duplicate-tag checks to the service layer, and stores new tags through the shared `tags` table.
+
 `POST /presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset persistence to the service layer so future preset features share one creation path.
+
+`POST /presets/{id}/tags` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset/tag association rules to the service layer so tagging and discovery features share one persistence path.
+
+`GET /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
+
+`GET /users/{id}/presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset lookup for the requested user id to the service layer.
 
 ### Service Layer
 
@@ -91,6 +105,7 @@ The service layer currently consists of:
 - `LoginService`
 - `GoogleAuthenticationService`
 - `AuthenticationTokenService`
+- `TagService`
 - `UserProfileService`
 - `PresetService`
 
@@ -104,9 +119,10 @@ These services combine:
 - a Google token verifier client
 - provider-aware user lookups plus first-login account creation rules
 - bearer-token generation plus secure token persistence
+- normalized tag creation plus duplicate-tag checks
 - request-time bearer-token validation for protected routes
 - authenticated-user profile lookup by the middleware-authenticated user identity
-- authenticated-user preset creation through the shared `presets` table
+- authenticated-user preset creation plus preset/tag association, preset retrieval, and requested-user preset lookup through the shared `presets` and `preset_tags` tables
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
@@ -116,7 +132,9 @@ The login service owns local credential verification rules and ensures only `LOC
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
 
-The preset service owns authenticated preset creation rules and ensures new presets are linked to the authenticated user identity before persistence.
+The tag service owns normalized tag creation rules and duplicate detection before tag persistence.
+
+The preset service owns authenticated preset creation rules, preset/tag association rules, ensures new presets are linked to the authenticated user identity before persistence, centralizes preset lookup by id for retrieval endpoints, and supports requested-user preset list lookups.
 
 ### DTO Layer
 
@@ -130,9 +148,13 @@ The DTO package currently contains:
 - `LoginResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
+- `CreateTagRequest`
+- `TagResponse`
 - `UserProfileResponse`
 - `CreatePresetRequest`
+- `AttachTagToPresetRequest`
 - `PresetResponse`
+- `PresetTagResponse`
 - `ApiErrorResponse`
 
 These are explicit API contracts. Even for small endpoints, the repository prefers returning named response types rather than anonymous maps or loosely shaped JSON.
@@ -141,7 +163,7 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, duplicate-tag creation attempts, duplicate preset/tag attachment attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, account conflicts, missing presets, and missing tags
 
 ### Persistence and Database Layer
 
@@ -155,9 +177,11 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 - `Tag` maps normalized tag names to the `tags` table
 - `TagRepository` provides shared access to persisted tags used by tagging and discovery features
 - `Preset` maps preset records, owner references, and JSON scene payloads to the `presets` table
-- `PresetRepository` provides shared access to persisted presets for future preset endpoints
+- `PresetRepository` provides shared access to persisted presets for preset endpoints
+- `PresetTag` maps preset/tag associations to the `preset_tags` table
+- `PresetTagRepository` provides shared access to preset/tag links for tagging and discovery features
 
-At the moment, the persistence layer supports shared account, tag, and preset storage. More domain entities and repositories should follow the same package and layering conventions.
+At the moment, the persistence layer supports shared account, tag, preset, and preset/tag storage. More domain entities and repositories should follow the same package and layering conventions.
 
 ## Folder Structure
 
@@ -237,7 +261,7 @@ The codebase does not currently include:
 - logout or token revocation
 - token expiration
 
-The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, and `POST /presets`.
+The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`.
 
 ## Target Architecture as the Backend Grows
 

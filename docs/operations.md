@@ -38,7 +38,7 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes seven operational endpoints:
+The backend currently exposes eleven operational endpoints:
 
 - `GET /health`
 - `GET /ready`
@@ -46,7 +46,11 @@ The backend currently exposes seven operational endpoints:
 - `POST /auth/login`
 - `POST /auth/google`
 - `GET /users/me`
+- `POST /tags`
 - `POST /presets`
+- `POST /presets/{id}/tags`
+- `GET /presets/{id}`
+- `GET /users/{id}/presets`
 
 ### `/health`
 
@@ -185,6 +189,30 @@ Failure behavior:
 
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
+### `POST /tags`
+
+Purpose:
+
+- create a new tag
+
+Request:
+
+```json
+{
+  "name": "ambient"
+}
+```
+
+Success behavior:
+
+- HTTP `201 Created` for a valid tag creation request
+- response includes the persisted tag id and normalized tag name
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `409 Conflict` when the supplied tag name already exists after normalization
+
 ### `POST /presets`
 
 Purpose:
@@ -219,6 +247,76 @@ Failure behavior:
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
+### `POST /presets/{id}/tags`
+
+Purpose:
+
+- attach an existing tag to an existing preset
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Request:
+
+```json
+{
+  "tagId": 15
+}
+```
+
+Success behavior:
+
+- HTTP `201 Created` for a valid authenticated request
+- response includes the linked preset id and tag id
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+- HTTP `404 Not Found` when either the preset or tag does not exist
+- HTTP `409 Conflict` when the preset already has that tag attached
+
+### `GET /presets/{id}`
+
+Purpose:
+
+- return a persisted preset by id
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Success behavior:
+
+- HTTP `200 OK` for a valid authenticated request when the preset exists
+- response includes the preset id, owner user id, preset metadata, scene data, thumbnail reference, and creation timestamp
+
+Failure behavior:
+
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+- HTTP `404 Not Found` when no preset exists for the supplied id
+
+### `GET /users/{id}/presets`
+
+Purpose:
+
+- return presets owned by the requested user
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Success behavior:
+
+- HTTP `200 OK` for a valid authenticated request
+- response includes an array of preset records for the requested user id
+- returns an empty array when the requested user has no presets
+
+Failure behavior:
+
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+
 ## Operational Verification Checklist
 
 After startup, verify these items in order:
@@ -232,7 +330,11 @@ After startup, verify these items in order:
 7. `POST /auth/login` succeeds for that local account and returns an `accessToken`
 8. `GET /users/me` succeeds when called with `Authorization: Bearer <accessToken>`
 9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
-10. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
+10. `POST /tags` succeeds with a valid tag payload and returns the normalized tag record
+11. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
+12. `POST /presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
+13. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
+14. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -368,11 +470,53 @@ Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
+### `POST /tags` returns `409`
+
+Interpretation:
+
+- the supplied tag name already exists after normalization, so the backend rejects the duplicate tag creation request
+
 ### `POST /presets` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `POST /presets/{id}/tags` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `GET /presets/{id}` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `GET /users/{id}/presets` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
+### `GET /presets/{id}` returns `404`
+
+Interpretation:
+
+- the request was authenticated successfully, but no preset exists for that id
+
+### `POST /presets/{id}/tags` returns `404`
+
+Interpretation:
+
+- the request was authenticated successfully, but either the preset id or tag id did not match an existing record
+
+### `POST /presets/{id}/tags` returns `409`
+
+Interpretation:
+
+- the supplied tag is already attached to the preset, so the backend rejects the duplicate association request
 
 ### Tests fail before running assertions
 

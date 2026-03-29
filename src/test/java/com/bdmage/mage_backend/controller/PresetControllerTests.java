@@ -1,11 +1,16 @@
 package com.bdmage.mage_backend.controller;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetNotFoundException;
+import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
+import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +24,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -131,5 +137,171 @@ class PresetControllerTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void getPresetsReturnsAllPresetsWhenTagFilterIsMissing() throws Exception {
+		Preset firstPreset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		Preset secondPreset = new Preset(
+				78L,
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						"""));
+		ReflectionTestUtils.setField(firstPreset, "id", 15L);
+		ReflectionTestUtils.setField(secondPreset, "id", 16L);
+		ReflectionTestUtils.setField(firstPreset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+		ReflectionTestUtils.setField(secondPreset, "createdAt", Instant.parse("2026-03-26T16:30:00Z"));
+
+		when(this.presetService.getAllPresets()).thenReturn(List.of(firstPreset, secondPreset));
+
+		this.mockMvc.perform(get("/presets"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[1].presetId").value(16L))
+				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
+	}
+
+	@Test
+	void getPresetsReturnsFilteredPresetsWhenTagFilterIsProvided() throws Exception {
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		ReflectionTestUtils.setField(preset, "id", 15L);
+		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of(preset));
+
+		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].name").value("Aurora Drift"));
+	}
+
+	@Test
+	void attachTagToPresetReturnsCreatedAssociationForAuthenticatedUser() throws Exception {
+		PresetTag presetTag = new PresetTag(15L, 7L);
+
+		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
+				.thenReturn(presetTag);
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isCreated())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.tagId").value(7L));
+	}
+
+	@Test
+	void attachTagToPresetRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.tagId").value("tagId must not be null"));
+	}
+
+	@Test
+	void attachTagToPresetReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		when(this.presetService.attachTagToPreset(null, 15L, 7L))
+				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void attachTagToPresetReturnsNotFoundWhenTagDoesNotExist() throws Exception {
+		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
+				.thenThrow(new TagNotFoundException("Tag not found."));
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("TAG_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Tag not found."));
+	}
+
+	@Test
+	void attachTagToPresetReturnsConflictWhenAssociationAlreadyExists() throws Exception {
+		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
+				.thenThrow(new PresetTagAlreadyExistsException("This tag is already attached to the preset."));
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("PRESET_TAG_ALREADY_EXISTS"))
+				.andExpect(jsonPath("$.message").value("This tag is already attached to the preset."));
+	}
+
+	@Test
+	void getPresetReturnsPresetById() throws Exception {
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						"""),
+				"thumbnails/preset-1.png");
+		ReflectionTestUtils.setField(preset, "id", 15L);
+		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.presetService.getPreset(15L)).thenReturn(preset);
+
+		this.mockMvc.perform(get("/presets/15"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
+				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
+	}
+
+	@Test
+	void getPresetReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		when(this.presetService.getPreset(99999L))
+				.thenThrow(new PresetNotFoundException("Preset not found."));
+
+		this.mockMvc.perform(get("/presets/99999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
 	}
 }

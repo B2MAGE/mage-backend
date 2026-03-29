@@ -4,8 +4,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.bdmage.mage_backend.dto.ApiErrorResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -13,6 +11,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import com.bdmage.mage_backend.dto.ApiErrorResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -110,6 +112,30 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(TagAlreadyExistsException.class)
+	ResponseEntity<ApiErrorResponse> handleTagAlreadyExists(
+			TagAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"TAG_ALREADY_EXISTS",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(PresetTagAlreadyExistsException.class)
+	ResponseEntity<ApiErrorResponse> handlePresetTagAlreadyExists(
+			PresetTagAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"PRESET_TAG_ALREADY_EXISTS",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
 			InvalidCredentialsException ex,
@@ -156,6 +182,30 @@ public class ApiExceptionHandler {
 				ex.getMessage(),
 				Map.of(),
 				request.getRequestURI());
+	}
+	
+	@ExceptionHandler(PresetNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handlePresetNotFound(
+			PresetNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"PRESET_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(TagNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleTagNotFound(
+			TagNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"TAG_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
 	}
 
 	private static ResponseEntity<ApiErrorResponse> buildResponse(

@@ -4,6 +4,8 @@ This guide walks through manually testing preset tag filtering in the backend.
 
 These steps assume Windows PowerShell and start from cloning the repository.
 
+If Docker Compose is not installed yet, first follow [Install Docker Compose](../docker-compose-install/README.md).
+
 ## Goal
 
 Verify that:

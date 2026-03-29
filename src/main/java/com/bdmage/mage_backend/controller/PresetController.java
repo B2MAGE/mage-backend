@@ -1,9 +1,12 @@
 package com.bdmage.mage_backend.controller;
 
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
+import com.bdmage.mage_backend.dto.AttachTagToPresetRequest;
 import com.bdmage.mage_backend.dto.CreatePresetRequest;
+import com.bdmage.mage_backend.dto.PresetTagResponse;
 import com.bdmage.mage_backend.dto.PresetResponse;
 import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -38,6 +41,17 @@ public class PresetController {
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(PresetResponse.from(preset));
+	}
+
+	@PostMapping("/{id}/tags")
+	ResponseEntity<PresetTagResponse> attachTagToPreset(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody AttachTagToPresetRequest request) {
+		PresetTag presetTag = this.presetService.attachTagToPreset(authenticatedUserId, id, request.tagId());
+
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(PresetTagResponse.from(presetTag));
 	}
 
 	@GetMapping("/{id}")

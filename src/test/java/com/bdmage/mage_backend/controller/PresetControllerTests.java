@@ -6,7 +6,10 @@ import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
+import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
+import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -133,6 +136,85 @@ class PresetControllerTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void attachTagToPresetReturnsCreatedAssociationForAuthenticatedUser() throws Exception {
+		PresetTag presetTag = new PresetTag(15L, 7L);
+
+		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
+				.thenReturn(presetTag);
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isCreated())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.tagId").value(7L));
+	}
+
+	@Test
+	void attachTagToPresetRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.tagId").value("tagId must not be null"));
+	}
+
+	@Test
+	void attachTagToPresetReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		when(this.presetService.attachTagToPreset(null, 15L, 7L))
+				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void attachTagToPresetReturnsNotFoundWhenTagDoesNotExist() throws Exception {
+		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
+				.thenThrow(new TagNotFoundException("Tag not found."));
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("TAG_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Tag not found."));
+	}
+
+	@Test
+	void attachTagToPresetReturnsConflictWhenAssociationAlreadyExists() throws Exception {
+		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
+				.thenThrow(new PresetTagAlreadyExistsException("This tag is already attached to the preset."));
+
+		this.mockMvc.perform(post("/presets/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagId":7}
+						"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("PRESET_TAG_ALREADY_EXISTS"))
+				.andExpect(jsonPath("$.message").value("This tag is already attached to the preset."));
 	}
 
 	@Test

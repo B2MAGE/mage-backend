@@ -124,6 +124,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(PresetTagAlreadyExistsException.class)
+	ResponseEntity<ApiErrorResponse> handlePresetTagAlreadyExists(
+			PresetTagAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"PRESET_TAG_ALREADY_EXISTS",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
 			InvalidCredentialsException ex,
@@ -179,6 +191,18 @@ public class ApiExceptionHandler {
 		return buildResponse(
 			HttpStatus.NOT_FOUND,
 			"PRESET_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(TagNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleTagNotFound(
+			TagNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"TAG_NOT_FOUND",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());

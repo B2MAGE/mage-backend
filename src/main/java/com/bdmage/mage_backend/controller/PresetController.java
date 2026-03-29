@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.controller;
 
+import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.dto.AttachTagToPresetRequest;
 import com.bdmage.mage_backend.dto.CreatePresetRequest;
@@ -17,7 +18,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
 
 @RestController
 @RequestMapping("/presets")
@@ -52,6 +55,17 @@ public class PresetController {
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(PresetTagResponse.from(presetTag));
+	}
+
+	@GetMapping
+	ResponseEntity<List<PresetResponse>> getPresets(@RequestParam(required = false) String tag) {
+		List<Preset> presets = StringUtils.hasText(tag)
+				? this.presetService.getPresetsByTag(tag)
+				: this.presetService.getAllPresets();
+
+		return ResponseEntity.ok(presets.stream()
+				.map(PresetResponse::from)
+				.toList());
 	}
 
 	@GetMapping("/{id}")

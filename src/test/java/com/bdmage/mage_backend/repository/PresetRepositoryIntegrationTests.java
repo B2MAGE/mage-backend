@@ -3,6 +3,8 @@ package com.bdmage.mage_backend.repository;
 import java.util.List;
 
 import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +32,12 @@ class PresetRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private TagRepository tagRepository;
+
+	@Autowired
+	private PresetTagRepository presetTagRepository;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -94,5 +102,38 @@ class PresetRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(firstOwnerPresets)
 				.extracting(Preset::getId)
 				.doesNotContain(secondOwnerPreset.getId());
+	}
+
+	@Test
+	void findAllByTagNameReturnsOnlyPresetsLinkedToThatTag() throws Exception {
+		User owner = this.userRepository.saveAndFlush(
+				new User("tagged-preset-owner-" + System.nanoTime() + "@example.com", "hashed-password-value", "Tagged Preset Owner"));
+		Preset ambientPreset = this.presetRepository.saveAndFlush(new Preset(
+				owner.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Preset showcasePreset = this.presetRepository.saveAndFlush(new Preset(
+				owner.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag("Ambient"));
+		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag("showcase"));
+		this.presetTagRepository.saveAndFlush(new PresetTag(ambientPreset.getId(), ambientTag.getId()));
+		this.presetTagRepository.saveAndFlush(new PresetTag(showcasePreset.getId(), showcaseTag.getId()));
+
+		this.entityManager.clear();
+
+		List<Preset> ambientPresets = this.presetRepository.findAllByTagName("ambient");
+
+		assertThat(ambientPresets)
+				.extracting(Preset::getId)
+				.containsExactly(ambientPreset.getId());
+		assertThat(ambientPresets)
+				.extracting(Preset::getName)
+				.containsExactly("Aurora Drift");
 	}
 }

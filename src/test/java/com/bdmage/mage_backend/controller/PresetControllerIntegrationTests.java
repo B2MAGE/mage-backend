@@ -173,6 +173,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "attach-tag-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
+		String tagName = "ambient-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
@@ -184,7 +185,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
-		Tag savedTag = this.tagRepository.saveAndFlush(new Tag("ambient"));
+		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 
 		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -213,6 +214,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "duplicate-attach-tag-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
+		String tagName = "showcase-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
@@ -224,7 +226,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"}}
 						""")));
-		Tag savedTag = this.tagRepository.saveAndFlush(new Tag("showcase"));
+		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
 
 		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
@@ -280,6 +282,87 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("TAG_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Tag not found."));
+	}
+
+	@Test
+	void getPresetsReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(get("/presets")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void getPresetsFiltersByTagForAuthenticatedUser() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "filter-presets-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+		String ambientTagName = "ambient-" + uniqueSuffix;
+		String showcaseTagName = "showcase-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Filter Presets User"));
+		Preset ambientPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Preset otherPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
+		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag(showcaseTagName));
+		this.presetTagRepository.saveAndFlush(new PresetTag(ambientPreset.getId(), ambientTag.getId()));
+		this.presetTagRepository.saveAndFlush(new PresetTag(otherPreset.getId(), showcaseTag.getId()));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(get("/presets")
+				.header("Authorization", "Bearer " + accessToken)
+				.param("tag", " " + ambientTagName.toUpperCase() + " ")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].presetId").value(ambientPreset.getId()))
+				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[1]").doesNotExist());
+	}
+
+	@Test
+	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "empty-filter-presets-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Empty Filter Presets User"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(get("/presets")
+				.header("Authorization", "Bearer " + accessToken)
+				.param("tag", "ambient")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").doesNotExist());
 	}
 
 	@Test

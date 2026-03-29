@@ -1,6 +1,7 @@
 package com.bdmage.mage_backend.service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
@@ -79,6 +80,16 @@ public class PresetService {
 		return this.presetRepository.findAllByOwnerUserId(requestedUserId);
 	}
 
+	@Transactional(readOnly = true)
+	public List<Preset> getAllPresets() {
+		return this.presetRepository.findAll();
+	}
+
+	@Transactional(readOnly = true)
+	public List<Preset> getPresetsByTag(String tag) {
+		return this.presetRepository.findAllByTagName(normalizeTagName(tag));
+	}
+
 	@Transactional
 	public PresetTag attachTagToPreset(Long authenticatedUserId, Long presetId, Long tagId) {
 		requireAuthenticatedUser(authenticatedUserId);
@@ -126,5 +137,9 @@ public class PresetService {
 		}
 
 		return thumbnailRef.trim();
+	}
+
+	private static String normalizeTagName(String tag) {
+		return tag.trim().toLowerCase(Locale.ROOT);
 	}
 }

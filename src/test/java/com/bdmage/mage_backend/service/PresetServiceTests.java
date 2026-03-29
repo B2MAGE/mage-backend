@@ -220,6 +220,43 @@ class PresetServiceTests {
 	}
 
 	@Test
+	void getAllPresetsReturnsAllPersistedPresets() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+		Preset firstPreset = preset(11L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+		Preset secondPreset = preset(12L, 78L, "Signal Bloom", Instant.parse("2026-03-26T16:00:00Z"));
+
+		when(presetRepository.findAll()).thenReturn(List.of(firstPreset, secondPreset));
+
+		List<Preset> presets = presetService.getAllPresets();
+
+		assertThat(presets)
+				.extracting(Preset::getId)
+				.containsExactly(11L, 12L);
+		verify(presetRepository).findAll();
+		verifyNoInteractions(userRepository);
+	}
+
+	@Test
+	void getPresetsByTagNormalizesTagNameBeforeLookup() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+		Preset preset = preset(15L, 77L, "Glass Orbit", Instant.parse("2026-03-26T17:00:00Z"));
+
+		when(presetRepository.findAllByTagName("ambient")).thenReturn(List.of(preset));
+
+		List<Preset> presets = presetService.getPresetsByTag("  Ambient  ");
+
+		assertThat(presets)
+				.extracting(Preset::getId)
+				.containsExactly(15L);
+		verify(presetRepository).findAllByTagName("ambient");
+		verifyNoInteractions(userRepository);
+	}
+
+	@Test
 	void attachTagToPresetSavesAssociationForAuthenticatedUser() {
 		PresetRepository presetRepository = mock(PresetRepository.class);
 		TagRepository tagRepository = mock(TagRepository.class);

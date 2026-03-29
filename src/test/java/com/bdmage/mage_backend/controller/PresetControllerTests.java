@@ -1,6 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
@@ -136,6 +137,66 @@ class PresetControllerTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void getPresetsReturnsAllPresetsWhenTagFilterIsMissing() throws Exception {
+		Preset firstPreset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		Preset secondPreset = new Preset(
+				78L,
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						"""));
+		ReflectionTestUtils.setField(firstPreset, "id", 15L);
+		ReflectionTestUtils.setField(secondPreset, "id", 16L);
+		ReflectionTestUtils.setField(firstPreset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+		ReflectionTestUtils.setField(secondPreset, "createdAt", Instant.parse("2026-03-26T16:30:00Z"));
+
+		when(this.presetService.getAllPresets()).thenReturn(List.of(firstPreset, secondPreset));
+
+		this.mockMvc.perform(get("/presets"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[1].presetId").value(16L))
+				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
+	}
+
+	@Test
+	void getPresetsReturnsFilteredPresetsWhenTagFilterIsProvided() throws Exception {
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		ReflectionTestUtils.setField(preset, "id", 15L);
+		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of(preset));
+
+		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].name").value("Aurora Drift"));
+	}
+
+	@Test
+	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
+		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of());
+
+		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(content().json("[]"));
 	}
 
 	@Test

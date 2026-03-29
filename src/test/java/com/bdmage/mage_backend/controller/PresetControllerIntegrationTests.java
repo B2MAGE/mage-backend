@@ -340,6 +340,32 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
+	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "empty-filter-presets-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Empty Filter Presets User"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(get("/presets")
+				.header("Authorization", "Bearer " + accessToken)
+				.param("tag", "ambient")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").doesNotExist());
+	}
+
+	@Test
 	void getPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
 		this.mockMvc.perform(get("/presets/99999")
 				.contentType(MediaType.APPLICATION_JSON))

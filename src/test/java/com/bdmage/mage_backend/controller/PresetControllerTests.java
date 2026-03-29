@@ -190,6 +190,16 @@ class PresetControllerTests {
 	}
 
 	@Test
+	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
+		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of());
+
+		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(content().json("[]"));
+	}
+
+	@Test
 	void attachTagToPresetReturnsCreatedAssociationForAuthenticatedUser() throws Exception {
 		PresetTag presetTag = new PresetTag(15L, 7L);
 

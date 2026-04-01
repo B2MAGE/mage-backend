@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.service;
 
+import java.util.List;
 import java.util.Locale;
 
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
@@ -33,6 +34,11 @@ public class TagService {
 		} catch (DataIntegrityViolationException ex) {
 			throw new TagAlreadyExistsException(DUPLICATE_TAG_MESSAGE);
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public List<Tag> getAllTags() {
+		return this.tagRepository.findAll();
 	}
 
 	private static String normalizeName(String name) {

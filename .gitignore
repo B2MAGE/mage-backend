@@ -37,4 +37,3 @@ build/
 .env.*
 !.env.example
 .DS_Store
-uploads/

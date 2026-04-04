@@ -8,9 +8,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.bdmage.mage_backend.dto.ApiErrorResponse;
 
@@ -72,6 +76,54 @@ public class ApiExceptionHandler {
 				HttpStatus.BAD_REQUEST,
 				"MALFORMED_REQUEST",
 				"Request body could not be parsed.",
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(MissingServletRequestPartException.class)
+	ResponseEntity<ApiErrorResponse> handleMissingServletRequestPart(
+			MissingServletRequestPartException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_THUMBNAIL_UPLOAD",
+				"Thumbnail file is required.",
+				Map.of(ex.getRequestPartName(), ex.getRequestPartName() + " is required"),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	ResponseEntity<ApiErrorResponse> handleMissingServletRequestParameter(
+			MissingServletRequestParameterException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"MALFORMED_REQUEST",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	ResponseEntity<ApiErrorResponse> handleMaxUploadSizeExceeded(
+			MaxUploadSizeExceededException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_THUMBNAIL_UPLOAD",
+				"Thumbnail file exceeds the configured size limit.",
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(MultipartException.class)
+	ResponseEntity<ApiErrorResponse> handleMultipartException(
+			MultipartException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_THUMBNAIL_UPLOAD",
+				"Multipart upload could not be processed.",
 				Map.of(),
 				request.getRequestURI());
 	}
@@ -160,6 +212,18 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(PresetAccessDeniedException.class)
+	ResponseEntity<ApiErrorResponse> handlePresetAccessDenied(
+			PresetAccessDeniedException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.FORBIDDEN,
+				"PRESET_FORBIDDEN",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(InvalidAuthenticationTokenException.class)
 	ResponseEntity<ApiErrorResponse> handleInvalidAuthenticationToken(
 			InvalidAuthenticationTokenException ex,
@@ -194,6 +258,42 @@ public class ApiExceptionHandler {
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidThumbnailUploadException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidThumbnailUpload(
+			InvalidThumbnailUploadException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_THUMBNAIL_UPLOAD",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(UnsupportedThumbnailContentTypeException.class)
+	ResponseEntity<ApiErrorResponse> handleUnsupportedThumbnailContentType(
+			UnsupportedThumbnailContentTypeException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+				"UNSUPPORTED_THUMBNAIL_TYPE",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(ThumbnailStorageException.class)
+	ResponseEntity<ApiErrorResponse> handleThumbnailStorageException(
+			ThumbnailStorageException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.INTERNAL_SERVER_ERROR,
+				"THUMBNAIL_STORAGE_ERROR",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
 	}
 
 	@ExceptionHandler(TagNotFoundException.class)

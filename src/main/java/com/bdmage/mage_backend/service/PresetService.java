@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetAccessDeniedException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
@@ -23,11 +24,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class PresetService {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
+	private static final String PRESET_ACCESS_DENIED_MESSAGE = "Only the preset owner can upload or replace this preset thumbnail.";
 	private static final String PRESET_NOT_FOUND_MESSAGE = "Preset not found.";
 	private static final String TAG_NOT_FOUND_MESSAGE = "Tag not found.";
 	private static final String PRESET_TAG_ALREADY_EXISTS_MESSAGE = "This tag is already attached to the preset.";
@@ -37,6 +40,7 @@ public class PresetService {
 	private final TagRepository tagRepository;
 	private final PresetTagRepository presetTagRepository;
 	private final UserRepository userRepository;
+	private final ThumbnailStorageService thumbnailStorageService;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -45,11 +49,13 @@ public class PresetService {
 			PresetRepository presetRepository,
 			TagRepository tagRepository,
 			PresetTagRepository presetTagRepository,
-			UserRepository userRepository) {
+			UserRepository userRepository,
+			ThumbnailStorageService thumbnailStorageService) {
 		this.presetRepository = presetRepository;
 		this.tagRepository = tagRepository;
 		this.presetTagRepository = presetTagRepository;
 		this.userRepository = userRepository;
+		this.thumbnailStorageService = thumbnailStorageService;
 	}
 
 	@Transactional
@@ -70,8 +76,7 @@ public class PresetService {
 
 	@Transactional(readOnly = true)
 	public Preset getPreset(Long presetId) {
-		return this.presetRepository.findById(presetId)
-				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+		return getPresetOrThrow(presetId);
 	}
 
 	@Transactional(readOnly = true)
@@ -109,6 +114,19 @@ public class PresetService {
 		}
 	}
 
+	@Transactional
+	public String uploadThumbnail(Long authenticatedUserId, Long presetId, MultipartFile file) {
+		requireAuthenticatedUser(authenticatedUserId);
+
+		Preset preset = getPresetOrThrow(presetId);
+		requirePresetOwner(authenticatedUserId, preset);
+
+		String thumbnailFilename = this.thumbnailStorageService.storePresetThumbnail(presetId, file);
+		preset.updateThumbnailRef(normalizeThumbnailRef(thumbnailFilename));
+
+		return this.presetRepository.saveAndFlush(preset).getThumbnailRef();
+	}
+
 	public static JsonNode sceneDataJson(Map<String, Object> sceneData) {
 		return JSON_OBJECT_MAPPER.valueToTree(sceneData);
 	}
@@ -122,6 +140,17 @@ public class PresetService {
 	private void requirePresetExists(Long presetId) {
 		if (!this.presetRepository.existsById(presetId)) {
 			throw new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE);
+		}
+	}
+
+	private Preset getPresetOrThrow(Long presetId) {
+		return this.presetRepository.findById(presetId)
+				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+	}
+
+	private static void requirePresetOwner(Long authenticatedUserId, Preset preset) {
+		if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
+			throw new PresetAccessDeniedException(PRESET_ACCESS_DENIED_MESSAGE);
 		}
 	}
 

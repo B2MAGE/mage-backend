@@ -6,9 +6,11 @@ import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetAccessDeniedException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
+import com.bdmage.mage_backend.exception.UnsupportedThumbnailContentTypeException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
@@ -16,15 +18,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.web.multipart.MultipartFile;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -276,6 +287,83 @@ class PresetControllerTests {
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("PRESET_TAG_ALREADY_EXISTS"))
 				.andExpect(jsonPath("$.message").value("This tag is already attached to the preset."));
+	}
+
+	@Test
+	void uploadThumbnailReturnsStoredFilenameForPresetOwner() throws Exception {
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"cover.png",
+				"image/png",
+				"thumbnail-data".getBytes());
+
+		when(this.presetService.uploadThumbnail(eq(77L), eq(15L), any(MultipartFile.class)))
+				.thenReturn("preset_15_abcdef.png");
+
+		this.mockMvc.perform(multipart("/presets/15/thumbnail")
+				.file(file)
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.thumbnailFilename").value("preset_15_abcdef.png"));
+
+		ArgumentCaptor<MultipartFile> multipartFileCaptor = ArgumentCaptor.forClass(MultipartFile.class);
+		verify(this.presetService).uploadThumbnail(eq(77L), eq(15L), multipartFileCaptor.capture());
+		assertThat(multipartFileCaptor.getValue().getOriginalFilename()).isEqualTo("cover.png");
+		assertThat(multipartFileCaptor.getValue().getContentType()).isEqualTo("image/png");
+	}
+
+	@Test
+	void uploadThumbnailRejectsMissingFilePart() throws Exception {
+		this.mockMvc.perform(multipart("/presets/15/thumbnail")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_THUMBNAIL_UPLOAD"))
+				.andExpect(jsonPath("$.message").value("Thumbnail file is required."))
+				.andExpect(jsonPath("$.details.file").value("file is required"));
+
+		verifyNoInteractions(this.presetService);
+	}
+
+	@Test
+	void uploadThumbnailReturnsForbiddenForNonOwner() throws Exception {
+		when(this.presetService.uploadThumbnail(eq(77L), eq(15L), any(MultipartFile.class)))
+				.thenThrow(new PresetAccessDeniedException("Only the preset owner can upload or replace this preset thumbnail."));
+
+		this.mockMvc.perform(multipart("/presets/15/thumbnail")
+				.file(new MockMultipartFile("file", "cover.png", "image/png", "thumbnail-data".getBytes()))
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("Only the preset owner can upload or replace this preset thumbnail."));
+	}
+
+	@Test
+	void uploadThumbnailReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		when(this.presetService.uploadThumbnail(eq(77L), eq(99999L), any(MultipartFile.class)))
+				.thenThrow(new PresetNotFoundException("Preset not found."));
+
+		this.mockMvc.perform(multipart("/presets/99999/thumbnail")
+				.file(new MockMultipartFile("file", "cover.png", "image/png", "thumbnail-data".getBytes()))
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void uploadThumbnailReturnsUnsupportedMediaTypeForRejectedContentType() throws Exception {
+		when(this.presetService.uploadThumbnail(eq(77L), eq(15L), any(MultipartFile.class)))
+				.thenThrow(new UnsupportedThumbnailContentTypeException(
+						"Supported thumbnail types are image/png, image/jpeg, and image/webp."));
+
+		this.mockMvc.perform(multipart("/presets/15/thumbnail")
+				.file(new MockMultipartFile("file", "cover.gif", "image/gif", "gif-data".getBytes()))
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isUnsupportedMediaType())
+				.andExpect(jsonPath("$.code").value("UNSUPPORTED_THUMBNAIL_TYPE"))
+				.andExpect(jsonPath("$.message").value("Supported thumbnail types are image/png, image/jpeg, and image/webp."));
 	}
 
 	@Test

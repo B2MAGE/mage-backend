@@ -71,6 +71,10 @@ public class Preset {
 		return this.thumbnailRef;
 	}
 
+	public void updateThumbnailRef(String thumbnailRef) {
+		this.thumbnailRef = thumbnailRef;
+	}
+
 	public Instant getCreatedAt() {
 		return this.createdAt;
 	}

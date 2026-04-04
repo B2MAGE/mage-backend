@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetAccessDeniedException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
@@ -17,7 +18,9 @@ import com.bdmage.mage_backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -364,12 +367,119 @@ class PresetServiceTests {
 		verify(presetTagRepository, never()).saveAndFlush(any(PresetTag.class));
 	}
 
+	@Test
+	void uploadThumbnailStoresGeneratedFilenameForPresetOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetService(
+				presetRepository,
+				mock(TagRepository.class),
+				mock(PresetTagRepository.class),
+				userRepository,
+				thumbnailStorageService);
+		Preset preset = preset(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+		MockMultipartFile file = new MockMultipartFile(
+				"file",
+				"cover.png",
+				"image/png",
+				"thumbnail-data".getBytes());
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+		when(thumbnailStorageService.storePresetThumbnail(15L, file)).thenReturn("preset_15_abcdef.png");
+		when(presetRepository.saveAndFlush(any(Preset.class))).thenAnswer(invocation -> invocation.getArgument(0, Preset.class));
+
+		String thumbnailFilename = presetService.uploadThumbnail(42L, 15L, file);
+
+		assertThat(thumbnailFilename).isEqualTo("preset_15_abcdef.png");
+		assertThat(preset.getThumbnailRef()).isEqualTo("preset_15_abcdef.png");
+		verify(thumbnailStorageService).storePresetThumbnail(15L, file);
+		verify(presetRepository).saveAndFlush(preset);
+	}
+
+	@Test
+	void uploadThumbnailRejectsUnknownAuthenticatedUserIdentity() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetService(
+				presetRepository,
+				mock(TagRepository.class),
+				mock(PresetTagRepository.class),
+				userRepository,
+				thumbnailStorageService);
+		MultipartFile file = new MockMultipartFile("file", "cover.png", "image/png", "thumbnail-data".getBytes());
+
+		when(userRepository.existsById(99L)).thenReturn(false);
+
+		assertThatThrownBy(() -> presetService.uploadThumbnail(99L, 15L, file))
+				.isInstanceOf(AuthenticationRequiredException.class)
+				.hasMessage("Authentication is required.");
+
+		verify(userRepository).existsById(99L);
+		verifyNoInteractions(thumbnailStorageService);
+		verify(presetRepository, never()).findById(any());
+	}
+
+	@Test
+	void uploadThumbnailRejectsMissingPreset() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetService(
+				presetRepository,
+				mock(TagRepository.class),
+				mock(PresetTagRepository.class),
+				userRepository,
+				thumbnailStorageService);
+		MultipartFile file = new MockMultipartFile("file", "cover.png", "image/png", "thumbnail-data".getBytes());
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> presetService.uploadThumbnail(42L, 15L, file))
+				.isInstanceOf(PresetNotFoundException.class)
+				.hasMessage("Preset not found.");
+
+		verify(presetRepository).findById(15L);
+		verifyNoInteractions(thumbnailStorageService);
+		verify(presetRepository, never()).saveAndFlush(any(Preset.class));
+	}
+
+	@Test
+	void uploadThumbnailRejectsNonOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetService(
+				presetRepository,
+				mock(TagRepository.class),
+				mock(PresetTagRepository.class),
+				userRepository,
+				thumbnailStorageService);
+		Preset preset = preset(15L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+		MultipartFile file = new MockMultipartFile("file", "cover.png", "image/png", "thumbnail-data".getBytes());
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.uploadThumbnail(42L, 15L, file))
+				.isInstanceOf(PresetAccessDeniedException.class)
+				.hasMessage("Only the preset owner can upload or replace this preset thumbnail.");
+
+		verify(presetRepository).findById(15L);
+		verifyNoInteractions(thumbnailStorageService);
+		verify(presetRepository, never()).saveAndFlush(any(Preset.class));
+	}
+
 	private PresetService presetService(PresetRepository presetRepository, UserRepository userRepository) {
 		return presetService(
 				presetRepository,
 				mock(TagRepository.class),
 				mock(PresetTagRepository.class),
-				userRepository);
+				userRepository,
+				mock(ThumbnailStorageService.class));
 	}
 
 	private PresetService presetService(
@@ -377,7 +487,26 @@ class PresetServiceTests {
 			TagRepository tagRepository,
 			PresetTagRepository presetTagRepository,
 			UserRepository userRepository) {
-		return new PresetService(presetRepository, tagRepository, presetTagRepository, userRepository);
+		return presetService(
+				presetRepository,
+				tagRepository,
+				presetTagRepository,
+				userRepository,
+				mock(ThumbnailStorageService.class));
+	}
+
+	private PresetService presetService(
+			PresetRepository presetRepository,
+			TagRepository tagRepository,
+			PresetTagRepository presetTagRepository,
+			UserRepository userRepository,
+			ThumbnailStorageService thumbnailStorageService) {
+		return new PresetService(
+				presetRepository,
+				tagRepository,
+				presetTagRepository,
+				userRepository,
+				thumbnailStorageService);
 	}
 
 	private Preset preset(Long presetId, Long ownerUserId, String name, Instant createdAt) throws Exception {

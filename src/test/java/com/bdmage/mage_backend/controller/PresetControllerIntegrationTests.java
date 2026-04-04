@@ -1,5 +1,8 @@
 package com.bdmage.mage_backend.controller;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,21 +15,28 @@ import com.bdmage.mage_backend.repository.PresetTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.util.FileSystemUtils;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +47,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Testcontainers
 class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
+
+	private static final Path THUMBNAIL_UPLOAD_DIRECTORY = createUploadDirectory();
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -57,6 +69,22 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private PasswordHashingService passwordHashingService;
+
+	@DynamicPropertySource
+	static void registerThumbnailUploadProperties(DynamicPropertyRegistry registry) {
+		registry.add("mage.storage.thumbnail.upload-dir", () -> THUMBNAIL_UPLOAD_DIRECTORY.toString());
+	}
+
+	@BeforeEach
+	void resetThumbnailUploadDirectory() throws IOException {
+		FileSystemUtils.deleteRecursively(THUMBNAIL_UPLOAD_DIRECTORY);
+		Files.createDirectories(THUMBNAIL_UPLOAD_DIRECTORY);
+	}
+
+	@AfterAll
+	static void cleanUpThumbnailUploadDirectory() throws IOException {
+		FileSystemUtils.deleteRecursively(THUMBNAIL_UPLOAD_DIRECTORY);
+	}
 
 	@Test
 	void createPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
@@ -285,6 +313,156 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
+	void uploadThumbnailWritesFileToDiskAndPersistsFilenameForPresetOwner() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "upload-thumbnail-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+		byte[] thumbnailBytes = "thumbnail-data".getBytes();
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Upload Thumbnail User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		MvcResult uploadResult = this.mockMvc.perform(multipart("/presets/" + savedPreset.getId() + "/thumbnail")
+				.file(new MockMultipartFile("file", "aurora.png", "image/png", thumbnailBytes))
+				.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.thumbnailFilename").isNotEmpty())
+				.andReturn();
+
+		String thumbnailFilename = this.objectMapper.readTree(uploadResult.getResponse().getContentAsString())
+				.path("thumbnailFilename")
+				.asText();
+		Path uploadedThumbnail = THUMBNAIL_UPLOAD_DIRECTORY.resolve(thumbnailFilename);
+
+		assertThat(thumbnailFilename).startsWith("preset_" + savedPreset.getId() + "_").endsWith(".png");
+		assertThat(thumbnailFilename).isNotEqualTo("aurora.png");
+		assertThat(Files.exists(uploadedThumbnail)).isTrue();
+		assertThat(Files.readAllBytes(uploadedThumbnail)).isEqualTo(thumbnailBytes);
+		assertThat(this.presetRepository.findById(savedPreset.getId()).orElseThrow().getThumbnailRef())
+				.isEqualTo(thumbnailFilename);
+	}
+
+	@Test
+	void uploadThumbnailRejectsUnsupportedFileTypes() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "invalid-thumbnail-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Invalid Thumbnail User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(multipart("/presets/" + savedPreset.getId() + "/thumbnail")
+				.file(new MockMultipartFile("file", "aurora.gif", "image/gif", "gif-data".getBytes()))
+				.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isUnsupportedMediaType())
+				.andExpect(jsonPath("$.code").value("UNSUPPORTED_THUMBNAIL_TYPE"))
+				.andExpect(jsonPath("$.message").value("Supported thumbnail types are image/png, image/jpeg, and image/webp."));
+
+		assertThat(this.presetRepository.findById(savedPreset.getId()).orElseThrow().getThumbnailRef()).isNull();
+		assertUploadDirectoryEmpty();
+	}
+
+	@Test
+	void uploadThumbnailReturnsNotFoundForNonexistentPreset() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "missing-thumbnail-preset-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Missing Thumbnail Preset User"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(multipart("/presets/99999/thumbnail")
+				.file(new MockMultipartFile("file", "aurora.png", "image/png", "thumbnail-data".getBytes()))
+				.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+
+		assertUploadDirectoryEmpty();
+	}
+
+	@Test
+	void uploadThumbnailReturnsForbiddenForNonOwner() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String ownerEmail = "thumbnail-owner-" + uniqueSuffix + "@example.com";
+		String ownerPassword = "owner-password-" + uniqueSuffix;
+		String otherEmail = "thumbnail-other-" + uniqueSuffix + "@example.com";
+		String otherPassword = "other-password-" + uniqueSuffix;
+
+		User ownerUser = this.userRepository.saveAndFlush(new User(
+				ownerEmail,
+				this.passwordHashingService.hash(ownerPassword),
+				"Thumbnail Owner"));
+		this.userRepository.saveAndFlush(new User(
+				otherEmail,
+				this.passwordHashingService.hash(otherPassword),
+				"Thumbnail Other User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				ownerUser.getId(),
+				"Polar Echo",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"glacier"}}
+						""")));
+
+		String otherUserAccessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(otherEmail, otherPassword)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(multipart("/presets/" + savedPreset.getId() + "/thumbnail")
+				.file(new MockMultipartFile("file", "aurora.png", "image/png", "thumbnail-data".getBytes()))
+				.header("Authorization", "Bearer " + otherUserAccessToken))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("Only the preset owner can upload or replace this preset thumbnail."));
+
+		assertThat(this.presetRepository.findById(savedPreset.getId()).orElseThrow().getThumbnailRef()).isNull();
+		assertUploadDirectoryEmpty();
+	}
+
+	@Test
 	void getPresetsReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
 		this.mockMvc.perform(get("/presets")
 				.contentType(MediaType.APPLICATION_JSON))
@@ -455,5 +633,19 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.matcher(result.getResponse().getContentAsString());
 		assertThat(matcher.find()).isTrue();
 		return Long.valueOf(matcher.group(1));
+	}
+
+	private static Path createUploadDirectory() {
+		try {
+			return Files.createTempDirectory("mage-thumbnail-upload-tests");
+		} catch (IOException ex) {
+			throw new IllegalStateException("Failed to create a temporary upload directory for thumbnail integration tests.", ex);
+		}
+	}
+
+	private static void assertUploadDirectoryEmpty() throws IOException {
+		try (var uploadedFiles = Files.list(THUMBNAIL_UPLOAD_DIRECTORY)) {
+			assertThat(uploadedFiles.toList()).isEmpty();
+		}
 	}
 }

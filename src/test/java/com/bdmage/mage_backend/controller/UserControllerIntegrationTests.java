@@ -168,13 +168,15 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
-				.andExpect(jsonPath("$[0].ownerUserId").value(ownerUser.getId()))
+				.andExpect(jsonPath("$[0].id").isNumber())
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
-				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$[0].createdAt").isNotEmpty())
-				.andExpect(jsonPath("$[1].ownerUserId").value(ownerUser.getId()))
+				.andExpect(jsonPath("$[0].presetId").doesNotExist())
+				.andExpect(jsonPath("$[0].ownerUserId").doesNotExist())
+				.andExpect(jsonPath("$[0].sceneData").doesNotExist())
+				.andExpect(jsonPath("$[0].createdAt").doesNotExist())
+				.andExpect(jsonPath("$[1].id").isNumber())
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"))
-				.andExpect(jsonPath("$[1].createdAt").isNotEmpty());
+				.andExpect(jsonPath("$[1].createdAt").doesNotExist());
 	}
 
 	@Test

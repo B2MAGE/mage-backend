@@ -84,12 +84,13 @@ class UserControllerTests {
 		this.mockMvc.perform(get("/users/77/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].presetId").value(15L))
-				.andExpect(jsonPath("$[0].ownerUserId").value(77L))
+				.andExpect(jsonPath("$[0].id").value(15L))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
-				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$[0].createdAt").value("2026-03-26T15:30:00Z"))
-				.andExpect(jsonPath("$[1].presetId").value(16L))
+				.andExpect(jsonPath("$[0].presetId").doesNotExist())
+				.andExpect(jsonPath("$[0].ownerUserId").doesNotExist())
+				.andExpect(jsonPath("$[0].sceneData").doesNotExist())
+				.andExpect(jsonPath("$[0].createdAt").doesNotExist())
+				.andExpect(jsonPath("$[1].id").value(16L))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
 	}
 

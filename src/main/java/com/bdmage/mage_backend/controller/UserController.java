@@ -3,7 +3,7 @@ package com.bdmage.mage_backend.controller;
 import java.util.List;
 
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
-import com.bdmage.mage_backend.dto.PresetResponse;
+import com.bdmage.mage_backend.dto.UserPresetResponse;
 import com.bdmage.mage_backend.dto.UserProfileResponse;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.User;
@@ -44,13 +44,13 @@ public class UserController {
 	}
 
 	@GetMapping("/{userId}/presets")
-	ResponseEntity<List<PresetResponse>> presets(
+	ResponseEntity<List<UserPresetResponse>> presets(
 			@PathVariable Long userId,
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId) {
 		List<Preset> presets = this.presetService.getPresetsForUser(authenticatedUserId, userId);
 
 		return ResponseEntity.ok(presets.stream()
-				.map(PresetResponse::from)
+				.map(UserPresetResponse::from)
 				.toList());
 	}
 }

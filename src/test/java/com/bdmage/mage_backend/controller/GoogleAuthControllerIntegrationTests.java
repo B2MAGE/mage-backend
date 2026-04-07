@@ -79,9 +79,9 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(verifiedToken(subject, email, "Google User"))))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("ACCOUNT_CONFLICT"))
+				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"))
 				.andExpect(jsonPath("$.message").value(
-						"A local account already exists for this email. Account linking is not available yet."));
+						"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account."));
 
 		assertThat(this.userRepository.findByGoogleSubject(subject)).isEmpty();
 	}

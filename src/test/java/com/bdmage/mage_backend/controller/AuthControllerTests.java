@@ -1,10 +1,13 @@
 package com.bdmage.mage_backend.controller;
 
+import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.EmailAlreadyRegisteredException;
-import com.bdmage.mage_backend.exception.GoogleAccountConflictException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
+import com.bdmage.mage_backend.exception.InvalidLocalCredentialsException;
 import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.service.AccountLinkingService;
+import com.bdmage.mage_backend.service.AccountLinkingService.AccountLinkingResult;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
 import com.bdmage.mage_backend.service.RegistrationService;
@@ -26,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AuthControllerTests {
 
+	private AccountLinkingService accountLinkingService;
 	private GoogleAuthenticationService googleAuthenticationService;
 	private RegistrationService registrationService;
 	private MockMvc mockMvc;
@@ -33,12 +37,16 @@ class AuthControllerTests {
 
 	@BeforeEach
 	void setUp() {
+		this.accountLinkingService = mock(AccountLinkingService.class);
 		this.googleAuthenticationService = mock(GoogleAuthenticationService.class);
 		this.registrationService = mock(RegistrationService.class);
 		this.validator = new LocalValidatorFactoryBean();
 		this.validator.afterPropertiesSet();
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(new AuthController(this.googleAuthenticationService, this.registrationService))
+				.standaloneSetup(new AuthController(
+						this.accountLinkingService,
+						this.googleAuthenticationService,
+						this.registrationService))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.setValidator(this.validator)
 				.build();
@@ -119,8 +127,8 @@ class AuthControllerTests {
 	@Test
 	void googleAuthenticationReturnsConflictWhenAccountRulesConflict() throws Exception {
 		when(this.googleAuthenticationService.authenticate("conflict-token"))
-				.thenThrow(new GoogleAccountConflictException(
-						"A local account already exists for this email. Account linking is not available yet."));
+				.thenThrow(new AccountLinkRequiredException(
+						"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account."));
 
 		this.mockMvc.perform(post("/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -128,7 +136,7 @@ class AuthControllerTests {
 						{"idToken":"conflict-token"}
 						"""))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("ACCOUNT_CONFLICT"));
+				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"));
 	}
 
 	@Test
@@ -172,7 +180,7 @@ class AuthControllerTests {
 	void registrationReturnsConflictWhenEmailAlreadyExists() throws Exception {
 		when(this.registrationService.register("existing@example.com", "secret-value", "Existing User"))
 				.thenThrow(new EmailAlreadyRegisteredException(
-						"An account with this email address is already registered."));
+						"Local authentication is already configured for this email."));
 
 		this.mockMvc.perform(post("/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -181,6 +189,82 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
-				.andExpect(jsonPath("$.message").value("An account with this email address is already registered."));
+				.andExpect(jsonPath("$.message").value("Local authentication is already configured for this email."));
+	}
+
+	@Test
+	void registrationReturnsConflictWhenExplicitLinkIsRequired() throws Exception {
+		when(this.registrationService.register("existing@example.com", "secret-value", "Existing User"))
+				.thenThrow(new AccountLinkRequiredException(
+						"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google."));
+
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"existing@example.com","password":"secret-value","displayName":"Existing User"}
+						"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"));
+	}
+
+	@Test
+	void linkGoogleReturnsLinkedUserWhenServiceLinksAccount() throws Exception {
+		User linkedUser = User.localAndGoogle(
+				"user@example.com",
+				"hashed-password",
+				"google-subject-1",
+				"Linked User");
+		ReflectionTestUtils.setField(linkedUser, "id", 41L);
+
+		when(this.accountLinkingService.linkGoogle("user@example.com", "secret-value", "valid-token"))
+				.thenReturn(new AccountLinkingResult(linkedUser, true));
+
+		this.mockMvc.perform(post("/auth/link/google")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"user@example.com","password":"secret-value","idToken":"valid-token"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.userId").value(41L))
+				.andExpect(jsonPath("$.authProvider").value("LOCAL_GOOGLE"))
+				.andExpect(jsonPath("$.linked").value(true));
+	}
+
+	@Test
+	void linkGoogleReturnsUnauthorizedWhenLocalCredentialsAreInvalid() throws Exception {
+		when(this.accountLinkingService.linkGoogle("user@example.com", "secret-value", "valid-token"))
+				.thenThrow(new InvalidLocalCredentialsException("Email or password is incorrect."));
+
+		this.mockMvc.perform(post("/auth/link/google")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"user@example.com","password":"secret-value","idToken":"valid-token"}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("INVALID_LOCAL_CREDENTIALS"))
+				.andExpect(jsonPath("$.message").value("Email or password is incorrect."));
+	}
+
+	@Test
+	void linkLocalReturnsExistingLinkedUserWhenProviderIsAlreadyLinked() throws Exception {
+		User linkedUser = User.localAndGoogle(
+				"user@example.com",
+				"hashed-password",
+				"google-subject-2",
+				"Linked User");
+		ReflectionTestUtils.setField(linkedUser, "id", 42L);
+
+		when(this.accountLinkingService.linkLocal("valid-token", "secret-value"))
+				.thenReturn(new AccountLinkingResult(linkedUser, false));
+
+		this.mockMvc.perform(post("/auth/link/local")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"idToken":"valid-token","password":"secret-value"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.userId").value(42L))
+				.andExpect(jsonPath("$.authProvider").value("LOCAL_GOOGLE"))
+				.andExpect(jsonPath("$.linked").value(false));
 	}
 }

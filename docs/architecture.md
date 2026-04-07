@@ -5,10 +5,11 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, and `POST /auth/google`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/google`, `POST /auth/link/google`, and `POST /auth/link/local`
 - registering local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
+- explicitly linking local and Google auth providers after ownership checks
 - hashing local-account passwords through a shared password hashing service
 - exposing shared tag persistence through the `tags` table
 - proving the runtime wiring with unit and integration tests
@@ -52,6 +53,8 @@ Endpoints:
 - `GET /ready`
 - `POST /auth/register`
 - `POST /auth/google`
+- `POST /auth/link/google`
+- `POST /auth/link/local`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
@@ -61,6 +64,10 @@ Endpoints:
 
 `POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
 
+`POST /auth/link/google` accepts a local email/password pair plus a Google ID token and only links the provider after both ownership checks succeed.
+
+`POST /auth/link/local` accepts a Google ID token plus a new password and only links local auth after the Google-backed account context is verified.
+
 ### Service Layer
 
 The service layer currently consists of:
@@ -69,21 +76,25 @@ The service layer currently consists of:
 - `PasswordHashingService`
 - `RegistrationService`
 - `GoogleAuthenticationService`
+- `AccountLinkingService`
 
 These services combine:
 
 - Spring's `ApplicationAvailability`
 - a live database connection check through the configured `DataSource`
 - BCrypt-backed password hashing for local accounts
-- provider-aware user lookups plus local-account creation rules
+- shared email and Google-subject lookups plus local-account creation rules
 - a Google token verifier client
-- provider-aware user lookups plus first-login account creation rules
+- shared email and Google-subject lookups plus first-login account creation rules
+- explicit provider-linking rules that require either local credentials or Google ownership before the second provider is attached
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
 The registration service owns local-account creation rules, including duplicate-account checks and password hashing before persistence.
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
+
+The account linking service owns the explicit linking rules for local-to-Google and Google-to-local flows. It prevents auto-linking based only on matching email addresses and requires an ownership proof for every supported link path.
 
 ### DTO Layer
 
@@ -95,23 +106,27 @@ The DTO package currently contains:
 - `RegistrationResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
+- `GoogleAccountLinkRequest`
+- `LocalAccountLinkRequest`
+- `AccountLinkResponse`
 - `ApiErrorResponse`
 
 These are explicit API contracts. Even for small endpoints, the repository prefers returning named response types rather than anonymous maps or loosely shaped JSON.
 
 ### Client and Exception Layers
 
-- `GoogleTokenVerifier` is the external-integration boundary used by the auth service
+- `GoogleTokenVerifier` is the external-integration boundary used by the auth services
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid Google tokens, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid Google tokens, invalid local credentials, link-required collisions, and account conflicts
 
 ### Persistence and Database Layer
 
 - PostgreSQL is the only database
 - Flyway owns schema migration
 - Spring Data JPA is available on the classpath
-- `User` maps shared local and Google-backed account data to the `users` table
-- `UserRepository` supports provider-aware account lookups plus Google subject lookups
+- `User` maps shared local, Google-backed, and linked multi-provider account data to the `users` table
+- one `users` row may hold a local password hash, a Google subject, or both
+- `UserRepository` supports shared email lookups plus Google subject lookups
 - `Tag` maps normalized tag names to the `tags` table
 - `TagRepository` provides shared access to persisted tags used by tagging and discovery features
 

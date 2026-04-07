@@ -70,12 +70,15 @@ Once the backend is running, open the following endpoints:
 - http://localhost:8080/ready
 - POST http://localhost:8080/auth/register
 - POST http://localhost:8080/auth/google
+- POST http://localhost:8080/auth/link/google
+- POST http://localhost:8080/auth/link/local
 
 Expected responses:
 
 - `/health` returns `200 OK` with `{"status":"UP"}`
 - `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
 - `POST /auth/register` returns `201 Created` for a new local account and never returns the raw password or stored password hash
+- `POST /auth/link/google` and `POST /auth/link/local` return `200 OK` when a second auth provider is linked to an existing account
 
 If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
 
@@ -90,6 +93,18 @@ To exercise the Google auth endpoint, send a Google ID token issued for one of t
     curl -X POST http://localhost:8080/auth/google \
       -H "Content-Type: application/json" \
       -d '{"idToken":"<google-id-token>"}'
+
+To explicitly link Google to an existing local account, provide local credentials plus a valid Google ID token for the same email address:
+
+    curl -X POST http://localhost:8080/auth/link/google \
+      -H "Content-Type: application/json" \
+      -d '{"email":"user@example.com","password":"example-password","idToken":"<google-id-token>"}'
+
+To add local email-and-password authentication to an existing Google-backed account, provide the Google ID token plus the new local password:
+
+    curl -X POST http://localhost:8080/auth/link/local \
+      -H "Content-Type: application/json" \
+      -d '{"idToken":"<google-id-token>","password":"example-password"}'
 
 ## Running Tests
 
@@ -176,6 +191,7 @@ If you are new to the repository, this sequence builds the fastest mental model 
 7. trace the `/ready` endpoint from controller to service to datasource
 8. trace `POST /auth/register` from controller to service to repository and password hashing
 9. trace `POST /auth/google` from controller to service to verifier to repository
+10. trace `POST /auth/link/google` and `POST /auth/link/local` through the explicit ownership checks and linked-account persistence path
 
 ## Expected Change Workflow
 

@@ -19,6 +19,7 @@ Operationally important behavior:
 - the backend opens a real database connection during startup and fails if the connection cannot be made
 - Flyway applies migrations automatically on startup
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
+- local and Google auth providers can be linked explicitly, but never auto-linked only because emails match
 
 ## Local Startup Runbook
 
@@ -31,16 +32,18 @@ Use this when:
 - validating Docker-based local behavior
 - testing migration behavior against a clean containerized stack
 
-Before using `POST /auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
+Before using the Google auth endpoints, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes four relevant HTTP endpoints:
+The backend currently exposes six relevant HTTP endpoints:
 
 - `GET /health`
 - `GET /ready`
 - `POST /auth/register`
 - `POST /auth/google`
+- `POST /auth/link/google`
+- `POST /auth/link/local`
 
 ### `/health`
 
@@ -105,7 +108,8 @@ Success behavior:
 Failure behavior:
 
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `409 Conflict` when the email is already registered for an existing account
+- HTTP `409 Conflict` with `EMAIL_ALREADY_REGISTERED` when local authentication is already configured for that email
+- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when the email belongs to a Google-backed account and explicit linking is required
 
 ### `POST /auth/google`
 
@@ -130,7 +134,64 @@ Failure behavior:
 
 - HTTP `400 Bad Request` for malformed JSON or blank `idToken`
 - HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
-- HTTP `409 Conflict` when the Google-authenticated email conflicts with existing account rules
+- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when a local-only account already exists for the verified email
+- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when a different Google identity already owns that email in the backend
+
+### `POST /auth/link/google`
+
+Purpose:
+
+- explicitly link Google authentication to an existing local account
+- require both local-credential ownership and Google-token ownership before the link is persisted
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "example-password",
+  "idToken": "<google-id-token>"
+}
+```
+
+Success behavior:
+
+- HTTP `200 OK` when the Google provider is linked to the existing account
+- response includes the user identity fields, `LOCAL_GOOGLE` auth provider state, and a `linked` flag
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` with `INVALID_LOCAL_CREDENTIALS` when the supplied local email/password pair is invalid
+- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the Google token email does not match the local email or the Google identity already belongs to another account
+
+### `POST /auth/link/local`
+
+Purpose:
+
+- explicitly add local email-and-password authentication to an existing Google-backed account
+- require Google-token ownership before a password hash is attached to the user record
+
+Request:
+
+```json
+{
+  "idToken": "<google-id-token>",
+  "password": "example-password"
+}
+```
+
+Success behavior:
+
+- HTTP `200 OK` when local authentication is linked to the Google-backed account
+- response includes the user identity fields, `LOCAL_GOOGLE` auth provider state, and a `linked` flag
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
+- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when no Google-backed account exists yet for that Google identity
+- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the link request collides with an incompatible existing account state
 
 ## Operational Verification Checklist
 
@@ -143,6 +204,8 @@ After startup, verify these items in order:
 5. `curl http://localhost:8080/ready` returns `200`
 6. `POST /auth/register` succeeds for a new local email address
 7. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID
+8. `POST /auth/link/google` succeeds when both the local credentials and Google token prove ownership of the same email
+9. `POST /auth/link/local` succeeds for an existing Google-backed account with a valid Google ID token
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -258,13 +321,35 @@ Check:
 
 Interpretation:
 
-- the verified Google email conflicts with an existing account and account linking is not implemented yet
+- either a local-only account already owns that email and `/auth/link/google` must be used
+- or a different Google identity already owns that email in the backend
 
 ### `POST /auth/register` returns `409`
 
 Interpretation:
 
-- the supplied email already belongs to an existing local or Google-backed account
+- either local authentication is already configured for that email
+- or the email belongs to a Google-backed account and `/auth/link/local` must be used instead
+
+### `POST /auth/link/google` returns `401`
+
+Interpretation:
+
+- the supplied local email/password pair did not pass the ownership check
+
+### `POST /auth/link/google` returns `409`
+
+Interpretation:
+
+- the Google token email does not match the local account email
+- or the Google identity is already linked to a different account
+
+### `POST /auth/link/local` returns `409`
+
+Interpretation:
+
+- the Google-backed account has not been provisioned yet through `POST /auth/google`
+- or the request conflicts with an incompatible existing account state
 
 ### Tests fail before running assertions
 
@@ -289,11 +374,11 @@ Run the full backend suite with:
 Windows PowerShell:
 
 ```powershell
-.\mvnw.cmd test
+.\mvnw.cmd clean test
 ```
 
 macOS/Linux:
 
 ```bash
-./mvnw test
+./mvnw clean test
 ```

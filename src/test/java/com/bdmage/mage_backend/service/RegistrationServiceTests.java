@@ -2,6 +2,7 @@ package com.bdmage.mage_backend.service;
 
 import java.util.Optional;
 
+import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.EmailAlreadyRegisteredException;
 import com.bdmage.mage_backend.model.AuthProvider;
 import com.bdmage.mage_backend.model.User;
@@ -25,9 +26,7 @@ class RegistrationServiceTests {
 		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
 		RegistrationService registrationService = new RegistrationService(userRepository, passwordHashingService);
 
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.LOCAL)).thenReturn(Optional.empty());
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.GOOGLE))
-				.thenReturn(Optional.empty());
+		when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
 		when(passwordHashingService.hash("plain-password")).thenReturn("hashed-password");
 		when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0, User.class));
 
@@ -53,30 +52,30 @@ class RegistrationServiceTests {
 		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
 		RegistrationService registrationService = new RegistrationService(userRepository, passwordHashingService);
 
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.LOCAL))
+		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(new User("user@example.com", "existing-hash", "Existing User")));
 
 		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New User"))
 				.isInstanceOf(EmailAlreadyRegisteredException.class)
-				.hasMessage("An account with this email address is already registered.");
+				.hasMessage("Local authentication is already configured for this email.");
 
 		verify(passwordHashingService, never()).hash(any());
 		verify(userRepository, never()).saveAndFlush(any(User.class));
 	}
 
 	@Test
-	void registerRejectsEmailUsedByGoogleAccount() {
+	void registerRequiresExplicitLinkWhenEmailBelongsToGoogleAccount() {
 		UserRepository userRepository = mock(UserRepository.class);
 		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
 		RegistrationService registrationService = new RegistrationService(userRepository, passwordHashingService);
 
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.LOCAL)).thenReturn(Optional.empty());
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.GOOGLE))
+		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(User.google("user@example.com", "google-subject-1", "Google User")));
 
 		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New User"))
-				.isInstanceOf(EmailAlreadyRegisteredException.class)
-				.hasMessage("An account with this email address is already registered.");
+				.isInstanceOf(AccountLinkRequiredException.class)
+				.hasMessage(
+						"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google.");
 
 		verify(passwordHashingService, never()).hash(any());
 		verify(userRepository, never()).saveAndFlush(any(User.class));

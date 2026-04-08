@@ -21,6 +21,7 @@ Operationally important behavior:
 - local passwords are hashed and verified with BCrypt through the shared password hashing service
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
 - successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens
+- local and Google auth providers can be linked explicitly, but never auto-linked only because emails match
 - authentication middleware validates bearer tokens for protected `/users/**` and `/presets/**` endpoints and stores the authenticated user in request context
 
 ## Local Startup Runbook
@@ -38,13 +39,15 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes twelve operational endpoints:
+The backend currently exposes fourteen operational endpoints:
 
 - `GET /health`
 - `GET /ready`
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/google`
+- `POST /auth/link/google`
+- `POST /auth/link/local`
 - `GET /users/me`
 - `POST /tags`
 - `POST /presets`
@@ -116,7 +119,8 @@ Success behavior:
 Failure behavior:
 
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `409 Conflict` when the email is already registered for an existing account
+- HTTP `409 Conflict` with `EMAIL_ALREADY_REGISTERED` when local authentication is already configured for that email
+- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when the email belongs to a Google-backed account and explicit linking is required
 
 ### `POST /auth/login`
 
@@ -168,7 +172,64 @@ Failure behavior:
 
 - HTTP `400 Bad Request` for malformed JSON or blank `idToken`
 - HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
-- HTTP `409 Conflict` when the Google-authenticated email conflicts with existing account rules
+- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when a local-only account already exists for the verified email
+- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when a different Google identity already owns that email in the backend
+
+### `POST /auth/link/google`
+
+Purpose:
+
+- explicitly link Google authentication to an existing local account
+- require both local-credential ownership and Google-token ownership before the link is persisted
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "example-password",
+  "idToken": "<google-id-token>"
+}
+```
+
+Success behavior:
+
+- HTTP `200 OK` when the Google provider is linked to the existing account
+- response includes the user identity fields, `LOCAL_GOOGLE` auth provider state, and a `linked` flag
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` with `INVALID_LOCAL_CREDENTIALS` when the supplied local email/password pair is invalid
+- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the Google token email does not match the local email or the Google identity already belongs to another account
+
+### `POST /auth/link/local`
+
+Purpose:
+
+- explicitly add local email-and-password authentication to an existing Google-backed account
+- require Google-token ownership before a password hash is attached to the user record
+
+Request:
+
+```json
+{
+  "idToken": "<google-id-token>",
+  "password": "example-password"
+}
+```
+
+Success behavior:
+
+- HTTP `200 OK` when local authentication is linked to the Google-backed account
+- response includes the user identity fields, `LOCAL_GOOGLE` auth provider state, and a `linked` flag
+
+Failure behavior:
+
+- HTTP `400 Bad Request` for malformed JSON or request validation failures
+- HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
+- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when no Google-backed account exists yet for that Google identity
+- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the link request collides with an incompatible existing account state
 
 ### `GET /users/me`
 
@@ -355,12 +416,14 @@ After startup, verify these items in order:
 7. `POST /auth/login` succeeds for that local account and returns an `accessToken`
 8. `GET /users/me` succeeds when called with `Authorization: Bearer <accessToken>`
 9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
-10. `POST /tags` succeeds with a valid tag payload and returns the normalized tag record
-11. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
-12. `GET /presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
-13. `POST /presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
-14. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
-15. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
+10. `POST /auth/link/google` succeeds when both the local credentials and Google token prove ownership of the same email
+11. `POST /auth/link/local` succeeds for an existing Google-backed account with a valid Google ID token
+12. `POST /tags` succeeds with a valid tag payload and returns the normalized tag record
+13. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
+14. `GET /presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
+15. `POST /presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
+16. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
+17. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -476,19 +539,41 @@ Check:
 
 Interpretation:
 
-- the verified Google email conflicts with an existing account and account linking is not implemented yet
+- either a local-only account already owns that email and `/auth/link/google` must be used
+- or a different Google identity already owns that email in the backend
 
 ### `POST /auth/register` returns `409`
 
 Interpretation:
 
-- the supplied email already belongs to an existing local or Google-backed account
+- either local authentication is already configured for that email
+- or the email belongs to a Google-backed account and `/auth/link/local` must be used instead
 
 ### `POST /auth/login` returns `401`
 
 Interpretation:
 
-- the supplied credentials did not match a local account
+- the supplied credentials did not match an account with local authentication
+
+### `POST /auth/link/google` returns `401`
+
+Interpretation:
+
+- the supplied local email/password pair did not pass the ownership check
+
+### `POST /auth/link/google` returns `409`
+
+Interpretation:
+
+- the Google token email does not match the local account email
+- or the Google identity is already linked to a different account
+
+### `POST /auth/link/local` returns `409`
+
+Interpretation:
+
+- the Google-backed account has not been provisioned yet through `POST /auth/google`
+- or the request conflicts with an incompatible existing account state
 
 ### `GET /users/me` returns `401`
 

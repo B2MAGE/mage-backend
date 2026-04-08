@@ -1,9 +1,10 @@
 package com.bdmage.mage_backend.service;
 
 import java.util.Locale;
+import java.util.Optional;
 
+import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.EmailAlreadyRegisteredException;
-import com.bdmage.mage_backend.model.AuthProvider;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -27,18 +28,18 @@ public class RegistrationService {
 		String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
 		String trimmedDisplayName = displayName.trim();
 
-		if (isEmailAlreadyRegistered(normalisedEmail)) {
-			throw new EmailAlreadyRegisteredException(
-					"An account with this email address is already registered.");
+		Optional<User> existingUser = this.userRepository.findByEmail(normalisedEmail);
+		if (existingUser.isPresent()) {
+			if (existingUser.get().supportsLocalAuthentication()) {
+				throw new EmailAlreadyRegisteredException("Local authentication is already configured for this email.");
+			}
+
+			throw new AccountLinkRequiredException(
+					"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google.");
 		}
 
 		String passwordHash = this.passwordHashingService.hash(plainPassword);
 		User newUser = new User(normalisedEmail, passwordHash, trimmedDisplayName);
 		return this.userRepository.saveAndFlush(newUser);
-	}
-
-	private boolean isEmailAlreadyRegistered(String normalisedEmail) {
-		return this.userRepository.findByEmailAndAuthProvider(normalisedEmail, AuthProvider.LOCAL).isPresent()
-				|| this.userRepository.findByEmailAndAuthProvider(normalisedEmail, AuthProvider.GOOGLE).isPresent();
 	}
 }

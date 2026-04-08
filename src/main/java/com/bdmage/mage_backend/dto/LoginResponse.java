@@ -1,10 +1,9 @@
 package com.bdmage.mage_backend.dto;
 
-public record GoogleAuthenticationResponse(
+public record LoginResponse(
 		Long userId,
 		String email,
 		String displayName,
 		String authProvider,
-		boolean created,
 		String accessToken) {
 }

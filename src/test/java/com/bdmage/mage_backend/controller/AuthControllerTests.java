@@ -3,13 +3,16 @@ package com.bdmage.mage_backend.controller;
 import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.EmailAlreadyRegisteredException;
+import com.bdmage.mage_backend.exception.InvalidCredentialsException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
 import com.bdmage.mage_backend.exception.InvalidLocalCredentialsException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.AccountLinkingService;
 import com.bdmage.mage_backend.service.AccountLinkingService.AccountLinkingResult;
+import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
+import com.bdmage.mage_backend.service.LoginService;
 import com.bdmage.mage_backend.service.RegistrationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerTests {
 
 	private AccountLinkingService accountLinkingService;
+	private AuthenticationTokenService authenticationTokenService;
 	private GoogleAuthenticationService googleAuthenticationService;
+	private LoginService loginService;
 	private RegistrationService registrationService;
 	private MockMvc mockMvc;
 	private LocalValidatorFactoryBean validator;
@@ -38,14 +43,18 @@ class AuthControllerTests {
 	@BeforeEach
 	void setUp() {
 		this.accountLinkingService = mock(AccountLinkingService.class);
+		this.authenticationTokenService = mock(AuthenticationTokenService.class);
 		this.googleAuthenticationService = mock(GoogleAuthenticationService.class);
+		this.loginService = mock(LoginService.class);
 		this.registrationService = mock(RegistrationService.class);
 		this.validator = new LocalValidatorFactoryBean();
 		this.validator.afterPropertiesSet();
 		this.mockMvc = MockMvcBuilders
 				.standaloneSetup(new AuthController(
 						this.accountLinkingService,
+						this.authenticationTokenService,
 						this.googleAuthenticationService,
+						this.loginService,
 						this.registrationService))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.setValidator(this.validator)
@@ -64,6 +73,7 @@ class AuthControllerTests {
 
 		when(this.googleAuthenticationService.authenticate("valid-token"))
 				.thenReturn(new GoogleAuthenticationResult(googleUser, true));
+		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("issued-google-token");
 
 		this.mockMvc.perform(post("/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -76,7 +86,8 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.email").value("user@example.com"))
 				.andExpect(jsonPath("$.displayName").value("Google User"))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
-				.andExpect(jsonPath("$.created").value(true));
+				.andExpect(jsonPath("$.created").value(true))
+				.andExpect(jsonPath("$.accessToken").value("issued-google-token"));
 	}
 
 	@Test
@@ -86,6 +97,7 @@ class AuthControllerTests {
 
 		when(this.googleAuthenticationService.authenticate("repeat-token"))
 				.thenReturn(new GoogleAuthenticationResult(googleUser, false));
+		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("reissued-google-token");
 
 		this.mockMvc.perform(post("/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -94,7 +106,8 @@ class AuthControllerTests {
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.created").value(false))
-				.andExpect(jsonPath("$.userId").value(22L));
+				.andExpect(jsonPath("$.userId").value(22L))
+				.andExpect(jsonPath("$.accessToken").value("reissued-google-token"));
 	}
 
 	@Test
@@ -208,13 +221,66 @@ class AuthControllerTests {
 	}
 
 	@Test
+	void loginReturnsLocalUserWhenCredentialsAreValid() throws Exception {
+		User localUser = new User("local-user@example.com", "hashed-password", "Local User");
+		ReflectionTestUtils.setField(localUser, "id", 41L);
+
+		when(this.loginService.login("local-user@example.com", "secret-value"))
+				.thenReturn(localUser);
+		when(this.authenticationTokenService.issueToken(localUser)).thenReturn("issued-login-token");
+
+		this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"local-user@example.com","password":"secret-value"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.userId").value(41L))
+				.andExpect(jsonPath("$.email").value("local-user@example.com"))
+				.andExpect(jsonPath("$.displayName").value("Local User"))
+				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
+				.andExpect(jsonPath("$.accessToken").value("issued-login-token"))
+				.andExpect(jsonPath("$.password").doesNotExist())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+	}
+
+	@Test
+	void loginRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":" ","password":" "}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.email").value("email must not be blank"))
+				.andExpect(jsonPath("$.details.password").value("password must not be blank"));
+	}
+
+	@Test
+	void loginReturnsUnauthorizedWhenCredentialsAreInvalid() throws Exception {
+		when(this.loginService.login("local-user@example.com", "wrong-password"))
+				.thenThrow(new InvalidCredentialsException("Email or password is incorrect."));
+
+		this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"local-user@example.com","password":"wrong-password"}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
+				.andExpect(jsonPath("$.message").value("Email or password is incorrect."));
+	}
+
+	@Test
 	void linkGoogleReturnsLinkedUserWhenServiceLinksAccount() throws Exception {
 		User linkedUser = User.localAndGoogle(
 				"user@example.com",
 				"hashed-password",
 				"google-subject-1",
 				"Linked User");
-		ReflectionTestUtils.setField(linkedUser, "id", 41L);
+		ReflectionTestUtils.setField(linkedUser, "id", 51L);
 
 		when(this.accountLinkingService.linkGoogle("user@example.com", "secret-value", "valid-token"))
 				.thenReturn(new AccountLinkingResult(linkedUser, true));
@@ -225,7 +291,7 @@ class AuthControllerTests {
 						{"email":"user@example.com","password":"secret-value","idToken":"valid-token"}
 						"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.userId").value(41L))
+				.andExpect(jsonPath("$.userId").value(51L))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL_GOOGLE"))
 				.andExpect(jsonPath("$.linked").value(true));
 	}
@@ -252,7 +318,7 @@ class AuthControllerTests {
 				"hashed-password",
 				"google-subject-2",
 				"Linked User");
-		ReflectionTestUtils.setField(linkedUser, "id", 42L);
+		ReflectionTestUtils.setField(linkedUser, "id", 52L);
 
 		when(this.accountLinkingService.linkLocal("valid-token", "secret-value"))
 				.thenReturn(new AccountLinkingResult(linkedUser, false));
@@ -263,7 +329,7 @@ class AuthControllerTests {
 						{"idToken":"valid-token","password":"secret-value"}
 						"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.userId").value(42L))
+				.andExpect(jsonPath("$.userId").value(52L))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL_GOOGLE"))
 				.andExpect(jsonPath("$.linked").value(false));
 	}

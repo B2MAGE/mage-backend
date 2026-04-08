@@ -5,13 +5,19 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/google`, `POST /auth/link/google`, and `POST /auth/link/local`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `POST /auth/link/google`, `POST /auth/link/local`, `GET /users/me`, `POST /tags`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`
 - registering local email-and-password accounts through the shared `users` table
+- authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
 - explicitly linking local and Google auth providers after ownership checks
+- issuing bearer tokens after successful local login and Google auth
+- validating bearer tokens in middleware for protected endpoints
+- returning the authenticated user's profile from the shared `users` table
 - hashing local-account passwords through a shared password hashing service
 - exposing shared tag persistence through the `tags` table
+- exposing shared preset persistence through the `presets` table
+- exposing shared preset/tag persistence through the `preset_tags` table
 - proving the runtime wiring with unit and integration tests
 
 The repository does not yet contain product-focused business features, but it already has the basic structure those features should use.
@@ -30,43 +36,74 @@ The configuration package currently contains:
 - `DatabaseConfiguration`
 - `GoogleAuthProperties`
 - `GoogleAuthConfiguration`
+- `PasswordHashingConfiguration`
+- `AuthenticationConfiguration`
 
-Together they do four important jobs:
+Together they do six important jobs:
 
 - bind datasource configuration from environment variables
 - validate that required settings exist and use a PostgreSQL JDBC URL
 - create the Hikari `DataSource` and fail startup immediately if PostgreSQL is unreachable
 - bind and validate the allowed Google OAuth client IDs used for server-side token verification
+- expose the shared BCrypt-backed `PasswordEncoder` used by authentication services
+- register the bearer-token authentication middleware used by protected endpoints
 
 This is intentionally stricter than letting the application start with bad infrastructure settings and fail later on the first request.
 
 ### API Layer
 
-The API layer currently consists of two controllers:
+The API layer currently consists of five controllers:
 
 - `HealthController`
 - `AuthController`
+- `TagController`
+- `UserController`
+- `PresetController`
 
 Endpoints:
 
 - `GET /health`
 - `GET /ready`
 - `POST /auth/register`
+- `POST /auth/login`
 - `POST /auth/google`
 - `POST /auth/link/google`
 - `POST /auth/link/local`
+- `GET /users/me`
+- `POST /tags`
+- `POST /presets`
+- `GET /presets`
+- `POST /presets/{id}/tags`
+- `GET /presets/{id}`
+- `GET /users/{id}/presets`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
 
+`POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record plus a bearer access token.
+
 `POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
-`POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record.
+`POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account plus a bearer access token without exposing password material.
 
 `POST /auth/link/google` accepts a local email/password pair plus a Google ID token and only links the provider after both ownership checks succeed.
 
 `POST /auth/link/local` accepts a Google ID token plus a new password and only links local auth after the Google-backed account context is verified.
+
+`GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
+
+`POST /tags` accepts a tag name, delegates normalization and duplicate-tag checks to the service layer, and stores new tags through the shared `tags` table.
+
+`POST /presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset persistence to the service layer so future preset features share one creation path.
+
+`GET /presets` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer. Without a `tag` query parameter it returns all persisted presets, and with `?tag=<name>` it returns only presets linked to that normalized tag name.
+
+`POST /presets/{id}/tags` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset/tag association rules to the service layer so tagging and discovery features share one persistence path.
+
+`GET /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
+
+`GET /users/{id}/presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset lookup for the requested user id to the service layer.
 
 ### Service Layer
 
@@ -75,26 +112,43 @@ The service layer currently consists of:
 - `ReadinessService`
 - `PasswordHashingService`
 - `RegistrationService`
+- `LoginService`
 - `GoogleAuthenticationService`
 - `AccountLinkingService`
+- `AuthenticationTokenService`
+- `TagService`
+- `UserProfileService`
+- `PresetService`
 
 These services combine:
 
 - Spring's `ApplicationAvailability`
 - a live database connection check through the configured `DataSource`
 - BCrypt-backed password hashing for local accounts
-- shared email and Google-subject lookups plus local-account creation rules
+- provider-aware user lookups plus local-account creation rules
+- provider-aware user lookups plus local-account credential verification rules for any account that supports local auth
 - a Google token verifier client
-- shared email and Google-subject lookups plus first-login account creation rules
+- provider-aware user lookups plus first-login account creation rules
 - explicit provider-linking rules that require either local credentials or Google ownership before the second provider is attached
+- bearer-token generation plus secure token persistence
+- normalized tag creation plus duplicate-tag checks
+- request-time bearer-token validation for protected routes
+- authenticated-user profile lookup by the middleware-authenticated user identity
+- authenticated-user preset creation plus preset listing, preset filtering by tag, preset/tag association, preset retrieval, and requested-user preset lookup through the shared `presets` and `preset_tags` tables
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
 The registration service owns local-account creation rules, including duplicate-account checks and password hashing before persistence.
 
+The login service owns local credential verification rules and ensures only accounts with a stored local password can authenticate through the password flow.
+
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
 
 The account linking service owns the explicit linking rules for local-to-Google and Google-to-local flows. It prevents auto-linking based only on matching email addresses and requires an ownership proof for every supported link path.
+
+The tag service owns normalized tag creation rules and duplicate detection before tag persistence.
+
+The preset service owns authenticated preset creation rules, preset list and preset/tag filter lookups, preset/tag association rules, ensures new presets are linked to the authenticated user identity before persistence, centralizes preset lookup by id for retrieval endpoints, and supports requested-user preset list lookups.
 
 ### DTO Layer
 
@@ -104,20 +158,29 @@ The DTO package currently contains:
 - `ReadinessResponse`
 - `RegistrationRequest`
 - `RegistrationResponse`
+- `LoginRequest`
+- `LoginResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
 - `GoogleAccountLinkRequest`
 - `LocalAccountLinkRequest`
 - `AccountLinkResponse`
+- `CreateTagRequest`
+- `TagResponse`
+- `UserProfileResponse`
+- `CreatePresetRequest`
+- `AttachTagToPresetRequest`
+- `PresetResponse`
+- `PresetTagResponse`
 - `ApiErrorResponse`
 
 These are explicit API contracts. Even for small endpoints, the repository prefers returning named response types rather than anonymous maps or loosely shaped JSON.
 
 ### Client and Exception Layers
 
-- `GoogleTokenVerifier` is the external-integration boundary used by the auth services
+- `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, invalid Google tokens, invalid local credentials, link-required collisions, and account conflicts
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, duplicate-tag creation attempts, duplicate preset/tag attachment attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, link-required collisions, account conflicts, missing presets, and missing tags
 
 ### Persistence and Database Layer
 
@@ -127,10 +190,16 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 - `User` maps shared local, Google-backed, and linked multi-provider account data to the `users` table
 - one `users` row may hold a local password hash, a Google subject, or both
 - `UserRepository` supports shared email lookups plus Google subject lookups
+- `AuthenticationToken` maps issued bearer tokens to the `auth_tokens` table
+- `AuthenticationTokenRepository` supports bearer-token hash lookups
 - `Tag` maps normalized tag names to the `tags` table
 - `TagRepository` provides shared access to persisted tags used by tagging and discovery features
+- `Preset` maps preset records, owner references, and JSON scene payloads to the `presets` table
+- `PresetRepository` provides shared access to persisted presets, including optional tag-filter lookups for preset discovery endpoints
+- `PresetTag` maps preset/tag associations to the `preset_tags` table
+- `PresetTagRepository` provides shared access to preset/tag links for tagging and discovery features
 
-At the moment, the persistence layer supports shared account storage for authentication-related features. More domain entities and repositories should follow the same package and layering conventions.
+At the moment, the persistence layer supports shared account, tag, preset, and preset/tag storage. More domain entities and repositories should follow the same package and layering conventions.
 
 ## Folder Structure
 
@@ -207,8 +276,10 @@ As a result, the expected way to change the schema is straightforward:
 The codebase does not currently include:
 
 - authorization
-- local-password login
-- session or token issuance after authentication
+- logout or token revocation
+- token expiration
+
+The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`.
 
 ## Target Architecture as the Backend Grows
 

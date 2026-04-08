@@ -15,6 +15,38 @@ WITH local_google_pairs AS (
      AND local_user.auth_provider = 'LOCAL'
      AND google_user.auth_provider = 'GOOGLE'
 )
+UPDATE auth_tokens auth_token
+SET user_id = local_google_pairs.local_user_id
+FROM local_google_pairs
+WHERE auth_token.user_id = local_google_pairs.google_user_id;
+
+WITH local_google_pairs AS (
+    SELECT
+        local_user.id AS local_user_id,
+        google_user.id AS google_user_id
+    FROM users local_user
+    JOIN users google_user
+      ON google_user.email = local_user.email
+     AND local_user.auth_provider = 'LOCAL'
+     AND google_user.auth_provider = 'GOOGLE'
+)
+UPDATE presets preset
+SET owner_user_id = local_google_pairs.local_user_id
+FROM local_google_pairs
+WHERE preset.owner_user_id = local_google_pairs.google_user_id;
+
+WITH local_google_pairs AS (
+    SELECT
+        local_user.id AS local_user_id,
+        google_user.id AS google_user_id,
+        google_user.google_subject AS google_subject,
+        LEAST(local_user.created_at, google_user.created_at) AS merged_created_at
+    FROM users local_user
+    JOIN users google_user
+      ON google_user.email = local_user.email
+     AND local_user.auth_provider = 'LOCAL'
+     AND google_user.auth_provider = 'GOOGLE'
+)
 UPDATE users local_user
 SET auth_provider = 'LOCAL_GOOGLE',
     google_subject = local_google_pairs.google_subject,

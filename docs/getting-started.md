@@ -69,16 +69,36 @@ Once the backend is running, open the following endpoints:
 - http://localhost:8080/health
 - http://localhost:8080/ready
 - POST http://localhost:8080/auth/register
+- POST http://localhost:8080/auth/login
 - POST http://localhost:8080/auth/google
 - POST http://localhost:8080/auth/link/google
 - POST http://localhost:8080/auth/link/local
+- GET http://localhost:8080/users/me
+- POST http://localhost:8080/tags
+- POST http://localhost:8080/presets
+- GET http://localhost:8080/presets
+- POST http://localhost:8080/presets/{presetId}/tags
+- GET http://localhost:8080/presets/{presetId}
+- GET http://localhost:8080/users/{id}/presets
 
 Expected responses:
 
 - `/health` returns `200 OK` with `{"status":"UP"}`
 - `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
 - `POST /auth/register` returns `201 Created` for a new local account and never returns the raw password or stored password hash
-- `POST /auth/link/google` and `POST /auth/link/local` return `200 OK` when a second auth provider is linked to an existing account
+- `POST /auth/register` returns `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when the email already belongs to a Google-backed account and local auth must be linked explicitly
+- `POST /auth/login` returns `200 OK` when a local account's credentials are valid and includes an `accessToken` for protected endpoints without exposing the raw password or stored password hash
+- `POST /auth/google` returns either `201 Created` or `200 OK` and includes an `accessToken` for protected endpoints
+- `POST /auth/google` returns `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when a local-only account already exists for the verified email
+- `POST /auth/link/google` returns `200 OK` when both the local credentials and Google token prove ownership of the same email and the second provider is linked
+- `POST /auth/link/local` returns `200 OK` when a valid Google-backed account context is used to attach local password authentication
+- `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
+- `POST /tags` returns `201 Created` with the persisted normalized tag fields
+- `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
+- `GET /presets` returns `200 OK` with an array of presets when the request includes `Authorization: Bearer <accessToken>`, and `GET /presets?tag=ambient` returns only presets linked to that tag or an empty array when none match
+- `POST /presets/{presetId}/tags` returns `201 Created` with the preset/tag association fields when the request includes `Authorization: Bearer <accessToken>` and both records exist
+- `GET /presets/{presetId}` returns `200 OK` with the preset metadata, scene data, thumbnail reference, and creation timestamp when the request includes `Authorization: Bearer <accessToken>` and the preset exists
+- `GET /users/{id}/presets` returns `200 OK` with an array of presets for the requested user when the request includes `Authorization: Bearer <accessToken>`
 
 If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
 
@@ -87,6 +107,40 @@ To exercise the local registration endpoint:
     curl -X POST http://localhost:8080/auth/register \
       -H "Content-Type: application/json" \
       -d '{"email":"user@example.com","password":"example-password","displayName":"Example User"}'
+
+To exercise the local login endpoint:
+
+    curl -X POST http://localhost:8080/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"email":"user@example.com","password":"example-password"}'
+
+Use the `accessToken` from the login response or Google auth response when calling protected endpoints.
+
+    curl -X POST http://localhost:8080/tags \
+      -H "Content-Type: application/json" \
+      -d '{"name":"Ambient"}'
+
+    curl http://localhost:8080/users/me \
+      -H "Authorization: Bearer <access-token>"
+
+    curl -X POST http://localhost:8080/presets \
+      -H "Authorization: Bearer <access-token>" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}},"thumbnailRef":"thumbnails/preset-1.png"}'
+
+    curl http://localhost:8080/presets?tag=ambient \
+      -H "Authorization: Bearer <access-token>"
+
+    curl -X POST http://localhost:8080/presets/<preset-id>/tags \
+      -H "Authorization: Bearer <access-token>" \
+      -H "Content-Type: application/json" \
+      -d '{"tagId":<tag-id>}'
+
+    curl http://localhost:8080/presets/<preset-id> \
+      -H "Authorization: Bearer <access-token>"
+
+    curl http://localhost:8080/users/<user-id>/presets \
+      -H "Authorization: Bearer <access-token>"
 
 To exercise the Google auth endpoint, send a Google ID token issued for one of the configured client IDs:
 
@@ -190,8 +244,17 @@ If you are new to the repository, this sequence builds the fastest mental model 
 6. read `engineering-standards.md`
 7. trace the `/ready` endpoint from controller to service to datasource
 8. trace `POST /auth/register` from controller to service to repository and password hashing
-9. trace `POST /auth/google` from controller to service to verifier to repository
-10. trace `POST /auth/link/google` and `POST /auth/link/local` through the explicit ownership checks and linked-account persistence path
+9. trace `POST /auth/login` from controller to service to repository and password hashing
+10. trace `POST /auth/google` from controller to service to verifier to repository
+11. trace `POST /auth/link/google` through the explicit local-credentials-plus-Google-token ownership checks
+12. trace `POST /auth/link/local` through the verified Google account context and password-link path
+13. trace `GET /users/me` from authentication middleware to controller to service to repository
+14. trace `POST /tags` from controller to service to repository
+15. trace `POST /presets` from authentication middleware to controller to service to repository
+16. trace `GET /presets` from authentication middleware to controller to service to repository, including the optional `tag` query parameter path
+17. trace `POST /presets/{id}/tags` from authentication middleware to controller to service to repository
+18. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
+19. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
 
 ## Expected Change Workflow
 

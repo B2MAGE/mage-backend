@@ -1,10 +1,11 @@
 package com.bdmage.mage_backend.dto;
 
-public record GoogleAuthenticationResponse(
+import java.time.Instant;
+
+public record UserProfileResponse(
 		Long userId,
 		String email,
 		String displayName,
 		String authProvider,
-		boolean created,
-		String accessToken) {
+		Instant createdAt) {
 }

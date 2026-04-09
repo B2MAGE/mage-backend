@@ -5,11 +5,12 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /tags`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `POST /auth/link/google`, `POST /auth/link/local`, `GET /users/me`, `POST /tags`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
 - creating or reusing Google-backed user records through the shared `users` table
+- explicitly linking local and Google auth providers after ownership checks
 - issuing bearer tokens after successful local login and Google auth
 - validating bearer tokens in middleware for protected endpoints
 - returning the authenticated user's profile from the shared `users` table
@@ -66,6 +67,8 @@ Endpoints:
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/google`
+- `POST /auth/link/google`
+- `POST /auth/link/local`
 - `GET /users/me`
 - `POST /tags`
 - `POST /presets`
@@ -83,6 +86,10 @@ Endpoints:
 `POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
 `POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account plus a bearer access token without exposing password material.
+
+`POST /auth/link/google` accepts a local email/password pair plus a Google ID token and only links the provider after both ownership checks succeed.
+
+`POST /auth/link/local` accepts a Google ID token plus a new password and only links local auth after the Google-backed account context is verified.
 
 `GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
 
@@ -107,6 +114,7 @@ The service layer currently consists of:
 - `RegistrationService`
 - `LoginService`
 - `GoogleAuthenticationService`
+- `AccountLinkingService`
 - `AuthenticationTokenService`
 - `TagService`
 - `UserProfileService`
@@ -118,9 +126,10 @@ These services combine:
 - a live database connection check through the configured `DataSource`
 - BCrypt-backed password hashing for local accounts
 - provider-aware user lookups plus local-account creation rules
-- provider-aware user lookups plus local-account credential verification rules
+- provider-aware user lookups plus local-account credential verification rules for any account that supports local auth
 - a Google token verifier client
 - provider-aware user lookups plus first-login account creation rules
+- explicit provider-linking rules that require either local credentials or Google ownership before the second provider is attached
 - bearer-token generation plus secure token persistence
 - normalized tag creation plus duplicate-tag checks
 - request-time bearer-token validation for protected routes
@@ -131,9 +140,11 @@ The controller owns HTTP concerns, while the service owns the decision logic for
 
 The registration service owns local-account creation rules, including duplicate-account checks and password hashing before persistence.
 
-The login service owns local credential verification rules and ensures only `LOCAL` accounts can authenticate through the password flow.
+The login service owns local credential verification rules and ensures only accounts with a stored local password can authenticate through the password flow.
 
 The Google auth service owns the backend rules for token validation, account conflict detection, and Google-backed user creation or reuse.
+
+The account linking service owns the explicit linking rules for local-to-Google and Google-to-local flows. It prevents auto-linking based only on matching email addresses and requires an ownership proof for every supported link path.
 
 The tag service owns normalized tag creation rules and duplicate detection before tag persistence.
 
@@ -151,6 +162,9 @@ The DTO package currently contains:
 - `LoginResponse`
 - `GoogleAuthenticationRequest`
 - `GoogleAuthenticationResponse`
+- `GoogleAccountLinkRequest`
+- `LocalAccountLinkRequest`
+- `AccountLinkResponse`
 - `CreateTagRequest`
 - `TagResponse`
 - `UserProfileResponse`
@@ -166,15 +180,16 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, duplicate-tag creation attempts, duplicate preset/tag attachment attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, account conflicts, missing presets, and missing tags
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, duplicate-tag creation attempts, duplicate preset/tag attachment attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, link-required collisions, account conflicts, missing presets, and missing tags
 
 ### Persistence and Database Layer
 
 - PostgreSQL is the only database
 - Flyway owns schema migration
 - Spring Data JPA is available on the classpath
-- `User` maps shared local and Google-backed account data to the `users` table
-- `UserRepository` supports provider-aware account lookups plus Google subject lookups
+- `User` maps shared local, Google-backed, and linked multi-provider account data to the `users` table
+- one `users` row may hold a local password hash, a Google subject, or both
+- `UserRepository` supports shared email lookups plus Google subject lookups
 - `AuthenticationToken` maps issued bearer tokens to the `auth_tokens` table
 - `AuthenticationTokenRepository` supports bearer-token hash lookups
 - `Tag` maps normalized tag names to the `tags` table

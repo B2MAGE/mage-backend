@@ -50,6 +50,10 @@ public class User {
 		return new User(email, AuthProvider.GOOGLE, null, googleSubject, displayName);
 	}
 
+	public static User localAndGoogle(String email, String passwordHash, String googleSubject, String displayName) {
+		return new User(email, AuthProvider.LOCAL_GOOGLE, passwordHash, googleSubject, displayName);
+	}
+
 	private User(String email, AuthProvider authProvider, String passwordHash, String googleSubject, String displayName) {
 		this.email = Objects.requireNonNull(email, "email must not be null");
 		this.authProvider = Objects.requireNonNull(authProvider, "authProvider must not be null");
@@ -60,21 +64,69 @@ public class User {
 	}
 
 	private static void validateProviderFields(AuthProvider authProvider, String passwordHash, String googleSubject) {
-		if (authProvider == AuthProvider.LOCAL && passwordHash == null) {
-			throw new IllegalArgumentException("Local users require a password hash");
+		switch (authProvider) {
+			case LOCAL -> {
+				if (passwordHash == null) {
+					throw new IllegalArgumentException("Local users require a password hash");
+				}
+				if (googleSubject != null) {
+					throw new IllegalArgumentException("Local users cannot have a Google subject");
+				}
+			}
+			case GOOGLE -> {
+				if (passwordHash != null) {
+					throw new IllegalArgumentException("Google users cannot have a local password hash");
+				}
+				if (googleSubject == null) {
+					throw new IllegalArgumentException("Google users require a Google subject");
+				}
+			}
+			case LOCAL_GOOGLE -> {
+				if (passwordHash == null) {
+					throw new IllegalArgumentException("Linked users require a password hash");
+				}
+				if (googleSubject == null) {
+					throw new IllegalArgumentException("Linked users require a Google subject");
+				}
+			}
+		}
+	}
+
+	public boolean supportsLocalAuthentication() {
+		return this.passwordHash != null;
+	}
+
+	public boolean supportsGoogleAuthentication() {
+		return this.googleSubject != null;
+	}
+
+	public void linkGoogle(String googleSubject) {
+		this.googleSubject = Objects.requireNonNull(googleSubject, "googleSubject must not be null");
+		syncAuthProvider();
+	}
+
+	public void linkLocalPassword(String passwordHash) {
+		this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash must not be null");
+		syncAuthProvider();
+	}
+
+	private void syncAuthProvider() {
+		if (this.passwordHash != null && this.googleSubject != null) {
+			this.authProvider = AuthProvider.LOCAL_GOOGLE;
+			return;
 		}
 
-		if (authProvider == AuthProvider.LOCAL && googleSubject != null) {
-			throw new IllegalArgumentException("Local users cannot have a Google subject");
+		if (this.passwordHash != null) {
+			this.authProvider = AuthProvider.LOCAL;
+			return;
 		}
 
-		if (authProvider == AuthProvider.GOOGLE && passwordHash != null) {
-			throw new IllegalArgumentException("Google users cannot have a local password hash");
+		if (this.googleSubject != null) {
+			this.authProvider = AuthProvider.GOOGLE;
+			return;
 		}
 
-		if (authProvider == AuthProvider.GOOGLE && googleSubject == null) {
-			throw new IllegalArgumentException("Google users require a Google subject");
-		}
+		throw new IllegalStateException("User must support at least one authentication provider");
 	}
 
 	public Long getId() {

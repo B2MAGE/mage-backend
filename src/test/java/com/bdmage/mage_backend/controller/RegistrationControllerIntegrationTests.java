@@ -1,6 +1,5 @@
 package com.bdmage.mage_backend.controller;
 
-import com.bdmage.mage_backend.model.AuthProvider;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
@@ -53,14 +52,30 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
 
-		User savedUser = this.userRepository.findByEmailAndAuthProvider(email, AuthProvider.LOCAL).orElseThrow();
+		User savedUser = this.userRepository.findByEmail(email).orElseThrow();
 		assertThat(savedUser.getDisplayName()).isEqualTo(displayName);
 		assertThat(savedUser.getPasswordHash()).isNotEqualTo(password);
 		assertThat(this.passwordHashingService.matches(password, savedUser.getPasswordHash())).isTrue();
 	}
 
 	@Test
-	void registrationReturnsConflictWhenEmailIsAlreadyRegistered() throws Exception {
+	void registrationReturnsConflictWhenLocalAuthenticationIsAlreadyConfigured() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "registered-local-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(email, "hashed-password-value", "Local User"));
+
+		this.mockMvc.perform(post("/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, password, "Local User")))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
+				.andExpect(jsonPath("$.message").value("Local authentication is already configured for this email."));
+	}
+
+	@Test
+	void registrationReturnsConflictWhenEmailBelongsToGoogleAccount() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "registered-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -71,8 +86,9 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, password, "Local User")))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
-				.andExpect(jsonPath("$.message").value("An account with this email address is already registered."));
+				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"))
+				.andExpect(jsonPath("$.message").value(
+						"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google."));
 	}
 
 	private static String requestBody(String email, String password, String displayName) {

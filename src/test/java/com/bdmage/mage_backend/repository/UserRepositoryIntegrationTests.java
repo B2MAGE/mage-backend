@@ -27,24 +27,34 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 	private EntityManager entityManager;
 
 	@Test
-	void savePersistsLocalAndGoogleUsersAndSupportsProviderAwareLookups() {
-		String sharedEmail = "user-" + System.nanoTime() + "@example.com";
+	void savePersistsLocalGoogleAndLinkedUsersAndSupportsEmailAndSubjectLookups() {
+		String localEmail = "local-user-" + System.nanoTime() + "@example.com";
+		String googleEmail = "google-user-" + System.nanoTime() + "@example.com";
+		String linkedEmail = "linked-user-" + System.nanoTime() + "@example.com";
 		String googleSubject = "google-subject-" + System.nanoTime();
-		User savedLocalUser = userRepository.saveAndFlush(new User(sharedEmail, "hashed-password-value", "Local User"));
-		User savedGoogleUser = userRepository.saveAndFlush(User.google(sharedEmail, googleSubject, "Google User"));
+		String linkedGoogleSubject = "linked-google-subject-" + System.nanoTime();
+		User savedLocalUser = userRepository.saveAndFlush(new User(localEmail, "hashed-password-value", "Local User"));
+		User savedGoogleUser = userRepository.saveAndFlush(User.google(googleEmail, googleSubject, "Google User"));
+		User savedLinkedUser = userRepository.saveAndFlush(User.localAndGoogle(
+				linkedEmail,
+				"linked-password-hash",
+				linkedGoogleSubject,
+				"Linked User"));
 
 		entityManager.clear();
 
-		User foundLocalUser = userRepository.findByEmailAndAuthProvider(sharedEmail, AuthProvider.LOCAL).orElseThrow();
-		User foundGoogleUserByEmail = userRepository.findByEmailAndAuthProvider(sharedEmail, AuthProvider.GOOGLE)
-				.orElseThrow();
+		User foundLocalUser = userRepository.findByEmail(localEmail).orElseThrow();
+		User foundGoogleUserByEmail = userRepository.findByEmail(googleEmail).orElseThrow();
 		User foundGoogleUserBySubject = userRepository.findByGoogleSubject(googleSubject).orElseThrow();
+		User foundLinkedUserByEmail = userRepository.findByEmail(linkedEmail).orElseThrow();
+		User foundLinkedUserBySubject = userRepository.findByGoogleSubject(linkedGoogleSubject).orElseThrow();
 
 		assertThat(savedLocalUser.getId()).isNotNull();
 		assertThat(savedGoogleUser.getId()).isNotNull();
+		assertThat(savedLinkedUser.getId()).isNotNull();
 
 		assertThat(foundLocalUser.getId()).isEqualTo(savedLocalUser.getId());
-		assertThat(foundLocalUser.getEmail()).isEqualTo(sharedEmail);
+		assertThat(foundLocalUser.getEmail()).isEqualTo(localEmail);
 		assertThat(foundLocalUser.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
 		assertThat(foundLocalUser.getPasswordHash()).isEqualTo("hashed-password-value");
 		assertThat(foundLocalUser.getGoogleSubject()).isNull();
@@ -52,7 +62,7 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(foundLocalUser.getCreatedAt()).isNotNull();
 
 		assertThat(foundGoogleUserByEmail.getId()).isEqualTo(savedGoogleUser.getId());
-		assertThat(foundGoogleUserByEmail.getEmail()).isEqualTo(sharedEmail);
+		assertThat(foundGoogleUserByEmail.getEmail()).isEqualTo(googleEmail);
 		assertThat(foundGoogleUserByEmail.getAuthProvider()).isEqualTo(AuthProvider.GOOGLE);
 		assertThat(foundGoogleUserByEmail.getPasswordHash()).isNull();
 		assertThat(foundGoogleUserByEmail.getGoogleSubject()).isEqualTo(googleSubject);
@@ -60,15 +70,22 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(foundGoogleUserByEmail.getCreatedAt()).isNotNull();
 
 		assertThat(foundGoogleUserBySubject.getId()).isEqualTo(savedGoogleUser.getId());
+		assertThat(foundLinkedUserByEmail.getId()).isEqualTo(savedLinkedUser.getId());
+		assertThat(foundLinkedUserByEmail.getEmail()).isEqualTo(linkedEmail);
+		assertThat(foundLinkedUserByEmail.getAuthProvider()).isEqualTo(AuthProvider.LOCAL_GOOGLE);
+		assertThat(foundLinkedUserByEmail.getPasswordHash()).isEqualTo("linked-password-hash");
+		assertThat(foundLinkedUserByEmail.getGoogleSubject()).isEqualTo(linkedGoogleSubject);
+		assertThat(foundLinkedUserByEmail.getDisplayName()).isEqualTo("Linked User");
+		assertThat(foundLinkedUserByEmail.getCreatedAt()).isNotNull();
+		assertThat(foundLinkedUserBySubject.getId()).isEqualTo(savedLinkedUser.getId());
 	}
 
 	@Test
-	void providerAwareLookupsReturnEmptyWhenNoUserMatches() {
+	void emailAndGoogleSubjectLookupsReturnEmptyWhenNoUserMatches() {
 		String missingEmail = "missing-" + System.nanoTime() + "@example.com";
 		String missingGoogleSubject = "missing-google-subject-" + System.nanoTime();
 
-		assertThat(userRepository.findByEmailAndAuthProvider(missingEmail, AuthProvider.LOCAL)).isEmpty();
-		assertThat(userRepository.findByEmailAndAuthProvider(missingEmail, AuthProvider.GOOGLE)).isEmpty();
+		assertThat(userRepository.findByEmail(missingEmail)).isEmpty();
 		assertThat(userRepository.findByGoogleSubject(missingGoogleSubject)).isEmpty();
 	}
 }

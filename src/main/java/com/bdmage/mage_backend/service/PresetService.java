@@ -4,26 +4,27 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
-import com.bdmage.mage_backend.exception.PresetNotFoundException;
-import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
-import com.bdmage.mage_backend.exception.TagNotFoundException;
-import com.bdmage.mage_backend.model.Preset;
-import com.bdmage.mage_backend.model.PresetTag;
-import com.bdmage.mage_backend.repository.PresetTagRepository;
-import com.bdmage.mage_backend.repository.PresetRepository;
-import com.bdmage.mage_backend.repository.TagRepository;
-import com.bdmage.mage_backend.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
+import com.bdmage.mage_backend.exception.PresetNotFoundException;
+import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
+import com.bdmage.mage_backend.exception.TagNotFoundException;
+import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.repository.PresetRepository;
+import com.bdmage.mage_backend.repository.PresetTagRepository;
+import com.bdmage.mage_backend.repository.TagRepository;
+import com.bdmage.mage_backend.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 @Service
 public class PresetService {
 
@@ -66,6 +67,17 @@ public class PresetService {
 			this.entityManager.refresh(savedPreset);
 		}
 		return savedPreset;
+	}
+
+	@Transactional
+	public void deletePreset(Long authenticatedUserId, Long presetId) {
+    	Preset preset = this.presetRepository.findById(presetId)
+            .orElseThrow(() -> new PresetNotFoundException("Preset not found."));
+    	if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
+        	throw new PresetForbiddenException("You do not have permission to delete this preset.");
+    	}
+
+    	this.presetRepository.deleteById(presetId);
 	}
 
 	@Transactional(readOnly = true)

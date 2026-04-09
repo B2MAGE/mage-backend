@@ -208,6 +208,30 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(PresetOwnershipRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handlePresetOwnershipRequired(
+			PresetOwnershipRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.FORBIDDEN,
+			"PRESET_OWNERSHIP_REQUIRED",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidThumbnailException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidThumbnail(
+			InvalidThumbnailException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.BAD_REQUEST,
+			"INVALID_THUMBNAIL",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
 	private static ResponseEntity<ApiErrorResponse> buildResponse(
 			HttpStatus status,
 			String code,

@@ -11,6 +11,7 @@ import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,8 +20,10 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/presets")
@@ -71,6 +74,16 @@ public class PresetController {
 	@GetMapping("/{id}")
 	ResponseEntity<PresetResponse> getPreset(@PathVariable Long id) {
 		Preset preset = this.presetService.getPreset(id);
+
+		return ResponseEntity.ok(PresetResponse.from(preset));
+	}
+
+	@PostMapping(value = "/{id}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	ResponseEntity<PresetResponse> uploadThumbnail(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@RequestPart("file") MultipartFile file) {
+		Preset preset = this.presetService.uploadThumbnail(authenticatedUserId, id, file);
 
 		return ResponseEntity.ok(PresetResponse.from(preset));
 	}

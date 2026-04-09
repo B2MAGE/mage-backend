@@ -220,6 +220,18 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(PresetForbiddenException.class)
+	ResponseEntity<ApiErrorResponse> handleForbiddenException(
+			PresetForbiddenException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.FORBIDDEN,
+			"PRESET_FORBIDDEN",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
 	@ExceptionHandler(TagNotFoundException.class)
 	ResponseEntity<ApiErrorResponse> handleTagNotFound(
 			TagNotFoundException ex,

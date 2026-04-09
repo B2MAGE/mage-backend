@@ -5,7 +5,7 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `POST /auth/link/google`, `POST /auth/link/local`, `GET /users/me`, `POST /tags`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`
+- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `POST /auth/link/google`, `POST /auth/link/local`, `GET /users/me`, `POST /tags`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, `DELETE /presets/{id}`, and `GET /users/{id}/presets`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
@@ -75,6 +75,7 @@ Endpoints:
 - `GET /presets`
 - `POST /presets/{id}/tags`
 - `GET /presets/{id}`
+- `DELETE /presets/{id}`
 - `GET /users/{id}/presets`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
@@ -102,6 +103,8 @@ Endpoints:
 `POST /presets/{id}/tags` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset/tag association rules to the service layer so tagging and discovery features share one persistence path.
 
 `GET /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
+
+`DELETE /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates owner-only deletion rules to the service layer. The service rejects non-owner deletes with `403 Forbidden` and removes the preset through the shared persistence path, which also clears dependent preset/tag links through database cascading.
 
 `GET /users/{id}/presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset lookup for the requested user id to the service layer.
 
@@ -134,7 +137,7 @@ These services combine:
 - normalized tag creation plus duplicate-tag checks
 - request-time bearer-token validation for protected routes
 - authenticated-user profile lookup by the middleware-authenticated user identity
-- authenticated-user preset creation plus preset listing, preset filtering by tag, preset/tag association, preset retrieval, and requested-user preset lookup through the shared `presets` and `preset_tags` tables
+- authenticated-user preset creation plus preset listing, preset filtering by tag, preset/tag association, preset retrieval, owner-only preset deletion, and requested-user preset lookup through the shared `presets` and `preset_tags` tables
 
 The controller owns HTTP concerns, while the service owns the decision logic for readiness.
 
@@ -148,7 +151,7 @@ The account linking service owns the explicit linking rules for local-to-Google 
 
 The tag service owns normalized tag creation rules and duplicate detection before tag persistence.
 
-The preset service owns authenticated preset creation rules, preset list and preset/tag filter lookups, preset/tag association rules, ensures new presets are linked to the authenticated user identity before persistence, centralizes preset lookup by id for retrieval endpoints, and supports requested-user preset list lookups.
+The preset service owns authenticated preset creation rules, preset list and preset/tag filter lookups, preset/tag association rules, owner-only preset deletion rules, ensures new presets are linked to the authenticated user identity before persistence, centralizes preset lookup by id for retrieval and deletion endpoints, and supports requested-user preset list lookups.
 
 ### DTO Layer
 
@@ -180,7 +183,7 @@ These are explicit API contracts. Even for small endpoints, the repository prefe
 
 - `GoogleTokenVerifier` is the external-integration boundary used by the auth service
 - `GoogleApiClientTokenVerifier` is the production adapter that uses the Google API Client library
-- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, duplicate-tag creation attempts, duplicate preset/tag attachment attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, link-required collisions, account conflicts, missing presets, and missing tags
+- `ApiExceptionHandler` centralizes HTTP error responses for validation failures, duplicate-email registration attempts, duplicate-tag creation attempts, duplicate preset/tag attachment attempts, invalid local credentials, invalid authentication tokens, invalid Google tokens, link-required collisions, account conflicts, missing presets, forbidden preset deletions, and missing tags
 
 ### Persistence and Database Layer
 
@@ -275,11 +278,11 @@ As a result, the expected way to change the schema is straightforward:
 
 The codebase does not currently include:
 
-- authorization
+- a general-purpose authorization framework beyond the owner-only preset deletion rule
 - logout or token revocation
 - token expiration
 
-The current authentication model is bearer-token based for `POST /auth/login`, `POST /auth/google`, `GET /users/me`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, and `GET /users/{id}/presets`.
+Successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens. Bearer-token authentication currently protects `GET /users/me`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, `DELETE /presets/{id}`, and `GET /users/{id}/presets`.
 
 ## Target Architecture as the Backend Grows
 

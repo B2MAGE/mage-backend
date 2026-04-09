@@ -2,7 +2,7 @@
 
 ## Overview
 
-This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flows and preset persistence APIs: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, local account registration and login, Google authentication account provisioning, explicit local and Google account linking, bearer-token authentication middleware, current-user profile lookup, preset creation, preset tag attachment, preset listing with optional tag filtering, user preset listing, Docker-based local development, and integrated testing.
+This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flows and preset persistence APIs: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, local account registration and login, Google authentication account provisioning, explicit local and Google account linking, bearer-token authentication middleware, current-user profile lookup, preset creation, preset detail retrieval, owner-only preset deletion, preset tag attachment, preset listing with optional tag filtering, user preset listing, Docker-based local development, and integrated testing.
 
 The codebase is small at the moment, but the documentation and engineering expectations are structured like a team-owned backend project. New contributors should be able to clone the repository, run it locally, understand the architecture, and make disciplined changes without relying on extra explanation.
 
@@ -52,6 +52,8 @@ Once the stack is healthy:
 - preset creation: `POST http://localhost:8080/presets`
 - preset list: `GET http://localhost:8080/presets`
 - preset list filtered by tag: `GET http://localhost:8080/presets?tag=ambient`
+- preset detail: `GET http://localhost:8080/presets/{id}`
+- preset deletion: `DELETE http://localhost:8080/presets/{id}`
 - preset tag attachment: `POST http://localhost:8080/presets/{id}/tags`
 - user preset list: `GET http://localhost:8080/users/{id}/presets`
 

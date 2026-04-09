@@ -71,6 +71,8 @@ Once the backend is running, open the following endpoints:
 - POST http://localhost:8080/auth/register
 - POST http://localhost:8080/auth/login
 - POST http://localhost:8080/auth/google
+- POST http://localhost:8080/auth/link/google
+- POST http://localhost:8080/auth/link/local
 - GET http://localhost:8080/users/me
 - POST http://localhost:8080/tags
 - POST http://localhost:8080/presets
@@ -84,8 +86,12 @@ Expected responses:
 - `/health` returns `200 OK` with `{"status":"UP"}`
 - `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
 - `POST /auth/register` returns `201 Created` for a new local account and never returns the raw password or stored password hash
+- `POST /auth/register` returns `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when the email already belongs to a Google-backed account and local auth must be linked explicitly
 - `POST /auth/login` returns `200 OK` when a local account's credentials are valid and includes an `accessToken` for protected endpoints without exposing the raw password or stored password hash
 - `POST /auth/google` returns either `201 Created` or `200 OK` and includes an `accessToken` for protected endpoints
+- `POST /auth/google` returns `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when a local-only account already exists for the verified email
+- `POST /auth/link/google` returns `200 OK` when both the local credentials and Google token prove ownership of the same email and the second provider is linked
+- `POST /auth/link/local` returns `200 OK` when a valid Google-backed account context is used to attach local password authentication
 - `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
 - `POST /tags` returns `201 Created` with the persisted normalized tag fields
 - `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
@@ -141,6 +147,18 @@ To exercise the Google auth endpoint, send a Google ID token issued for one of t
     curl -X POST http://localhost:8080/auth/google \
       -H "Content-Type: application/json" \
       -d '{"idToken":"<google-id-token>"}'
+
+To explicitly link Google to an existing local account, provide local credentials plus a valid Google ID token for the same email address:
+
+    curl -X POST http://localhost:8080/auth/link/google \
+      -H "Content-Type: application/json" \
+      -d '{"email":"user@example.com","password":"example-password","idToken":"<google-id-token>"}'
+
+To add local email-and-password authentication to an existing Google-backed account, provide the Google ID token plus the new local password:
+
+    curl -X POST http://localhost:8080/auth/link/local \
+      -H "Content-Type: application/json" \
+      -d '{"idToken":"<google-id-token>","password":"example-password"}'
 
 ## Running Tests
 
@@ -228,13 +246,15 @@ If you are new to the repository, this sequence builds the fastest mental model 
 8. trace `POST /auth/register` from controller to service to repository and password hashing
 9. trace `POST /auth/login` from controller to service to repository and password hashing
 10. trace `POST /auth/google` from controller to service to verifier to repository
-11. trace `GET /users/me` from authentication middleware to controller to service to repository
-12. trace `POST /tags` from controller to service to repository
-13. trace `POST /presets` from authentication middleware to controller to service to repository
-14. trace `GET /presets` from authentication middleware to controller to service to repository, including the optional `tag` query parameter path
-15. trace `POST /presets/{id}/tags` from authentication middleware to controller to service to repository
-16. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
-17. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
+11. trace `POST /auth/link/google` through the explicit local-credentials-plus-Google-token ownership checks
+12. trace `POST /auth/link/local` through the verified Google account context and password-link path
+13. trace `GET /users/me` from authentication middleware to controller to service to repository
+14. trace `POST /tags` from controller to service to repository
+15. trace `POST /presets` from authentication middleware to controller to service to repository
+16. trace `GET /presets` from authentication middleware to controller to service to repository, including the optional `tag` query parameter path
+17. trace `POST /presets/{id}/tags` from authentication middleware to controller to service to repository
+18. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
+19. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
 
 ## Expected Change Workflow
 

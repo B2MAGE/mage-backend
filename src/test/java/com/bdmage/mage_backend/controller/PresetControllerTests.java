@@ -6,6 +6,7 @@ import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
@@ -22,8 +23,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -310,6 +313,52 @@ class PresetControllerTests {
 				.thenThrow(new PresetNotFoundException("Preset not found."));
 
 		this.mockMvc.perform(get("/presets/99999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void deletePresetReturnsNoContentForAuthenticatedOwner() throws Exception {
+		this.mockMvc.perform(delete("/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void deletePresetReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		doThrow(new AuthenticationRequiredException("Authentication is required."))
+				.when(this.presetService)
+				.deletePreset(null, 15L);
+
+		this.mockMvc.perform(delete("/presets/15"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void deletePresetReturnsForbiddenWhenAuthenticatedUserDoesNotOwnPreset() throws Exception {
+		doThrow(new PresetForbiddenException("You do not have permission to delete this preset."))
+				.when(this.presetService)
+				.deletePreset(77L, 15L);
+
+		this.mockMvc.perform(delete("/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("You do not have permission to delete this preset."));
+	}
+
+	@Test
+	void deletePresetReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		doThrow(new PresetNotFoundException("Preset not found."))
+				.when(this.presetService)
+				.deletePreset(77L, 15L);
+
+		this.mockMvc.perform(delete("/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Preset not found."));

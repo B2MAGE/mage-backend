@@ -29,6 +29,7 @@ import jakarta.persistence.PersistenceContext;
 public class PresetService {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
+	private static final String PRESET_FORBIDDEN_MESSAGE = "You do not have permission to delete this preset.";
 	private static final String PRESET_NOT_FOUND_MESSAGE = "Preset not found.";
 	private static final String TAG_NOT_FOUND_MESSAGE = "Tag not found.";
 	private static final String PRESET_TAG_ALREADY_EXISTS_MESSAGE = "This tag is already attached to the preset.";
@@ -71,13 +72,15 @@ public class PresetService {
 
 	@Transactional
 	public void deletePreset(Long authenticatedUserId, Long presetId) {
-    	Preset preset = this.presetRepository.findById(presetId)
-            .orElseThrow(() -> new PresetNotFoundException("Preset not found."));
-    	if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
-        	throw new PresetForbiddenException("You do not have permission to delete this preset.");
-    	}
+		requireAuthenticatedUser(authenticatedUserId);
 
-    	this.presetRepository.deleteById(presetId);
+		Preset preset = this.presetRepository.findById(presetId)
+				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+		if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
+			throw new PresetForbiddenException(PRESET_FORBIDDEN_MESSAGE);
+		}
+
+		this.presetRepository.delete(preset);
 	}
 
 	@Transactional(readOnly = true)

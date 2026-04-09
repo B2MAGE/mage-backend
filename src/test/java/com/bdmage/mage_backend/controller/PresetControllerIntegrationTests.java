@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -432,6 +433,130 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andReturn());
 
 		this.mockMvc.perform(get("/presets/99999")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void deletePresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(delete("/presets/15")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void deletePresetDeletesOwnedPresetAndRemovesItFromSubsequentReads() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "delete-preset-owner-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+		String tagName = "delete-tag-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Delete Preset Owner"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(delete("/presets/" + savedPreset.getId())
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNoContent());
+
+		assertThat(this.presetRepository.findById(savedPreset.getId())).isEmpty();
+		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId())).isEmpty();
+
+		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+
+		this.mockMvc.perform(get("/users/" + savedUser.getId() + "/presets")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").doesNotExist());
+	}
+
+	@Test
+	void deletePresetReturnsForbiddenWhenAuthenticatedUserDoesNotOwnPreset() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String ownerEmail = "delete-owner-" + uniqueSuffix + "@example.com";
+		String ownerPassword = "owner-password-" + uniqueSuffix;
+		String otherEmail = "delete-other-" + uniqueSuffix + "@example.com";
+		String otherPassword = "other-password-" + uniqueSuffix;
+
+		User owner = this.userRepository.saveAndFlush(new User(
+				ownerEmail,
+				this.passwordHashingService.hash(ownerPassword),
+				"Delete Owner"));
+		this.userRepository.saveAndFlush(new User(
+				otherEmail,
+				this.passwordHashingService.hash(otherPassword),
+				"Delete Other User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				owner.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(otherEmail, otherPassword)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(delete("/presets/" + savedPreset.getId())
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("You do not have permission to delete this preset."));
+
+		assertThat(this.presetRepository.findById(savedPreset.getId())).isPresent();
+	}
+
+	@Test
+	void deletePresetReturnsNotFoundForNonexistentPreset() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "delete-missing-preset-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Delete Missing Preset User"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(delete("/presets/99999")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())

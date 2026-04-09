@@ -39,7 +39,7 @@ Before using `POST /auth/google`, replace the placeholder value in `.env` for `M
 
 ## Health Checks and Auth Endpoints
 
-The backend currently exposes fourteen operational endpoints:
+The backend currently exposes fifteen operational endpoints:
 
 - `GET /health`
 - `GET /ready`
@@ -54,6 +54,7 @@ The backend currently exposes fourteen operational endpoints:
 - `GET /presets`
 - `POST /presets/{id}/tags`
 - `GET /presets/{id}`
+- `DELETE /presets/{id}`
 - `GET /users/{id}/presets`
 
 ### `/health`
@@ -383,6 +384,27 @@ Failure behavior:
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 - HTTP `404 Not Found` when no preset exists for the supplied id
 
+### `DELETE /presets/{id}`
+
+Purpose:
+
+- delete a persisted preset owned by the authenticated user
+
+Request notes:
+
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+
+Success behavior:
+
+- HTTP `204 No Content` for a valid authenticated request when the preset exists and the authenticated user owns it
+- deleting a preset also removes dependent preset/tag links through cascading database constraints
+
+Failure behavior:
+
+- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
+- HTTP `403 Forbidden` when the request is authenticated successfully but the preset belongs to a different user
+- HTTP `404 Not Found` when no preset exists for the supplied id
+
 ### `GET /users/{id}/presets`
 
 Purpose:
@@ -423,7 +445,8 @@ After startup, verify these items in order:
 14. `GET /presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
 15. `POST /presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
 16. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
-17. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
+17. `DELETE /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` by the preset owner and returns `204 No Content`
+18. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -611,6 +634,12 @@ Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
+### `DELETE /presets/{id}` returns `401`
+
+Interpretation:
+
+- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
+
 ### `GET /users/{id}/presets` returns `401`
 
 Interpretation:
@@ -618,6 +647,18 @@ Interpretation:
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
 ### `GET /presets/{id}` returns `404`
+
+Interpretation:
+
+- the request was authenticated successfully, but no preset exists for that id
+
+### `DELETE /presets/{id}` returns `403`
+
+Interpretation:
+
+- the request was authenticated successfully, but the preset belongs to a different user
+
+### `DELETE /presets/{id}` returns `404`
 
 Interpretation:
 

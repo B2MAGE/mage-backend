@@ -47,7 +47,7 @@ public class GoogleAuthenticationService {
 			}
 
 			throw new AccountLinkRequiredException(
-					"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account.");
+					"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 		}
 
 		User googleUser = User.google(
@@ -72,7 +72,7 @@ public class GoogleAuthenticationService {
 				}
 
 				throw new AccountLinkRequiredException(
-						"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account.");
+						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 			}
 
 			throw new AccountConflictException("Google authentication conflicted with an existing account.");
@@ -108,3 +108,4 @@ public class GoogleAuthenticationService {
 	public record GoogleAuthenticationResult(User user, boolean created) {
 	}
 }
+

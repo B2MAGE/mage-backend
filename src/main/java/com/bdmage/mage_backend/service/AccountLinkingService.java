@@ -80,7 +80,7 @@ public class AccountLinkingService {
 				User user = existingUser.get();
 				if (user.supportsLocalAuthentication() && !user.supportsGoogleAuthentication()) {
 					throw new AccountLinkRequiredException(
-							"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account.");
+							"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 				}
 				if (user.supportsGoogleAuthentication()) {
 					throw new AccountConflictException(
@@ -89,7 +89,7 @@ public class AccountLinkingService {
 			}
 
 			throw new AccountLinkRequiredException(
-					"Authenticate with Google through /auth/google before linking local authentication.");
+					"Authenticate with Google through /api/auth/google before linking local authentication.");
 		}
 
 		User user = googleUser.get();
@@ -141,3 +141,4 @@ public class AccountLinkingService {
 	public record AccountLinkingResult(User user, boolean linked) {
 	}
 }
+

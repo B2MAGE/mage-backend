@@ -130,7 +130,7 @@ class GoogleAuthenticationServiceTests {
 		assertThatThrownBy(() -> googleAuthenticationService.authenticate("conflict-token"))
 				.isInstanceOf(AccountLinkRequiredException.class)
 				.hasMessage(
-						"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account.");
+						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 	}
 
 	@Test
@@ -181,3 +181,4 @@ class GoogleAuthenticationServiceTests {
 		assertThat(result.user().getId()).isEqualTo(128L);
 	}
 }
+

@@ -43,19 +43,19 @@ Once the stack is healthy:
 - backend: `http://localhost:8080`
 - liveness: `http://localhost:8080/health`
 - readiness: `http://localhost:8080/ready`
-- local registration: `POST http://localhost:8080/auth/register`
-- local login: `POST http://localhost:8080/auth/login`
-- Google auth: `POST http://localhost:8080/auth/google`
-- link Google to an existing local account: `POST http://localhost:8080/auth/link/google`
-- link local auth to an existing Google-backed account: `POST http://localhost:8080/auth/link/local`
-- current user profile: `GET http://localhost:8080/users/me`
-- preset creation: `POST http://localhost:8080/presets`
-- preset list: `GET http://localhost:8080/presets`
-- preset list filtered by tag: `GET http://localhost:8080/presets?tag=ambient`
-- preset detail: `GET http://localhost:8080/presets/{id}`
-- preset deletion: `DELETE http://localhost:8080/presets/{id}`
-- preset tag attachment: `POST http://localhost:8080/presets/{id}/tags`
-- user preset list: `GET http://localhost:8080/users/{id}/presets`
+- local registration: `POST http://localhost:8080/api/auth/register`
+- local login: `POST http://localhost:8080/api/auth/login`
+- Google auth: `POST http://localhost:8080/api/auth/google`
+- link Google to an existing local account: `POST http://localhost:8080/api/auth/link/google`
+- link local auth to an existing Google-backed account: `POST http://localhost:8080/api/auth/link/local`
+- current user profile: `GET http://localhost:8080/api/users/me`
+- preset creation: `POST http://localhost:8080/api/presets`
+- preset list: `GET http://localhost:8080/api/presets`
+- preset list filtered by tag: `GET http://localhost:8080/api/presets?tag=ambient`
+- preset detail: `GET http://localhost:8080/api/presets/{id}`
+- preset deletion: `DELETE http://localhost:8080/api/presets/{id}`
+- preset tag attachment: `POST http://localhost:8080/api/presets/{id}/tags`
+- user preset list: `GET http://localhost:8080/api/users/{id}/presets`
 
 Run the test suite with:
 
@@ -127,3 +127,5 @@ mage-backend/
 - [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, persistence, testing, logging, security, and collaboration standards
 - [docs/operations.md](docs/operations.md): operational runbook for Docker, health checks, authentication and linking behavior, logs, migrations, and troubleshooting
 - [CONTRIBUTING.md](CONTRIBUTING.md): pull request and contribution workflow
+
+

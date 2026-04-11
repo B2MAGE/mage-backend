@@ -139,7 +139,7 @@ class AccountLinkingServiceTests {
 
 		assertThatThrownBy(() -> accountLinkingService.linkLocal("valid-token", "secret-value"))
 				.isInstanceOf(AccountLinkRequiredException.class)
-				.hasMessage("Authenticate with Google through /auth/google before linking local authentication.");
+				.hasMessage("Authenticate with Google through /api/auth/google before linking local authentication.");
 	}
 
 	@Test
@@ -171,3 +171,4 @@ class AccountLinkingServiceTests {
 		assertThat(result.user().getAuthProvider()).isEqualTo(AuthProvider.LOCAL_GOOGLE);
 	}
 }
+

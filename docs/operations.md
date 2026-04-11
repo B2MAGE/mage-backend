@@ -20,9 +20,9 @@ Operationally important behavior:
 - Flyway applies migrations automatically on startup
 - local passwords are hashed and verified with BCrypt through the shared password hashing service
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
-- successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens
+- successful `POST /api/auth/login` and `POST /api/auth/google` requests issue bearer access tokens
 - local and Google auth providers can be linked explicitly, but never auto-linked only because emails match
-- authentication middleware validates bearer tokens for protected `/users/**` endpoints and protected preset routes, while `GET /presets/{id}` remains public
+- authentication middleware validates bearer tokens for protected `/api/users/**` endpoints and protected preset routes, while `GET /api/presets/{id}` remains public
 
 ## Local Startup Runbook
 
@@ -35,7 +35,7 @@ Use this when:
 - validating Docker-based local behavior
 - testing migration behavior against a clean containerized stack
 
-Before using `POST /auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
+Before using `POST /api/auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
 
 ## Health Checks and Auth Endpoints
 
@@ -43,19 +43,19 @@ The backend currently exposes fifteen operational endpoints:
 
 - `GET /health`
 - `GET /ready`
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/google`
-- `POST /auth/link/google`
-- `POST /auth/link/local`
-- `GET /users/me`
-- `POST /tags`
-- `POST /presets`
-- `GET /presets`
-- `POST /presets/{id}/tags`
-- `GET /presets/{id}`
-- `DELETE /presets/{id}`
-- `GET /users/{id}/presets`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/google`
+- `POST /api/auth/link/google`
+- `POST /api/auth/link/local`
+- `GET /api/users/me`
+- `POST /api/tags`
+- `POST /api/presets`
+- `GET /api/presets`
+- `POST /api/presets/{id}/tags`
+- `GET /api/presets/{id}`
+- `DELETE /api/presets/{id}`
+- `GET /api/users/{id}/presets`
 
 ### `/health`
 
@@ -95,7 +95,7 @@ Expected not-ready behavior:
 - HTTP `503 Service Unavailable`
 - response body shows the application and database status
 
-### `POST /auth/register`
+### `POST /api/auth/register`
 
 Purpose:
 
@@ -123,7 +123,7 @@ Failure behavior:
 - HTTP `409 Conflict` with `EMAIL_ALREADY_REGISTERED` when local authentication is already configured for that email
 - HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when the email belongs to a Google-backed account and explicit linking is required
 
-### `POST /auth/login`
+### `POST /api/auth/login`
 
 Purpose:
 
@@ -149,7 +149,7 @@ Failure behavior:
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
 - HTTP `401 Unauthorized` when the credentials do not match a local account
 
-### `POST /auth/google`
+### `POST /api/auth/google`
 
 Purpose:
 
@@ -176,7 +176,7 @@ Failure behavior:
 - HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when a local-only account already exists for the verified email
 - HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when a different Google identity already owns that email in the backend
 
-### `POST /auth/link/google`
+### `POST /api/auth/link/google`
 
 Purpose:
 
@@ -204,7 +204,7 @@ Failure behavior:
 - HTTP `401 Unauthorized` with `INVALID_LOCAL_CREDENTIALS` when the supplied local email/password pair is invalid
 - HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the Google token email does not match the local email or the Google identity already belongs to another account
 
-### `POST /auth/link/local`
+### `POST /api/auth/link/local`
 
 Purpose:
 
@@ -232,7 +232,7 @@ Failure behavior:
 - HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when no Google-backed account exists yet for that Google identity
 - HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the link request collides with an incompatible existing account state
 
-### `GET /users/me`
+### `GET /api/users/me`
 
 Purpose:
 
@@ -240,7 +240,7 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
 
 Success behavior:
 
@@ -252,7 +252,7 @@ Failure behavior:
 
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
-### `POST /tags`
+### `POST /api/tags`
 
 Purpose:
 
@@ -276,7 +276,7 @@ Failure behavior:
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
 - HTTP `409 Conflict` when the supplied tag name already exists after normalization
 
-### `POST /presets`
+### `POST /api/presets`
 
 Purpose:
 
@@ -284,7 +284,7 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
 
 Request:
 
@@ -310,7 +310,7 @@ Failure behavior:
 - HTTP `400 Bad Request` for malformed JSON or request validation failures
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
-### `GET /presets`
+### `GET /api/presets`
 
 Purpose:
 
@@ -319,7 +319,7 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
 - when `tag` is omitted, the endpoint returns all persisted presets
 - when `tag` is provided, the backend trims and normalizes it before looking up linked presets
 
@@ -327,14 +327,14 @@ Success behavior:
 
 - HTTP `200 OK` for a valid authenticated request
 - response includes an array of preset records
-- `GET /presets?tag=ambient` returns only presets linked to that tag
+- `GET /api/presets?tag=ambient` returns only presets linked to that tag
 - returns an empty array when no presets match the supplied tag
 
 Failure behavior:
 
 - HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 
-### `POST /presets/{id}/tags`
+### `POST /api/presets/{id}/tags`
 
 Purpose:
 
@@ -342,7 +342,7 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
 
 Request:
 
@@ -364,7 +364,7 @@ Failure behavior:
 - HTTP `404 Not Found` when either the preset or tag does not exist
 - HTTP `409 Conflict` when the preset already has that tag attached
 
-### `GET /presets/{id}`
+### `GET /api/presets/{id}`
 
 Purpose:
 
@@ -384,7 +384,7 @@ Failure behavior:
 
 - HTTP `404 Not Found` when no preset exists for the supplied id
 
-### `DELETE /presets/{id}`
+### `DELETE /api/presets/{id}`
 
 Purpose:
 
@@ -392,7 +392,7 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
 
 Success behavior:
 
@@ -405,7 +405,7 @@ Failure behavior:
 - HTTP `403 Forbidden` when the request is authenticated successfully but the preset belongs to a different user
 - HTTP `404 Not Found` when no preset exists for the supplied id
 
-### `GET /users/{id}/presets`
+### `GET /api/users/{id}/presets`
 
 Purpose:
 
@@ -413,7 +413,7 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
 
 Success behavior:
 
@@ -434,19 +434,19 @@ After startup, verify these items in order:
 3. backend logs show Flyway applying or validating migrations
 4. `curl http://localhost:8080/health` returns `200`
 5. `curl http://localhost:8080/ready` returns `200`
-6. `POST /auth/register` succeeds for a new local email address
-7. `POST /auth/login` succeeds for that local account and returns an `accessToken`
-8. `GET /users/me` succeeds when called with `Authorization: Bearer <accessToken>`
-9. `POST /auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
-10. `POST /auth/link/google` succeeds when both the local credentials and Google token prove ownership of the same email
-11. `POST /auth/link/local` succeeds for an existing Google-backed account with a valid Google ID token
-12. `POST /tags` succeeds with a valid tag payload and returns the normalized tag record
-13. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
-14. `GET /presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
-15. `POST /presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
-16. `GET /presets/{id}` succeeds for public requests and returns the preset when the id exists
-17. `DELETE /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` by the preset owner and returns `204 No Content`
-18. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
+6. `POST /api/auth/register` succeeds for a new local email address
+7. `POST /api/auth/login` succeeds for that local account and returns an `accessToken`
+8. `GET /api/users/me` succeeds when called with `Authorization: Bearer <accessToken>`
+9. `POST /api/auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
+10. `POST /api/auth/link/google` succeeds when both the local credentials and Google token prove ownership of the same email
+11. `POST /api/auth/link/local` succeeds for an existing Google-backed account with a valid Google ID token
+12. `POST /api/tags` succeeds with a valid tag payload and returns the normalized tag record
+13. `POST /api/presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
+14. `GET /api/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
+15. `POST /api/presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
+16. `GET /api/presets/{id}` succeeds for public requests and returns the preset when the id exists
+17. `DELETE /api/presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` by the preset owner and returns `204 No Content`
+18. `GET /api/users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
 If step 5 fails with `503`, the app is running but not ready to serve traffic.
 
@@ -546,7 +546,7 @@ Check:
 - PostgreSQL container health
 - datasource environment variables
 
-### `POST /auth/google` returns `401`
+### `POST /api/auth/google` returns `401`
 
 Interpretation:
 
@@ -558,113 +558,113 @@ Check:
 - the token was issued for a client ID listed in `MAGE_AUTH_GOOGLE_CLIENT_IDS`
 - the token has not expired
 
-### `POST /auth/google` returns `409`
+### `POST /api/auth/google` returns `409`
 
 Interpretation:
 
-- either a local-only account already owns that email and `/auth/link/google` must be used
+- either a local-only account already owns that email and `/api/auth/link/google` must be used
 - or a different Google identity already owns that email in the backend
 
-### `POST /auth/register` returns `409`
+### `POST /api/auth/register` returns `409`
 
 Interpretation:
 
 - either local authentication is already configured for that email
-- or the email belongs to a Google-backed account and `/auth/link/local` must be used instead
+- or the email belongs to a Google-backed account and `/api/auth/link/local` must be used instead
 
-### `POST /auth/login` returns `401`
+### `POST /api/auth/login` returns `401`
 
 Interpretation:
 
 - the supplied credentials did not match an account with local authentication
 
-### `POST /auth/link/google` returns `401`
+### `POST /api/auth/link/google` returns `401`
 
 Interpretation:
 
 - the supplied local email/password pair did not pass the ownership check
 
-### `POST /auth/link/google` returns `409`
+### `POST /api/auth/link/google` returns `409`
 
 Interpretation:
 
 - the Google token email does not match the local account email
 - or the Google identity is already linked to a different account
 
-### `POST /auth/link/local` returns `409`
+### `POST /api/auth/link/local` returns `409`
 
 Interpretation:
 
-- the Google-backed account has not been provisioned yet through `POST /auth/google`
+- the Google-backed account has not been provisioned yet through `POST /api/auth/google`
 - or the request conflicts with an incompatible existing account state
 
-### `GET /users/me` returns `401`
+### `GET /api/users/me` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `POST /tags` returns `409`
+### `POST /api/tags` returns `409`
 
 Interpretation:
 
 - the supplied tag name already exists after normalization, so the backend rejects the duplicate tag creation request
 
-### `POST /presets` returns `401`
+### `POST /api/presets` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `POST /presets/{id}/tags` returns `401`
+### `POST /api/presets/{id}/tags` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `GET /presets` returns `401`
+### `GET /api/presets` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `DELETE /presets/{id}` returns `401`
+### `DELETE /api/presets/{id}` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `GET /users/{id}/presets` returns `401`
+### `GET /api/users/{id}/presets` returns `401`
 
 Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `GET /presets/{id}` returns `404`
+### `GET /api/presets/{id}` returns `404`
 
 Interpretation:
 
 - no preset exists for that id, regardless of whether the caller is signed in
 
-### `DELETE /presets/{id}` returns `403`
+### `DELETE /api/presets/{id}` returns `403`
 
 Interpretation:
 
 - the request was authenticated successfully, but the preset belongs to a different user
 
-### `DELETE /presets/{id}` returns `404`
+### `DELETE /api/presets/{id}` returns `404`
 
 Interpretation:
 
 - the request was authenticated successfully, but no preset exists for that id
 
-### `POST /presets/{id}/tags` returns `404`
+### `POST /api/presets/{id}/tags` returns `404`
 
 Interpretation:
 
 - the request was authenticated successfully, but either the preset id or tag id did not match an existing record
 
-### `POST /presets/{id}/tags` returns `409`
+### `POST /api/presets/{id}/tags` returns `409`
 
 Interpretation:
 
@@ -701,3 +701,5 @@ macOS/Linux:
 ```bash
 ./mvnw test
 ```
+
+

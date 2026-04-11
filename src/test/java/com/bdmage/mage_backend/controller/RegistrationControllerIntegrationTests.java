@@ -42,7 +42,7 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 		String password = "password-" + uniqueSuffix;
 		String displayName = "Local User";
 
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, password, displayName)))
 				.andExpect(status().isCreated())
@@ -66,7 +66,7 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 
 		this.userRepository.saveAndFlush(new User(email, "hashed-password-value", "Local User"));
 
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, password, "Local User")))
 				.andExpect(status().isConflict())
@@ -82,16 +82,17 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 
 		this.userRepository.saveAndFlush(User.google(email, "google-subject-" + uniqueSuffix, "Google User"));
 
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, password, "Local User")))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"))
 				.andExpect(jsonPath("$.message").value(
-						"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google."));
+						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google."));
 	}
 
 	private static String requestBody(String email, String password, String displayName) {
 		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\",\"displayName\":\"" + displayName + "\"}";
 	}
 }
+

@@ -27,7 +27,7 @@ import com.bdmage.mage_backend.service.PresetService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping({"/presets", "/api/presets"})
+@RequestMapping("/api/presets")
 public class PresetController {
 
 	private final PresetService presetService;

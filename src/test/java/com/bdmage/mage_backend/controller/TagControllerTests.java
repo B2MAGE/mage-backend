@@ -50,7 +50,7 @@ class TagControllerTests {
 
 		when(this.tagService.createTag("Ambient")).thenReturn(tag);
 
-		this.mockMvc.perform(post("/tags")
+		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"Ambient"}
@@ -63,7 +63,7 @@ class TagControllerTests {
 
 	@Test
 	void createTagRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/tags")
+		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":" "}
@@ -78,7 +78,7 @@ class TagControllerTests {
 		when(this.tagService.createTag("Ambient"))
 				.thenThrow(new TagAlreadyExistsException("A tag with this name already exists."));
 
-		this.mockMvc.perform(post("/tags")
+		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"Ambient"}
@@ -88,3 +88,4 @@ class TagControllerTests {
 				.andExpect(jsonPath("$.message").value("A tag with this name already exists."));
 	}
 }
+

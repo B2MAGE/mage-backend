@@ -22,7 +22,7 @@ Operationally important behavior:
 - Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
 - successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens
 - local and Google auth providers can be linked explicitly, but never auto-linked only because emails match
-- authentication middleware validates bearer tokens for protected `/users/**` and `/presets/**` endpoints and stores the authenticated user in request context
+- authentication middleware validates bearer tokens for protected `/users/**` endpoints and protected preset routes, while `GET /presets/{id}` remains public
 
 ## Local Startup Runbook
 
@@ -372,16 +372,16 @@ Purpose:
 
 Request notes:
 
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /auth/login` or `POST /auth/google`
+- does not require authentication
+- ignores missing bearer tokens and returns preset data when the preset exists
 
 Success behavior:
 
-- HTTP `200 OK` for a valid authenticated request when the preset exists
+- HTTP `200 OK` when the preset exists
 - response includes the preset id, owner user id, preset metadata, scene data, thumbnail reference, and creation timestamp
 
 Failure behavior:
 
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
 - HTTP `404 Not Found` when no preset exists for the supplied id
 
 ### `DELETE /presets/{id}`
@@ -444,7 +444,7 @@ After startup, verify these items in order:
 13. `POST /presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
 14. `GET /presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
 15. `POST /presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
-16. `GET /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` and an existing preset id
+16. `GET /presets/{id}` succeeds for public requests and returns the preset when the id exists
 17. `DELETE /presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` by the preset owner and returns `204 No Content`
 18. `GET /users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
 
@@ -628,12 +628,6 @@ Interpretation:
 
 - the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
 
-### `GET /presets/{id}` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
 ### `DELETE /presets/{id}` returns `401`
 
 Interpretation:
@@ -650,7 +644,7 @@ Interpretation:
 
 Interpretation:
 
-- the request was authenticated successfully, but no preset exists for that id
+- no preset exists for that id, regardless of whether the caller is signed in
 
 ### `DELETE /presets/{id}` returns `403`
 

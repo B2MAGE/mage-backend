@@ -102,7 +102,7 @@ Endpoints:
 
 `POST /presets/{id}/tags` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset/tag association rules to the service layer so tagging and discovery features share one persistence path.
 
-`GET /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
+`GET /presets/{id}` is public. The controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
 
 `DELETE /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates owner-only deletion rules to the service layer. The service rejects non-owner deletes with `403 Forbidden` and removes the preset through the shared persistence path, which also clears dependent preset/tag links through database cascading.
 
@@ -282,7 +282,7 @@ The codebase does not currently include:
 - logout or token revocation
 - token expiration
 
-Successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens. Bearer-token authentication currently protects `GET /users/me`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, `DELETE /presets/{id}`, and `GET /users/{id}/presets`.
+Successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens. Bearer-token authentication currently protects `GET /users/me`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `DELETE /presets/{id}`, and `GET /users/{id}/presets`, while `GET /presets/{id}` remains public.
 
 ## Target Architecture as the Backend Grows
 

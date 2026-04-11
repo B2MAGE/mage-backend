@@ -98,7 +98,7 @@ Expected responses:
 - `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
 - `GET /presets` returns `200 OK` with an array of presets when the request includes `Authorization: Bearer <accessToken>`, and `GET /presets?tag=ambient` returns only presets linked to that tag or an empty array when none match
 - `POST /presets/{presetId}/tags` returns `201 Created` with the preset/tag association fields when the request includes `Authorization: Bearer <accessToken>` and both records exist
-- `GET /presets/{presetId}` returns `200 OK` with the preset metadata, scene data, thumbnail reference, and creation timestamp when the request includes `Authorization: Bearer <accessToken>` and the preset exists
+- `GET /presets/{presetId}` returns `200 OK` with the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists, even without an `Authorization` header
 - `DELETE /presets/{presetId}` returns `204 No Content` when the request includes `Authorization: Bearer <accessToken>` and the authenticated user owns the preset, `403 Forbidden` when a different authenticated user tries to delete it, and `404 Not Found` when the preset does not exist
 - `GET /users/{id}/presets` returns `200 OK` with an array of presets for the requested user when the request includes `Authorization: Bearer <accessToken>`
 
@@ -138,8 +138,7 @@ Use the `accessToken` from the login response or Google auth response when calli
       -H "Content-Type: application/json" \
       -d '{"tagId":<tag-id>}'
 
-    curl http://localhost:8080/presets/<preset-id> \
-      -H "Authorization: Bearer <access-token>"
+    curl http://localhost:8080/presets/<preset-id>
 
     curl -X DELETE http://localhost:8080/presets/<preset-id> \
       -H "Authorization: Bearer <access-token>"
@@ -258,7 +257,7 @@ If you are new to the repository, this sequence builds the fastest mental model 
 15. trace `POST /presets` from authentication middleware to controller to service to repository
 16. trace `GET /presets` from authentication middleware to controller to service to repository, including the optional `tag` query parameter path
 17. trace `POST /presets/{id}/tags` from authentication middleware to controller to service to repository
-18. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
+18. trace public `GET /presets/{id}` from the controller to the service to the repository
 19. trace `DELETE /presets/{id}` from authentication middleware to controller to service, including the owner-only authorization check
 20. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
 

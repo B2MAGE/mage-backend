@@ -46,7 +46,7 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 
 		this.userRepository.saveAndFlush(new User(email, this.passwordHashingService.hash(password), "Local User"));
 
-		this.mockMvc.perform(post("/auth/link/google")
+		this.mockMvc.perform(post("/api/auth/link/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(googleLinkRequestBody(email, password, verifiedToken(googleSubject, email, "Google User"))))
 				.andExpect(status().isOk())
@@ -68,7 +68,7 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 
 		this.userRepository.saveAndFlush(User.google(email, googleSubject, "Google User"));
 
-		this.mockMvc.perform(post("/auth/link/local")
+		this.mockMvc.perform(post("/api/auth/link/local")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(localLinkRequestBody(verifiedToken(googleSubject, email, "Google User"), password)))
 				.andExpect(status().isOk())
@@ -89,7 +89,7 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 
 		this.userRepository.saveAndFlush(new User(email, this.passwordHashingService.hash(password), "Local User"));
 
-		this.mockMvc.perform(post("/auth/link/google")
+		this.mockMvc.perform(post("/api/auth/link/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(googleLinkRequestBody(
 						email,
@@ -113,3 +113,4 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 		return "{\"idToken\":\"" + idToken + "\",\"password\":\"" + password + "\"}";
 	}
 }
+

@@ -75,7 +75,7 @@ class AuthControllerTests {
 				.thenReturn(new GoogleAuthenticationResult(googleUser, true));
 		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("issued-google-token");
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"idToken":"valid-token"}
@@ -99,7 +99,7 @@ class AuthControllerTests {
 				.thenReturn(new GoogleAuthenticationResult(googleUser, false));
 		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("reissued-google-token");
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"idToken":"repeat-token"}
@@ -112,7 +112,7 @@ class AuthControllerTests {
 
 	@Test
 	void googleAuthenticationRejectsBlankTokenRequest() throws Exception {
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"idToken":" "}
@@ -127,7 +127,7 @@ class AuthControllerTests {
 		when(this.googleAuthenticationService.authenticate("invalid-token"))
 				.thenThrow(new InvalidGoogleTokenException("Google ID token is invalid or expired."));
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"idToken":"invalid-token"}
@@ -141,9 +141,9 @@ class AuthControllerTests {
 	void googleAuthenticationReturnsConflictWhenAccountRulesConflict() throws Exception {
 		when(this.googleAuthenticationService.authenticate("conflict-token"))
 				.thenThrow(new AccountLinkRequiredException(
-						"A local account already exists for this email. Link Google through /auth/link/google after authenticating that local account."));
+						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account."));
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"idToken":"conflict-token"}
@@ -160,7 +160,7 @@ class AuthControllerTests {
 		when(this.registrationService.register("new-user@example.com", "secret-value", "New User"))
 				.thenReturn(localUser);
 
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"new-user@example.com","password":"secret-value","displayName":"New User"}
@@ -177,7 +177,7 @@ class AuthControllerTests {
 
 	@Test
 	void registrationRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":" ","password":" ","displayName":" "}
@@ -195,7 +195,7 @@ class AuthControllerTests {
 				.thenThrow(new EmailAlreadyRegisteredException(
 						"Local authentication is already configured for this email."));
 
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"existing@example.com","password":"secret-value","displayName":"Existing User"}
@@ -209,9 +209,9 @@ class AuthControllerTests {
 	void registrationReturnsConflictWhenExplicitLinkIsRequired() throws Exception {
 		when(this.registrationService.register("existing@example.com", "secret-value", "Existing User"))
 				.thenThrow(new AccountLinkRequiredException(
-						"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google."));
+						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google."));
 
-		this.mockMvc.perform(post("/auth/register")
+		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"existing@example.com","password":"secret-value","displayName":"Existing User"}
@@ -229,7 +229,7 @@ class AuthControllerTests {
 				.thenReturn(localUser);
 		when(this.authenticationTokenService.issueToken(localUser)).thenReturn("issued-login-token");
 
-		this.mockMvc.perform(post("/auth/login")
+		this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"local-user@example.com","password":"secret-value"}
@@ -247,7 +247,7 @@ class AuthControllerTests {
 
 	@Test
 	void loginRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/auth/login")
+		this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":" ","password":" "}
@@ -263,7 +263,7 @@ class AuthControllerTests {
 		when(this.loginService.login("local-user@example.com", "wrong-password"))
 				.thenThrow(new InvalidCredentialsException("Email or password is incorrect."));
 
-		this.mockMvc.perform(post("/auth/login")
+		this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"local-user@example.com","password":"wrong-password"}
@@ -285,7 +285,7 @@ class AuthControllerTests {
 		when(this.accountLinkingService.linkGoogle("user@example.com", "secret-value", "valid-token"))
 				.thenReturn(new AccountLinkingResult(linkedUser, true));
 
-		this.mockMvc.perform(post("/auth/link/google")
+		this.mockMvc.perform(post("/api/auth/link/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"user@example.com","password":"secret-value","idToken":"valid-token"}
@@ -301,7 +301,7 @@ class AuthControllerTests {
 		when(this.accountLinkingService.linkGoogle("user@example.com", "secret-value", "valid-token"))
 				.thenThrow(new InvalidLocalCredentialsException("Email or password is incorrect."));
 
-		this.mockMvc.perform(post("/auth/link/google")
+		this.mockMvc.perform(post("/api/auth/link/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"email":"user@example.com","password":"secret-value","idToken":"valid-token"}
@@ -323,7 +323,7 @@ class AuthControllerTests {
 		when(this.accountLinkingService.linkLocal("valid-token", "secret-value"))
 				.thenReturn(new AccountLinkingResult(linkedUser, false));
 
-		this.mockMvc.perform(post("/auth/link/local")
+		this.mockMvc.perform(post("/api/auth/link/local")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"idToken":"valid-token","password":"secret-value"}
@@ -334,3 +334,4 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.linked").value(false));
 	}
 }
+

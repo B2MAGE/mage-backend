@@ -35,7 +35,7 @@ public class RegistrationService {
 			}
 
 			throw new AccountLinkRequiredException(
-					"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google.");
+					"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google.");
 		}
 
 		String passwordHash = this.passwordHashingService.hash(plainPassword);
@@ -43,3 +43,4 @@ public class RegistrationService {
 		return this.userRepository.saveAndFlush(newUser);
 	}
 }
+

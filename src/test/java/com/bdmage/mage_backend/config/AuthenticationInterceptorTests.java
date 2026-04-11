@@ -50,10 +50,10 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
-	void preHandleAllowsPublicPresetDetailRequestWithoutAuthenticationHeader() {
+	void preHandleAllowsPublicApiPresetDetailRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
-		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/presets/15");
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/presets/15");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
 		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
@@ -63,10 +63,10 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
-	void preHandleStillRejectsDeletePresetRequestWithoutAuthenticationHeader() {
+	void preHandleStillRejectsDeleteApiPresetRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
-		MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/presets/15");
+		MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/presets/15");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
 		assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))

@@ -10,7 +10,7 @@ If Docker Compose is not installed yet, first follow [Install Docker Compose](..
 
 Verify that:
 
-- `GET /presets?tag=ambient` returns only presets linked to the `ambient` tag
+- `GET /api/presets?tag=ambient` returns only presets linked to the `ambient` tag
 - tag filtering is case-insensitive and whitespace-tolerant
 - the endpoint returns `[]` when no presets match
 
@@ -51,7 +51,7 @@ Use the second terminal for the API requests below.
 
 ```powershell
 $register = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/auth/register" `
+  -Uri "http://localhost:8080/api/auth/register" `
   -ContentType "application/json" `
   -Body '{"email":"filter-test@example.com","password":"test-password","displayName":"Filter Test User"}'
 ```
@@ -60,7 +60,7 @@ $register = Invoke-RestMethod -Method Post `
 
 ```powershell
 $login = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/auth/login" `
+  -Uri "http://localhost:8080/api/auth/login" `
   -ContentType "application/json" `
   -Body '{"email":"filter-test@example.com","password":"test-password"}'
 
@@ -71,12 +71,12 @@ $token = $login.accessToken
 
 ```powershell
 $ambientTag = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/tags" `
+  -Uri "http://localhost:8080/api/tags" `
   -ContentType "application/json" `
   -Body '{"name":"ambient"}'
 
 $showcaseTag = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/tags" `
+  -Uri "http://localhost:8080/api/tags" `
   -ContentType "application/json" `
   -Body '{"name":"showcase"}'
 ```
@@ -85,13 +85,13 @@ $showcaseTag = Invoke-RestMethod -Method Post `
 
 ```powershell
 $preset1 = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/presets" `
+  -Uri "http://localhost:8080/api/presets" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}}}'
 
 $preset2 = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/presets" `
+  -Uri "http://localhost:8080/api/presets" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body '{"name":"Signal Bloom","sceneData":{"visualizer":{"shader":"pulse"}}}'
@@ -101,13 +101,13 @@ $preset2 = Invoke-RestMethod -Method Post `
 
 ```powershell
 Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/presets/$($preset1.presetId)/tags" `
+  -Uri "http://localhost:8080/api/presets/$($preset1.presetId)/tags" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body "{""tagId"":$($ambientTag.tagId)}"
 
 Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/presets/$($preset2.presetId)/tags" `
+  -Uri "http://localhost:8080/api/presets/$($preset2.presetId)/tags" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body "{""tagId"":$($showcaseTag.tagId)}"
@@ -117,7 +117,7 @@ Invoke-RestMethod -Method Post `
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/presets?tag=ambient" `
+  -Uri "http://localhost:8080/api/presets?tag=ambient" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -129,7 +129,7 @@ Expected result:
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/presets?tag=%20AMBIENT%20" `
+  -Uri "http://localhost:8080/api/presets?tag=%20AMBIENT%20" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -141,7 +141,7 @@ Expected result:
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/presets?tag=does-not-exist" `
+  -Uri "http://localhost:8080/api/presets?tag=does-not-exist" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -153,7 +153,7 @@ Expected result:
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/presets" `
+  -Uri "http://localhost:8080/api/presets" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -174,3 +174,5 @@ To remove containers afterward:
 ```powershell
 docker compose down
 ```
+
+

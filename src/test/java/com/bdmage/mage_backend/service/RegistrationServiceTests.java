@@ -75,9 +75,10 @@ class RegistrationServiceTests {
 		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New User"))
 				.isInstanceOf(AccountLinkRequiredException.class)
 				.hasMessage(
-						"A Google-backed account already exists for this email. Link local authentication through /auth/link/local after authenticating with Google.");
+						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google.");
 
 		verify(passwordHashingService, never()).hash(any());
 		verify(userRepository, never()).saveAndFlush(any(User.class));
 	}
 }
+

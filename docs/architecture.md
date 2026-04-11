@@ -5,7 +5,7 @@ Today the backend is responsible for:
 - starting the Spring Boot application
 - building and validating the PostgreSQL datasource
 - applying Flyway migrations on startup
-- exposing `/health`, `/ready`, `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `POST /auth/link/google`, `POST /auth/link/local`, `GET /users/me`, `POST /tags`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `GET /presets/{id}`, `DELETE /presets/{id}`, and `GET /users/{id}/presets`
+- exposing `/health`, `/ready`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/google`, `POST /api/auth/link/google`, `POST /api/auth/link/local`, `GET /api/users/me`, `POST /api/tags`, `POST /api/presets`, `GET /api/presets`, `POST /api/presets/{id}/tags`, `GET /api/presets/{id}`, `DELETE /api/presets/{id}`, and `GET /api/users/{id}/presets`
 - registering local email-and-password accounts through the shared `users` table
 - authenticating local email-and-password accounts through the shared `users` table
 - verifying Google ID tokens server-side against configured Google OAuth client IDs
@@ -64,49 +64,49 @@ Endpoints:
 
 - `GET /health`
 - `GET /ready`
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/google`
-- `POST /auth/link/google`
-- `POST /auth/link/local`
-- `GET /users/me`
-- `POST /tags`
-- `POST /presets`
-- `GET /presets`
-- `POST /presets/{id}/tags`
-- `GET /presets/{id}`
-- `DELETE /presets/{id}`
-- `GET /users/{id}/presets`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/google`
+- `POST /api/auth/link/google`
+- `POST /api/auth/link/local`
+- `GET /api/users/me`
+- `POST /api/tags`
+- `POST /api/presets`
+- `GET /api/presets`
+- `POST /api/presets/{id}/tags`
+- `GET /api/presets/{id}`
+- `DELETE /api/presets/{id}`
+- `GET /api/users/{id}/presets`
 
 `/health` is a liveness check. It answers the narrow question, "Is the process up?"
 
 `/ready` is a readiness check. It answers the more operationally useful question, "Can this instance actually serve traffic right now?"
 
-`POST /auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record plus a bearer access token.
+`POST /api/auth/google` accepts a Google ID token, delegates token verification to the service layer, and returns either a created or reused Google-backed user record plus a bearer access token.
 
-`POST /auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
+`POST /api/auth/register` accepts email, password, and display name, delegates registration rules to the service layer, and returns a created local account without exposing password material.
 
-`POST /auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account plus a bearer access token without exposing password material.
+`POST /api/auth/login` accepts email and password, delegates credential verification to the service layer, and returns the authenticated local account plus a bearer access token without exposing password material.
 
-`POST /auth/link/google` accepts a local email/password pair plus a Google ID token and only links the provider after both ownership checks succeed.
+`POST /api/auth/link/google` accepts a local email/password pair plus a Google ID token and only links the provider after both ownership checks succeed.
 
-`POST /auth/link/local` accepts a Google ID token plus a new password and only links local auth after the Google-backed account context is verified.
+`POST /api/auth/link/local` accepts a Google ID token plus a new password and only links local auth after the Google-backed account context is verified.
 
-`GET /users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
+`GET /api/users/me` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates profile lookup to the service layer without exposing password hashes or Google subject identifiers.
 
-`POST /tags` accepts a tag name, delegates normalization and duplicate-tag checks to the service layer, and stores new tags through the shared `tags` table.
+`POST /api/tags` accepts a tag name, delegates normalization and duplicate-tag checks to the service layer, and stores new tags through the shared `tags` table.
 
-`POST /presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset persistence to the service layer so future preset features share one creation path.
+`POST /api/presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset persistence to the service layer so future preset features share one creation path.
 
-`GET /presets` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer. Without a `tag` query parameter it returns all persisted presets, and with `?tag=<name>` it returns only presets linked to that normalized tag name.
+`GET /api/presets` runs behind authentication middleware. The middleware validates the bearer token before the controller delegates preset lookup to the service layer. Without a `tag` query parameter it returns all persisted presets, and with `?tag=<name>` it returns only presets linked to that normalized tag name.
 
-`POST /presets/{id}/tags` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset/tag association rules to the service layer so tagging and discovery features share one persistence path.
+`POST /api/presets/{id}/tags` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset/tag association rules to the service layer so tagging and discovery features share one persistence path.
 
-`GET /presets/{id}` is public. The controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
+`GET /api/presets/{id}` is public. The controller delegates preset lookup to the service layer and returns the preset metadata, scene data, thumbnail reference, and creation timestamp when the preset exists.
 
-`DELETE /presets/{id}` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates owner-only deletion rules to the service layer. The service rejects non-owner deletes with `403 Forbidden` and removes the preset through the shared persistence path, which also clears dependent preset/tag links through database cascading.
+`DELETE /api/presets/{id}` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates owner-only deletion rules to the service layer. The service rejects non-owner deletes with `403 Forbidden` and removes the preset through the shared persistence path, which also clears dependent preset/tag links through database cascading.
 
-`GET /users/{id}/presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset lookup for the requested user id to the service layer.
+`GET /api/users/{id}/presets` runs behind authentication middleware. The middleware validates the bearer token, places the authenticated user in request context, and the controller delegates preset lookup for the requested user id to the service layer.
 
 ### Service Layer
 
@@ -282,7 +282,7 @@ The codebase does not currently include:
 - logout or token revocation
 - token expiration
 
-Successful `POST /auth/login` and `POST /auth/google` requests issue bearer access tokens. Bearer-token authentication currently protects `GET /users/me`, `POST /presets`, `GET /presets`, `POST /presets/{id}/tags`, `DELETE /presets/{id}`, and `GET /users/{id}/presets`, while `GET /presets/{id}` remains public.
+Successful `POST /api/auth/login` and `POST /api/auth/google` requests issue bearer access tokens. Bearer-token authentication currently protects `GET /api/users/me`, `POST /api/presets`, `GET /api/presets`, `POST /api/presets/{id}/tags`, `DELETE /api/presets/{id}`, and `GET /api/users/{id}/presets`, while `GET /api/presets/{id}` remains public.
 
 ## Target Architecture as the Backend Grows
 
@@ -314,3 +314,5 @@ Responsibilities:
 - `exception`: custom exceptions and global error mapping
 - `client`: wrappers for external services
 - `job`: scheduled work, asynchronous tasks, background processing
+
+

@@ -61,7 +61,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -85,7 +85,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Preset User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -94,7 +94,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		MvcResult createResult = this.mockMvc.perform(post("/presets")
+		MvcResult createResult = this.mockMvc.perform(post("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -133,7 +133,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Preset Validation User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -142,7 +142,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -159,7 +159,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void attachTagToPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":7}
@@ -188,14 +188,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						""")));
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -230,14 +230,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -267,14 +267,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{"visualizer":{"shader":"glacier"}}
 						""")));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -287,7 +287,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void getPresetsReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(get("/presets")
+		this.mockMvc.perform(get("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
@@ -323,14 +323,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.presetTagRepository.saveAndFlush(new PresetTag(ambientPreset.getId(), ambientTag.getId()));
 		this.presetTagRepository.saveAndFlush(new PresetTag(otherPreset.getId(), showcaseTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(get("/presets")
+		this.mockMvc.perform(get("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.param("tag", " " + ambientTagName.toUpperCase() + " ")
 				.contentType(MediaType.APPLICATION_JSON))
@@ -351,14 +351,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Empty Filter Presets User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(get("/presets")
+		this.mockMvc.perform(get("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.param("tag", "ambient")
 				.contentType(MediaType.APPLICATION_JSON))
@@ -384,7 +384,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""),
 				"thumbnails/preset-1.png"));
 
-		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
@@ -407,7 +407,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Get Preset User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -422,7 +422,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""),
 				"thumbnails/preset-1.png"));
 
-		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -437,7 +437,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void getPresetReturnsNotFoundForPublicRequestWhenPresetDoesNotExist() throws Exception {
-		this.mockMvc.perform(get("/presets/99999")
+		this.mockMvc.perform(get("/api/presets/99999")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
@@ -446,7 +446,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void deletePresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(delete("/presets/15")
+		this.mockMvc.perform(delete("/api/presets/15")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
@@ -473,14 +473,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(delete("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(delete("/api/presets/" + savedPreset.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNoContent());
@@ -488,14 +488,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(this.presetRepository.findById(savedPreset.getId())).isEmpty();
 		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId())).isEmpty();
 
-		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Preset not found."));
 
-		this.mockMvc.perform(get("/users/" + savedUser.getId() + "/presets")
+		this.mockMvc.perform(get("/api/users/" + savedUser.getId() + "/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -525,14 +525,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{"visualizer":{"shader":"pulse"}}
 						""")));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(otherEmail, otherPassword)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(delete("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(delete("/api/presets/" + savedPreset.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isForbidden())
@@ -553,14 +553,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Delete Missing Preset User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(delete("/presets/99999")
+		this.mockMvc.perform(delete("/api/presets/99999")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
@@ -586,3 +586,5 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return Long.valueOf(matcher.group(1));
 	}
 }
+
+

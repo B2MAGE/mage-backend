@@ -17,7 +17,7 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
 	private static final String BEARER_PREFIX = "Bearer ";
-	private static final String PUBLIC_PRESET_DETAIL_PATTERN = "/presets/{id}";
+	private static final String PUBLIC_PRESET_DETAIL_PATTERN = "/api/presets/{id}";
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
 	private final AuthenticationTokenService authenticationTokenService;
@@ -28,7 +28,7 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-		// Public preset detail pages allow anonymous GET /presets/{id} reads without
+		// Public preset detail pages allow anonymous GET /api/presets/{id} reads without
 		// opening write or owner-sensitive preset routes.
 		if (isPublicPresetDetailRequest(request)) {
 			return true;

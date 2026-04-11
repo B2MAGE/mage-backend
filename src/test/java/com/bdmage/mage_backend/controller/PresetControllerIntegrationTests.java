@@ -367,12 +367,33 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(get("/presets/99999")
+	void getPresetReturnsPresetWithAllFieldsForPublicRequest() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "public-get-preset-user-" + uniqueSuffix + "@example.com";
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
+				"Public Get Preset User"));
+
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						"""),
+				"thumbnails/preset-1.png"));
+
+		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
 				.contentType(MediaType.APPLICATION_JSON))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("Authentication is required."));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
+				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
+				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.createdAt").isNotEmpty());
 	}
 
 	@Test
@@ -415,25 +436,8 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetReturnsNotFoundForNonexistentPreset() throws Exception {
-		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "missing-preset-user-" + uniqueSuffix + "@example.com";
-		String password = "password-" + uniqueSuffix;
-
-		this.userRepository.saveAndFlush(new User(
-				email,
-				this.passwordHashingService.hash(password),
-				"Missing Preset User"));
-
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(loginRequestBody(email, password)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.accessToken").isNotEmpty())
-				.andReturn());
-
+	void getPresetReturnsNotFoundForPublicRequestWhenPresetDoesNotExist() throws Exception {
 		this.mockMvc.perform(get("/presets/99999")
-				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))

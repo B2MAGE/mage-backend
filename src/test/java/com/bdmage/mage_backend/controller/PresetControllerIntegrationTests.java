@@ -61,7 +61,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -85,7 +85,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Preset User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -94,7 +94,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		MvcResult createResult = this.mockMvc.perform(post("/presets")
+		MvcResult createResult = this.mockMvc.perform(post("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -133,7 +133,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Preset Validation User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -142,7 +142,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -384,7 +384,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""),
 				"thumbnails/preset-1.png"));
 
-		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
@@ -437,7 +437,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void getPresetReturnsNotFoundForPublicRequestWhenPresetDoesNotExist() throws Exception {
-		this.mockMvc.perform(get("/presets/99999")
+		this.mockMvc.perform(get("/api/presets/99999")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))

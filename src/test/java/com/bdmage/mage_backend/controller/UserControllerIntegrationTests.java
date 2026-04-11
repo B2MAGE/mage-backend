@@ -58,7 +58,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void meReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(get("/users/me"))
+		this.mockMvc.perform(get("/api/users/me"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
@@ -84,7 +84,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Profile Local User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -93,7 +93,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(get("/users/me")
+		this.mockMvc.perform(get("/api/users/me")
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
@@ -155,7 +155,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		savePreset(ownerUser.getId(), "Aurora Drift");
 		savePreset(ownerUser.getId(), "Signal Bloom");
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(authenticatedUser.getEmail(), "viewer-password-" + uniqueSuffix)))
 				.andExpect(status().isOk())
@@ -164,7 +164,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(get("/users/" + ownerUser.getId() + "/presets")
+		this.mockMvc.perform(get("/api/users/" + ownerUser.getId() + "/presets")
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))

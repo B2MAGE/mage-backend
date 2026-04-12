@@ -21,19 +21,23 @@ Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 This starts:
 - `postgres`: PostgreSQL 16
 - `backend`: the Spring Boot service from this repo
+
+The split is intentional:
+- `docker-compose.yml`: base services for deployment-friendly container networking
+- `docker-compose.local.yml`: local-only host port bindings for `8080` and `5432`
 
 ## Environment Variables
 
@@ -104,8 +108,8 @@ Migration rules:
 If local schema state gets messy, the quickest reset is:
 
 ```bash
-docker compose down -v
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 ## Common Local Issues

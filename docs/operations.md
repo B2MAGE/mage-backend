@@ -27,8 +27,12 @@ Operationally important behavior:
 ## Start the Stack
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
+
+Use the base file plus the local file for host access:
+- `docker-compose.yml`: deployment-friendly base definition
+- `docker-compose.local.yml`: local-only port publishing
 
 Useful log commands:
 
@@ -123,8 +127,8 @@ Rules:
 If local database state is corrupted or out of sync:
 
 ```bash
-docker compose down -v
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 This deletes the PostgreSQL volume and recreates the schema from migrations.
@@ -159,8 +163,8 @@ The usual cause is that Docker is unavailable, so Testcontainers cannot start Po
 
 ### Ports are already in use
 
-The local stack expects:
+The local override publishes:
 - `8080` for the backend
 - `5432` for PostgreSQL
 
-Stop the conflicting process or adjust the local port mapping.
+If either port is busy, either stop the conflicting process or edit `docker-compose.local.yml`.

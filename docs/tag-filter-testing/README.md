@@ -38,7 +38,7 @@ Copy-Item .env.example .env
 ## 4. Start the Backend and Database
 
 ```powershell
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 Wait until the backend is healthy and listening on `http://localhost:8080`.
@@ -172,7 +172,6 @@ Ctrl+C
 To remove containers afterward:
 
 ```powershell
-docker compose down
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
 ```
-
 

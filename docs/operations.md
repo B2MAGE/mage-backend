@@ -124,7 +124,7 @@ Thumbnail uploads support two flows.
 This flow avoids leaving behind a partial preset when upload fails:
 
 1. `POST /api/presets/thumbnail/presign`
-2. browser `PUT` to the returned S3 upload URL
+2. browser `PUT` to the returned object-storage upload URL
 3. `POST /api/presets` with `thumbnailObjectKey`
 
 `POST /api/presets/thumbnail/presign` accepts JSON:
@@ -145,7 +145,7 @@ Requirements:
 
 Success behavior:
 - returns `200 OK`
-- returns the S3 upload URL, HTTP method, object key, and required upload headers
+- returns the object-storage upload URL, HTTP method, object key, and required upload headers
 - scopes the staged object key under the authenticated user's pending thumbnail prefix
 
 After the browser upload succeeds, create the preset with:
@@ -166,21 +166,21 @@ After the browser upload succeeds, create the preset with:
 
 Success behavior:
 - returns `201 Created`
-- verifies the uploaded object exists in S3 before the preset is written
-- persists `thumbnailRef` using the public CloudFront-backed URL
-- attempts to delete the staged S3 object if preset persistence fails after thumbnail verification
+- verifies the uploaded object exists in the configured object-storage provider before the preset is written
+- persists `thumbnailRef` using the configured public thumbnail base URL
+- attempts to delete the staged uploaded object if preset persistence fails after thumbnail verification
 
 Failure behavior:
 - returns `400 INVALID_THUMBNAIL` when the staged object key or uploaded object metadata is invalid
 - returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
-- returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when S3 presign or verification is unavailable
+- returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
 
 ### Existing preset thumbnail replacement
 
 This flow updates the thumbnail for an already persisted preset:
 
 1. `POST /api/presets/{id}/thumbnail/presign`
-2. browser `PUT` to the returned S3 upload URL
+2. browser `PUT` to the returned object-storage upload URL
 3. `POST /api/presets/{id}/thumbnail/finalize`
 
 ### Presign request
@@ -189,12 +189,12 @@ This flow updates the thumbnail for an already persisted preset:
 
 ### Browser upload
 
-The browser uploads directly to S3 with:
+The browser uploads directly to the configured object-storage provider with:
 - `PUT <uploadUrl>`
 - the returned headers, including `Content-Type`
 - the raw file body
 
-This step bypasses the backend application server. S3 bucket CORS must allow the frontend origins to perform `PUT` uploads.
+This step bypasses the backend application server. The active provider must allow the frontend origins to perform `PUT` uploads.
 
 ### Finalize request
 
@@ -209,16 +209,16 @@ This step bypasses the backend application server. S3 bucket CORS must allow the
 Success behavior:
 - returns `200 OK`
 - returns the full updated `PresetResponse`
-- verifies the uploaded object exists in S3
-- updates `thumbnailRef` to the public CloudFront-backed URL
-- later finalized uploads replace the preset's stored thumbnail reference and attempt to clean up the previous S3 object
+- verifies the uploaded object exists in the configured object-storage provider
+- updates `thumbnailRef` to the configured public thumbnail base URL
+- later finalized uploads replace the preset's stored thumbnail reference and attempt to clean up the previous uploaded object
 
 Failure behavior:
 - returns `400 INVALID_THUMBNAIL` when the metadata or uploaded object state is invalid
 - returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
 - returns `403 PRESET_OWNERSHIP_REQUIRED` when the caller does not own the preset
 - returns `404 PRESET_NOT_FOUND` when the preset id does not exist
-- returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when S3 presign or verification is unavailable
+- returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
 
 ## Database Operations
 

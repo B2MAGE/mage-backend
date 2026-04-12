@@ -84,7 +84,7 @@ The service layer owns the real behavior:
 - `UserProfileService`: current-user lookups
 - `TagService`: tag normalization and duplicate checks
 - `PresetService`: preset creation, lookup, deletion, filtering, tagging, and presigned thumbnail upload orchestration
-- `S3ThumbnailStorageService`: S3 presign, object verification, public URL generation, and replacement cleanup
+- `ObjectStorageThumbnailStorageService`: S3-compatible presign, object verification, public URL generation, and replacement cleanup for AWS S3 or MinIO
 - `PasswordHashingService`: password hashing and verification
 
 The controller should not contain those decisions.

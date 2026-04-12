@@ -268,6 +268,18 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(ThumbnailStorageUnavailableException.class)
+	ResponseEntity<ApiErrorResponse> handleThumbnailStorageUnavailable(
+			ThumbnailStorageUnavailableException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.SERVICE_UNAVAILABLE,
+			"THUMBNAIL_STORAGE_UNAVAILABLE",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
 	private static ResponseEntity<ApiErrorResponse> buildResponse(
 			HttpStatus status,
 			String code,

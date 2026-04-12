@@ -3,8 +3,8 @@ package com.bdmage.mage_backend.service;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
+import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
 import com.bdmage.mage_backend.exception.PresetForbiddenException;
@@ -27,7 +27,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class PresetService {
@@ -39,11 +38,9 @@ public class PresetService {
 	private static final String PRESET_TAG_ALREADY_EXISTS_MESSAGE = "This tag is already attached to the preset.";
 	private static final String PRESET_OWNERSHIP_REQUIRED_MESSAGE = "Preset ownership is required.";
 	private static final String INVALID_THUMBNAIL_EMPTY_MESSAGE = "Thumbnail file must not be empty.";
+	private static final String INVALID_THUMBNAIL_FILENAME_MESSAGE = "Thumbnail filename must not be blank.";
 	private static final String INVALID_THUMBNAIL_TYPE_MESSAGE = "Thumbnail must be a valid image (jpeg, png, webp, or gif).";
 	private static final String INVALID_THUMBNAIL_SIZE_MESSAGE = "Thumbnail must not exceed 5 MB.";
-	private static final long MAX_THUMBNAIL_SIZE_BYTES = 5L * 1024 * 1024;
-	private static final Set<String> ALLOWED_THUMBNAIL_CONTENT_TYPES = Set.of(
-			"image/jpeg", "image/png", "image/webp", "image/gif");
 	private static final ObjectMapper JSON_OBJECT_MAPPER = new ObjectMapper();
 
 	private final PresetRepository presetRepository;
@@ -51,6 +48,7 @@ public class PresetService {
 	private final PresetTagRepository presetTagRepository;
 	private final UserRepository userRepository;
 	private final ThumbnailStorageService thumbnailStorageService;
+	private final ThumbnailStorageProperties thumbnailStorageProperties;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -61,7 +59,7 @@ public class PresetService {
 			TagRepository tagRepository,
 			PresetTagRepository presetTagRepository,
 			UserRepository userRepository) {
-		this(presetRepository, tagRepository, presetTagRepository, userRepository, null);
+		this(presetRepository, tagRepository, presetTagRepository, userRepository, null, null);
 	}
 
 	// Spring uses this constructor in production because it can satisfy all dependencies.
@@ -71,28 +69,44 @@ public class PresetService {
 			TagRepository tagRepository,
 			PresetTagRepository presetTagRepository,
 			UserRepository userRepository,
-			ThumbnailStorageService thumbnailStorageService) {
+			ThumbnailStorageService thumbnailStorageService,
+			ThumbnailStorageProperties thumbnailStorageProperties) {
 		this.presetRepository = presetRepository;
 		this.tagRepository = tagRepository;
 		this.presetTagRepository = presetTagRepository;
 		this.userRepository = userRepository;
 		this.thumbnailStorageService = thumbnailStorageService;
+		this.thumbnailStorageProperties = thumbnailStorageProperties;
 	}
 
 	@Transactional
-	public Preset createPreset(Long authenticatedUserId, String name, JsonNode sceneData, String thumbnailRef) {
+	public Preset createPreset(Long authenticatedUserId, String name, JsonNode sceneData, String thumbnailObjectKey) {
 		requireAuthenticatedUser(authenticatedUserId);
+
+		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
+		if (StringUtils.hasText(thumbnailObjectKey)) {
+			finalizedThumbnail = requireThumbnailStorageService()
+					.finalizePresetCreationUpload(authenticatedUserId, thumbnailObjectKey);
+		}
 
 		Preset newPreset = new Preset(
 				authenticatedUserId,
 				name.trim(),
 				sceneData,
-				normalizeThumbnailRef(thumbnailRef));
-		Preset savedPreset = this.presetRepository.saveAndFlush(newPreset);
-		if (this.entityManager != null) {
-			this.entityManager.refresh(savedPreset);
+				finalizedThumbnail != null ? finalizedThumbnail.publicUrl() : null);
+
+		try {
+			Preset savedPreset = this.presetRepository.saveAndFlush(newPreset);
+			if (this.entityManager != null) {
+				this.entityManager.refresh(savedPreset);
+			}
+			return savedPreset;
+		} catch (RuntimeException ex) {
+			if (finalizedThumbnail != null) {
+				requireThumbnailStorageService().delete(finalizedThumbnail.objectKey());
+			}
+			throw ex;
 		}
-		return savedPreset;
 	}
 
 	@Transactional
@@ -150,25 +164,54 @@ public class PresetService {
 	}
 
 	@Transactional
-	public Preset uploadThumbnail(Long authenticatedUserId, Long presetId, MultipartFile file) {
+	public ThumbnailStorageService.PresignedThumbnailUpload createPresetThumbnailUpload(
+			Long authenticatedUserId,
+			String filename,
+			String contentType,
+			Long sizeBytes) {
+		requireAuthenticatedUser(authenticatedUserId);
+		validateThumbnailUploadRequest(filename, contentType, sizeBytes);
+		return requireThumbnailStorageService().createPresetCreationUpload(authenticatedUserId, filename, contentType);
+	}
+
+	@Transactional
+	public ThumbnailStorageService.PresignedThumbnailUpload createThumbnailUpload(
+			Long authenticatedUserId,
+			Long presetId,
+			String filename,
+			String contentType,
+			Long sizeBytes) {
 		requireAuthenticatedUser(authenticatedUserId);
 
 		Preset preset = this.presetRepository.findById(presetId)
 				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
 
 		requirePresetOwnership(preset, authenticatedUserId);
-		validateThumbnail(file);
+		validateThumbnailUploadRequest(filename, contentType, sizeBytes);
+
+		return requireThumbnailStorageService().createPresignedUpload(presetId, filename, contentType);
+	}
+
+	@Transactional
+	public Preset finalizeThumbnailUpload(Long authenticatedUserId, Long presetId, String objectKey) {
+		requireAuthenticatedUser(authenticatedUserId);
+
+		Preset preset = this.presetRepository.findById(presetId)
+				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+
+		requirePresetOwnership(preset, authenticatedUserId);
 
 		String previousThumbnailRef = preset.getThumbnailRef();
-		String thumbnailRef = this.thumbnailStorageService.store(file, presetId);
-		preset.updateThumbnailRef(thumbnailRef);
+		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = requireThumbnailStorageService()
+				.finalizeUpload(presetId, objectKey);
+		preset.updateThumbnailRef(finalizedThumbnail.publicUrl());
 
 		Preset savedPreset = this.presetRepository.saveAndFlush(preset);
 		if (this.entityManager != null) {
 			this.entityManager.refresh(savedPreset);
 		}
-		if (StringUtils.hasText(previousThumbnailRef) && !previousThumbnailRef.equals(thumbnailRef)) {
-			this.thumbnailStorageService.delete(previousThumbnailRef);
+		if (StringUtils.hasText(previousThumbnailRef) && !previousThumbnailRef.equals(finalizedThumbnail.publicUrl())) {
+			requireThumbnailStorageService().delete(previousThumbnailRef);
 		}
 		return savedPreset;
 	}
@@ -195,14 +238,6 @@ public class PresetService {
 		}
 	}
 
-	private static String normalizeThumbnailRef(String thumbnailRef) {
-		if (!StringUtils.hasText(thumbnailRef)) {
-			return null;
-		}
-
-		return thumbnailRef.trim();
-	}
-
 	private static String normalizeTagName(String tag) {
 		return tag.trim().toLowerCase(Locale.ROOT);
 	}
@@ -213,15 +248,33 @@ public class PresetService {
 		}
 	}
 
-	private static void validateThumbnail(MultipartFile file) {
-		if (file == null || file.isEmpty()) {
+	private ThumbnailStorageService requireThumbnailStorageService() {
+		if (this.thumbnailStorageService == null) {
+			throw new IllegalStateException("Thumbnail storage service is not configured.");
+		}
+
+		return this.thumbnailStorageService;
+	}
+
+	private ThumbnailStorageProperties requireThumbnailStorageProperties() {
+		if (this.thumbnailStorageProperties == null) {
+			throw new IllegalStateException("Thumbnail storage properties are not configured.");
+		}
+
+		return this.thumbnailStorageProperties;
+	}
+
+	private void validateThumbnailUploadRequest(String filename, String contentType, Long sizeBytes) {
+		if (!StringUtils.hasText(filename)) {
+			throw new InvalidThumbnailException(INVALID_THUMBNAIL_FILENAME_MESSAGE);
+		}
+		if (sizeBytes == null || sizeBytes <= 0L) {
 			throw new InvalidThumbnailException(INVALID_THUMBNAIL_EMPTY_MESSAGE);
 		}
-		String contentType = file.getContentType();
-		if (contentType == null || !ALLOWED_THUMBNAIL_CONTENT_TYPES.contains(contentType)) {
+		if (!requireThumbnailStorageProperties().allowedContentTypeSet().contains(contentType)) {
 			throw new InvalidThumbnailException(INVALID_THUMBNAIL_TYPE_MESSAGE);
 		}
-		if (file.getSize() > MAX_THUMBNAIL_SIZE_BYTES) {
+		if (sizeBytes > requireThumbnailStorageProperties().maxBytes()) {
 			throw new InvalidThumbnailException(INVALID_THUMBNAIL_SIZE_MESSAGE);
 		}
 	}

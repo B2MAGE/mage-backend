@@ -12,6 +12,5 @@ public record CreatePresetRequest(
 		String name,
 		@NotNull(message = "sceneData must not be null")
 		Map<String, Object> sceneData,
-		@Size(max = 512, message = "thumbnailRef must be at most 512 characters")
-		String thumbnailRef) {
+		String thumbnailObjectKey) {
 }

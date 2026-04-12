@@ -100,15 +100,13 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.content("""
 						{
 						  "name":" Aurora Drift ",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}},
-						  "thumbnailRef":"  thumbnails/preset-1.png  "
+						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						}
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andReturn();
 
@@ -118,7 +116,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(savedPreset.getOwnerUserId()).isEqualTo(savedUser.getId());
 		assertThat(savedPreset.getName()).isEqualTo("Aurora Drift");
 		assertThat(savedPreset.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("nebula");
-		assertThat(savedPreset.getThumbnailRef()).isEqualTo("thumbnails/preset-1.png");
+		assertThat(savedPreset.getThumbnailRef()).isNull();
 		assertThat(savedPreset.getCreatedAt()).isNotNull();
 	}
 
@@ -147,8 +145,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
-						  "name":" ",
-						  "thumbnailRef":"thumb"
+						  "name":" "
 						}
 						"""))
 				.andExpect(status().isBadRequest())
@@ -586,5 +583,4 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return Long.valueOf(matcher.group(1));
 	}
 }
-
 

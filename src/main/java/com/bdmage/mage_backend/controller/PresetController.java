@@ -5,14 +5,16 @@ import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.dto.AttachTagToPresetRequest;
 import com.bdmage.mage_backend.dto.CreatePresetRequest;
+import com.bdmage.mage_backend.dto.CreatePresetThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.FinalizePresetThumbnailUploadRequest;
 import com.bdmage.mage_backend.dto.PresetResponse;
 import com.bdmage.mage_backend.dto.PresetTagResponse;
+import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,9 +25,7 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/presets")
@@ -45,10 +45,21 @@ public class PresetController {
 				authenticatedUserId,
 				request.name(),
 				PresetService.sceneDataJson(request.sceneData()),
-				request.thumbnailRef());
+				request.thumbnailObjectKey());
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(PresetResponse.from(preset));
+	}
+
+	@PostMapping("/thumbnail/presign")
+	ResponseEntity<PresignedThumbnailUploadResponse> createPresetThumbnailUpload(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@Valid @RequestBody CreatePresetThumbnailUploadRequest request) {
+		return ResponseEntity.ok(PresignedThumbnailUploadResponse.from(this.presetService.createPresetThumbnailUpload(
+				authenticatedUserId,
+				request.filename(),
+				request.contentType(),
+				request.sizeBytes())));
 	}
 
 	@PostMapping("/{id}/tags")
@@ -80,13 +91,25 @@ public class PresetController {
 		return ResponseEntity.ok(PresetResponse.from(preset));
 	}
 
-	@PostMapping(value = "/{id}/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	ResponseEntity<PresetResponse> uploadThumbnail(
+	@PostMapping("/{id}/thumbnail/presign")
+	ResponseEntity<PresignedThumbnailUploadResponse> createThumbnailUpload(
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
 			@PathVariable Long id,
-			@RequestPart("file") MultipartFile file) {
-		Preset preset = this.presetService.uploadThumbnail(authenticatedUserId, id, file);
+			@Valid @RequestBody CreatePresetThumbnailUploadRequest request) {
+		return ResponseEntity.ok(PresignedThumbnailUploadResponse.from(this.presetService.createThumbnailUpload(
+				authenticatedUserId,
+				id,
+				request.filename(),
+				request.contentType(),
+				request.sizeBytes())));
+	}
 
+	@PostMapping("/{id}/thumbnail/finalize")
+	ResponseEntity<PresetResponse> finalizeThumbnailUpload(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody FinalizePresetThumbnailUploadRequest request) {
+		Preset preset = this.presetService.finalizeThumbnailUpload(authenticatedUserId, id, request.objectKey());
 		return ResponseEntity.ok(PresetResponse.from(preset));
 	}
 

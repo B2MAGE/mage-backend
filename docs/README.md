@@ -16,9 +16,3 @@ Use these docs as the source of truth for working in `mage-backend`.
 - [architecture.md](architecture.md): package layout, request flow, auth model, and persistence model
 - [engineering-standards.md](engineering-standards.md): coding, API, persistence, testing, and review expectations
 - [operations.md](operations.md): runbook, route auth matrix, migrations, and troubleshooting
-
-## Supplementary Docs
-
-These are left as-is because they document narrower workflows:
-- [docker-compose-install/README.md](docker-compose-install/README.md)
-- [tag-filter-testing/README.md](tag-filter-testing/README.md)

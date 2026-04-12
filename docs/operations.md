@@ -2,6 +2,15 @@
 
 This document is the practical runbook for starting, checking, and troubleshooting the backend.
 
+## Supported Production Model
+
+The supported deployment path is same-origin:
+- the frontend is served from the public app origin
+- `/api/*` is routed to the backend by the reverse proxy
+- the backend is not expected to serve browser traffic from a second public origin
+
+This keeps the current bearer-token auth flow working without introducing CORS requirements into the supported deployment path.
+
 ## Local Runtime Model
 
 The standard local stack has two services:
@@ -29,6 +38,8 @@ docker compose logs -f backend
 docker compose logs -f postgres
 ```
 
+For production deployment notes, use [deployment.md](deployment.md).
+
 ## Health Checks
 
 ### `GET /health`
@@ -52,6 +63,8 @@ Healthy response:
 ```
 
 If this returns `503`, the app process is alive but not ready to serve traffic.
+
+In the supported same-origin deployment model, these health endpoints are typically checked on the backend service itself or through platform health checks, not through the public frontend domain.
 
 ## Route Matrix
 

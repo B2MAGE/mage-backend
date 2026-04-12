@@ -1,5 +1,4 @@
 services:
-
   postgres:
     image: postgres:16
     container_name: mage-postgres
@@ -24,8 +23,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
       SPRING_APPLICATION_NAME: ${SPRING_APPLICATION_NAME:-mage-backend}
       SERVER_PORT: ${SERVER_PORT:-8080}

@@ -29,8 +29,38 @@ The backend must receive:
 | `SPRING_DATASOURCE_USERNAME` | Database username. |
 | `SPRING_DATASOURCE_PASSWORD` | Database password. |
 | `MAGE_AUTH_GOOGLE_CLIENT_IDS` | Allowed Google OAuth client IDs for Google sign-in validation. |
+| `AWS_REGION` | AWS region used by the S3 client and presigner. |
+| `MAGE_THUMBNAIL_BUCKET` | Private S3 bucket used for preset thumbnails. |
+| `MAGE_THUMBNAIL_KEY_PREFIX` | Object key prefix for thumbnail uploads. Defaults to `presets`. |
+| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Public CloudFront or CDN base URL persisted into `thumbnailRef`. |
+| `MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES` | Comma-separated thumbnail content-type allowlist. |
+| `MAGE_THUMBNAIL_MAX_BYTES` | Maximum allowed thumbnail size in bytes. |
+| `MAGE_THUMBNAIL_PRESIGN_DURATION` | Presigned upload lifetime, such as `PT10M`. |
 
-The backend will fail fast if required datasource values or `MAGE_AUTH_GOOGLE_CLIENT_IDS` are missing.
+The backend will fail fast if required datasource values, Google auth settings, or thumbnail storage settings are missing.
+
+## Thumbnail Upload Infrastructure
+
+Preset thumbnails are no longer stored on local container disk.
+
+The production path is:
+
+1. backend issues a presigned S3 upload for the preset owner
+2. the browser uploads the file directly to S3
+3. the backend finalizes the object and stores the public CloudFront-backed URL in `thumbnailRef`
+
+Recommended production setup:
+- keep the S3 bucket private
+- put CloudFront in front of the bucket
+- set `MAGE_THUMBNAIL_PUBLIC_BASE_URL` to the CloudFront distribution domain
+- use an EC2 IAM role for backend AWS access instead of static AWS keys
+
+Local Docker note:
+- if you run the backend on a developer machine instead of on the EC2 host, the container will not inherit the production IAM role
+- provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` through local environment variables when testing presigned uploads outside EC2
+
+Operational requirement:
+- the S3 bucket must allow browser `PUT` uploads from the frontend origins through bucket CORS
 
 ## Reverse Proxy Expectations
 

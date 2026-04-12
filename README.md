@@ -81,6 +81,9 @@ Required values for local development:
 | `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL. Docker Compose expects `jdbc:postgresql://postgres:5432/mage`. |
 | `SPRING_DATASOURCE_USERNAME` | Database username. |
 | `SPRING_DATASOURCE_PASSWORD` | Database password. |
+| `AWS_REGION` | AWS region for presigned thumbnail uploads. |
+| `MAGE_THUMBNAIL_BUCKET` | S3 bucket used for preset thumbnails. |
+| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Public CloudFront or CDN base URL used in persisted `thumbnailRef` values. |
 
 Other useful defaults in `.env.example`:
 - `SPRING_APPLICATION_NAME`
@@ -89,6 +92,17 @@ Other useful defaults in `.env.example`:
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
+- `MAGE_THUMBNAIL_KEY_PREFIX`
+- `MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES`
+- `MAGE_THUMBNAIL_MAX_BYTES`
+- `MAGE_THUMBNAIL_PRESIGN_DURATION`
+
+Optional for local Docker development outside EC2:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN`
+
+The backend generates presigned S3 uploads itself. If you run the Dockerized backend on your local machine instead of on the EC2 host with the attached IAM role, the container needs valid AWS credentials through standard AWS environment variables.
 
 ## Deployment Strategy
 
@@ -114,10 +128,12 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/local` | Public | Add local auth to an existing Google-backed account |
 | `GET /api/users/me` | Bearer token | Return the current user profile |
 | `POST /api/tags` | Public | Create a tag |
-| `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user |
+| `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user and optionally finalize a staged thumbnail |
+| `POST /api/presets/thumbnail/presign` | Bearer token | Presign a staged thumbnail upload before preset creation |
 | `GET /api/presets` | Bearer token | List presets, optionally filtered by tag |
 | `POST /api/presets/{id}/tags` | Bearer token | Attach a tag to a preset |
-| `POST /api/presets/{id}/thumbnail` | Bearer token | Upload or replace a preset thumbnail owned by the authenticated user |
+| `POST /api/presets/{id}/thumbnail/presign` | Bearer token | Owner-only presigned thumbnail upload preparation |
+| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement |
 | `GET /api/presets/{id}` | Public | Fetch a preset by id |
 | `DELETE /api/presets/{id}` | Bearer token | Delete a preset owned by the authenticated user |
 | `GET /api/users/{id}/presets` | Bearer token | List presets for a specific user |

@@ -83,7 +83,8 @@ The service layer owns the real behavior:
 - `AuthenticationTokenService`: token creation and validation
 - `UserProfileService`: current-user lookups
 - `TagService`: tag normalization and duplicate checks
-- `PresetService`: preset creation, lookup, deletion, filtering, tagging, and thumbnail upload orchestration
+- `PresetService`: preset creation, lookup, deletion, filtering, tagging, and presigned thumbnail upload orchestration
+- `S3ThumbnailStorageService`: S3 presign, object verification, public URL generation, and replacement cleanup
 - `PasswordHashingService`: password hashing and verification
 
 The controller should not contain those decisions.
@@ -131,7 +132,7 @@ That keeps token verification logic out of controllers and makes the auth servic
 - authentication failures
 - account conflicts and link-required cases
 - duplicate tags and duplicate preset-tag links
-- invalid thumbnail uploads and owner-only thumbnail enforcement
+- invalid thumbnail uploads, thumbnail storage availability, and owner-only thumbnail enforcement
 - missing presets or tags
 - forbidden preset deletion
 

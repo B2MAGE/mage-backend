@@ -85,6 +85,17 @@ Other useful defaults in `.env.example`:
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
 
+## Deployment Strategy
+
+The supported production path is same-origin deployment behind a reverse proxy:
+
+- the frontend is served from the public app origin
+- `/api/*` is routed to this backend service
+- browser auth requests stay on the same HTTPS origin as the frontend
+- CORS is not part of the supported deployment path
+
+See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy contract and the required backend environment variables.
+
 ## Current API Surface
 
 | Route | Auth | Purpose |
@@ -135,6 +146,7 @@ mage-backend/
 
 - [docs/README.md](docs/README.md): documentation index and reading order
 - [docs/getting-started.md](docs/getting-started.md): local setup, configuration, tests, and first verification steps
+- [docs/deployment.md](docs/deployment.md): same-origin production deployment contract and reverse-proxy expectations
 - [docs/architecture.md](docs/architecture.md): package layout, request flow, auth model, and persistence model
 - [docs/operations.md](docs/operations.md): runbook, health checks, auth matrix, and troubleshooting
 - [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, testing, and review expectations

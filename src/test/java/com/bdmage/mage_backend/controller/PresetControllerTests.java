@@ -6,8 +6,10 @@ import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.InvalidThumbnailException;
 import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
+import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
@@ -22,12 +24,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
-
+import org.springframework.mock.web.MockMultipartFile;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -363,6 +366,85 @@ class PresetControllerTests {
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Preset not found."));
 	}
-}
 
+	@Test
+	void uploadThumbnailReturnsOkWithUpdatedPreset() throws Exception {
+		// Service returns the preset with the new thumbnailRef already applied
+		Preset updatedPreset = new Preset(77L, "Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"thumbnails/15/new-thumb.png");
+		ReflectionTestUtils.setField(updatedPreset, "id", 15L);
+		ReflectionTestUtils.setField(updatedPreset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
+
+		when(this.presetService.uploadThumbnail(77L, 15L, file)).thenReturn(updatedPreset);
+
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file)
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/15/new-thumb.png"));
+	}
+
+	@Test
+	void uploadThumbnailReturnsUnauthorizedWhenNotAuthenticated() throws Exception {
+		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
+
+		when(this.presetService.uploadThumbnail(null, 15L, file))
+				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void uploadThumbnailReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
+
+		when(this.presetService.uploadThumbnail(77L, 99999L, file))
+				.thenThrow(new PresetNotFoundException("Preset not found."));
+
+		this.mockMvc.perform(multipart("/api/presets/99999/thumbnail").file(file)
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void uploadThumbnailReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		// User 88 is trying to upload a thumbnail for a preset they don't own
+		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
+
+		when(this.presetService.uploadThumbnail(88L, 15L, file))
+				.thenThrow(new PresetOwnershipRequiredException("Preset ownership is required."));
+
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file)
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Preset ownership is required."));
+	}
+
+	@Test
+	void uploadThumbnailReturnsBadRequestForInvalidFile() throws Exception {
+		// PDF is not an accepted image type
+		MockMultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", new byte[]{1, 2, 3});
+
+		when(this.presetService.uploadThumbnail(77L, 15L, file))
+				.thenThrow(new InvalidThumbnailException("Thumbnail must be a valid image (jpeg, png, webp, or gif)."));
+
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file)
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_THUMBNAIL"))
+				.andExpect(jsonPath("$.message").value("Thumbnail must be a valid image (jpeg, png, webp, or gif)."));
+	}
+}
 

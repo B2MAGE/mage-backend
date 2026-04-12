@@ -117,6 +117,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user |
 | `GET /api/presets` | Bearer token | List presets, optionally filtered by tag |
 | `POST /api/presets/{id}/tags` | Bearer token | Attach a tag to a preset |
+| `POST /api/presets/{id}/thumbnail` | Bearer token | Upload or replace a preset thumbnail owned by the authenticated user |
 | `GET /api/presets/{id}` | Public | Fetch a preset by id |
 | `DELETE /api/presets/{id}` | Bearer token | Delete a preset owned by the authenticated user |
 | `GET /api/users/{id}/presets` | Bearer token | List presets for a specific user |

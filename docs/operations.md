@@ -86,6 +86,7 @@ In the supported same-origin deployment model, these health endpoints are typica
 | `POST /api/presets` | Bearer token | Creates an owned preset |
 | `GET /api/presets` | Bearer token | Supports `?tag=<name>` |
 | `POST /api/presets/{id}/tags` | Bearer token | Attaches an existing tag to an existing preset |
+| `POST /api/presets/{id}/thumbnail` | Bearer token | Owner-only multipart thumbnail upload |
 | `GET /api/presets/{id}` | Public | Preset detail is public |
 | `DELETE /api/presets/{id}` | Bearer token | Owner-only |
 | `GET /api/users/{id}/presets` | Bearer token | User-scoped preset list |
@@ -106,8 +107,33 @@ In the supported same-origin deployment model, these health endpoints are typica
 - `POST /api/presets`: `201` on success, `401` without a valid bearer token
 - `GET /api/presets`: `200` on success, `401` without a valid bearer token
 - `POST /api/presets/{id}/tags`: `201` on success, `404` if the preset or tag is missing, `409` if the link already exists
+- `POST /api/presets/{id}/thumbnail`: `200` on success, `400` for invalid uploads, `403` for non-owner uploads, `404` if the preset is missing
 - `GET /api/presets/{id}`: `200` on success, `404` if missing
 - `DELETE /api/presets/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
+
+## Thumbnail Upload Contract
+
+`POST /api/presets/{id}/thumbnail` accepts `multipart/form-data` with one required part:
+
+- `file`: the thumbnail image payload
+
+Request requirements:
+- include `Authorization: Bearer <accessToken>`
+- the authenticated user must own the target preset
+- supported content types are `image/jpeg`, `image/png`, `image/webp`, and `image/gif`
+- the business validation limit is `5 MB`
+
+Success behavior:
+- returns `200 OK`
+- returns the full updated `PresetResponse`
+- updates `thumbnailRef` to the stored thumbnail path
+- later uploads replace the preset's stored thumbnail reference and attempt to clean up the previous local file
+
+Failure behavior:
+- returns `400 INVALID_THUMBNAIL` when the file is empty, unsupported, or larger than `5 MB`
+- returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
+- returns `403 PRESET_OWNERSHIP_REQUIRED` when the caller does not own the preset
+- returns `404 PRESET_NOT_FOUND` when the preset id does not exist
 
 ## Database Operations
 

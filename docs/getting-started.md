@@ -70,6 +70,7 @@ Useful follow-up checks:
 - `POST /api/auth/login`
 - `GET /api/users/me` with a bearer token
 - `POST /api/presets`
+- `POST /api/presets/{id}/thumbnail` with `multipart/form-data` and a bearer token
 - `GET /api/presets/{id}`
 
 For endpoint behavior and auth requirements, use [operations.md](operations.md).

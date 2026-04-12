@@ -1,456 +1,25 @@
 # Operations
 
-## Purpose
+This document is the practical runbook for starting, checking, and troubleshooting the backend.
 
-This document focuses on what a developer or operator needs to know to start the service, verify it, inspect failures, reset local state, and understand the repository's current operational behavior.
+## Local Runtime Model
 
-## Current Operational Model
-
-The local stack currently contains two services:
-
-- `backend`: the Spring Boot application built from this repository
-- `postgres`: a PostgreSQL 16 container used for local development
+The standard local stack has two services:
+- `postgres`
+- `backend`
 
 Operationally important behavior:
+- PostgreSQL exposes a health check with `pg_isready`
+- Docker Compose waits for PostgreSQL before starting the backend
+- the backend validates datasource configuration at startup
+- Flyway runs automatically on startup
+- bearer-token validation protects the authenticated routes
 
-- PostgreSQL exposes a health check through `pg_isready`
-- the backend waits for PostgreSQL to become healthy in Docker Compose
-- the backend validates datasource settings at startup
-- the backend opens a real database connection during startup and fails if the connection cannot be made
-- Flyway applies migrations automatically on startup
-- local passwords are hashed and verified with BCrypt through the shared password hashing service
-- Google ID tokens are verified server-side against `MAGE_AUTH_GOOGLE_CLIENT_IDS`
-- successful `POST /api/auth/login` and `POST /api/auth/google` requests issue bearer access tokens
-- local and Google auth providers can be linked explicitly, but never auto-linked only because emails match
-- authentication middleware validates bearer tokens for protected `/api/users/**` endpoints and protected preset routes, while `GET /api/presets/{id}` remains public
-
-## Local Startup Runbook
+## Start the Stack
 
 ```bash
 docker compose up --build
 ```
-
-Use this when:
-
-- validating Docker-based local behavior
-- testing migration behavior against a clean containerized stack
-
-Before using `POST /api/auth/google`, replace the placeholder value in `.env` for `MAGE_AUTH_GOOGLE_CLIENT_IDS` with the Google OAuth client ID used by the frontend.
-
-## Health Checks and Auth Endpoints
-
-The backend currently exposes fifteen operational endpoints:
-
-- `GET /health`
-- `GET /ready`
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/google`
-- `POST /api/auth/link/google`
-- `POST /api/auth/link/local`
-- `GET /api/users/me`
-- `POST /api/tags`
-- `POST /api/presets`
-- `GET /api/presets`
-- `POST /api/presets/{id}/tags`
-- `GET /api/presets/{id}`
-- `DELETE /api/presets/{id}`
-- `GET /api/users/{id}/presets`
-
-### `/health`
-
-Purpose:
-
-- liveness check
-
-Meaning:
-
-- the application process is up and can respond to a minimal HTTP request
-
-Expected response:
-
-```json
-{ "status": "UP" }
-```
-
-### `/ready`
-
-Purpose:
-
-- readiness check
-
-Meaning:
-
-- the application is accepting traffic
-- PostgreSQL is reachable through the configured datasource
-
-Expected ready response:
-
-```json
-{ "status": "UP", "database": "UP" }
-```
-
-Expected not-ready behavior:
-
-- HTTP `503 Service Unavailable`
-- response body shows the application and database status
-
-### `POST /api/auth/register`
-
-Purpose:
-
-- create a local email-and-password account
-
-Request:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "example-password",
-  "displayName": "Example User"
-}
-```
-
-Success behavior:
-
-- HTTP `201 Created` for a newly created local account
-- response includes the new user identity fields and auth provider
-- response never includes the raw password or stored password hash
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `409 Conflict` with `EMAIL_ALREADY_REGISTERED` when local authentication is already configured for that email
-- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when the email belongs to a Google-backed account and explicit linking is required
-
-### `POST /api/auth/login`
-
-Purpose:
-
-- authenticate an existing local email-and-password account
-
-Request:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "example-password"
-}
-```
-
-Success behavior:
-
-- HTTP `200 OK` for a valid local account credential pair
-- response includes the authenticated user identity fields, auth provider, and an `accessToken`
-- response never includes the raw password or stored password hash
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `401 Unauthorized` when the credentials do not match a local account
-
-### `POST /api/auth/google`
-
-Purpose:
-
-- authenticate a frontend-supplied Google ID token
-- create a Google-backed user on first successful authentication
-- reuse that same Google-backed user on later authentications
-
-Request:
-
-```json
-{ "idToken": "<google-id-token>" }
-```
-
-Success behavior:
-
-- HTTP `201 Created` when the backend creates a new Google-backed user
-- HTTP `200 OK` when the backend reuses an existing Google-backed user
-- both success responses include an `accessToken`
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or blank `idToken`
-- HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
-- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when a local-only account already exists for the verified email
-- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when a different Google identity already owns that email in the backend
-
-### `POST /api/auth/link/google`
-
-Purpose:
-
-- explicitly link Google authentication to an existing local account
-- require both local-credential ownership and Google-token ownership before the link is persisted
-
-Request:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "example-password",
-  "idToken": "<google-id-token>"
-}
-```
-
-Success behavior:
-
-- HTTP `200 OK` when the Google provider is linked to the existing account
-- response includes the user identity fields, `LOCAL_GOOGLE` auth provider state, and a `linked` flag
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `401 Unauthorized` with `INVALID_LOCAL_CREDENTIALS` when the supplied local email/password pair is invalid
-- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the Google token email does not match the local email or the Google identity already belongs to another account
-
-### `POST /api/auth/link/local`
-
-Purpose:
-
-- explicitly add local email-and-password authentication to an existing Google-backed account
-- require Google-token ownership before a password hash is attached to the user record
-
-Request:
-
-```json
-{
-  "idToken": "<google-id-token>",
-  "password": "example-password"
-}
-```
-
-Success behavior:
-
-- HTTP `200 OK` when local authentication is linked to the Google-backed account
-- response includes the user identity fields, `LOCAL_GOOGLE` auth provider state, and a `linked` flag
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `401 Unauthorized` for invalid, expired, or unverified Google identities
-- HTTP `409 Conflict` with `ACCOUNT_LINK_REQUIRED` when no Google-backed account exists yet for that Google identity
-- HTTP `409 Conflict` with `ACCOUNT_CONFLICT` when the link request collides with an incompatible existing account state
-
-### `GET /api/users/me`
-
-Purpose:
-
-- return the profile of the authenticated user
-
-Request notes:
-
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
-
-Success behavior:
-
-- HTTP `200 OK` for a valid authenticated bearer token
-- response includes the authenticated user's identity fields, auth provider, and creation timestamp
-- response never includes the raw password, stored password hash, or Google subject
-
-Failure behavior:
-
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
-
-### `POST /api/tags`
-
-Purpose:
-
-- create a new tag
-
-Request:
-
-```json
-{
-  "name": "ambient"
-}
-```
-
-Success behavior:
-
-- HTTP `201 Created` for a valid tag creation request
-- response includes the persisted tag id and normalized tag name
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `409 Conflict` when the supplied tag name already exists after normalization
-
-### `POST /api/presets`
-
-Purpose:
-
-- create a new preset owned by the authenticated user
-
-Request notes:
-
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
-
-Request:
-
-```json
-{
-  "name": "Aurora Drift",
-  "sceneData": {
-    "visualizer": {
-      "shader": "nebula"
-    }
-  },
-  "thumbnailRef": "thumbnails/preset-1.png"
-}
-```
-
-Success behavior:
-
-- HTTP `201 Created` for a valid authenticated request
-- response includes the created preset id, owner user id, preset metadata, scene data, and creation timestamp
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
-
-### `GET /api/presets`
-
-Purpose:
-
-- return persisted presets
-- optionally filter presets by tag using `?tag=<name>`
-
-Request notes:
-
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
-- when `tag` is omitted, the endpoint returns all persisted presets
-- when `tag` is provided, the backend trims and normalizes it before looking up linked presets
-
-Success behavior:
-
-- HTTP `200 OK` for a valid authenticated request
-- response includes an array of preset records
-- `GET /api/presets?tag=ambient` returns only presets linked to that tag
-- returns an empty array when no presets match the supplied tag
-
-Failure behavior:
-
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
-
-### `POST /api/presets/{id}/tags`
-
-Purpose:
-
-- attach an existing tag to an existing preset
-
-Request notes:
-
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
-
-Request:
-
-```json
-{
-  "tagId": 15
-}
-```
-
-Success behavior:
-
-- HTTP `201 Created` for a valid authenticated request
-- response includes the linked preset id and tag id
-
-Failure behavior:
-
-- HTTP `400 Bad Request` for malformed JSON or request validation failures
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
-- HTTP `404 Not Found` when either the preset or tag does not exist
-- HTTP `409 Conflict` when the preset already has that tag attached
-
-### `GET /api/presets/{id}`
-
-Purpose:
-
-- return a persisted preset by id
-
-Request notes:
-
-- does not require authentication
-- ignores missing bearer tokens and returns preset data when the preset exists
-
-Success behavior:
-
-- HTTP `200 OK` when the preset exists
-- response includes the preset id, owner user id, preset metadata, scene data, thumbnail reference, and creation timestamp
-
-Failure behavior:
-
-- HTTP `404 Not Found` when no preset exists for the supplied id
-
-### `DELETE /api/presets/{id}`
-
-Purpose:
-
-- delete a persisted preset owned by the authenticated user
-
-Request notes:
-
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
-
-Success behavior:
-
-- HTTP `204 No Content` for a valid authenticated request when the preset exists and the authenticated user owns it
-- deleting a preset also removes dependent preset/tag links through cascading database constraints
-
-Failure behavior:
-
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
-- HTTP `403 Forbidden` when the request is authenticated successfully but the preset belongs to a different user
-- HTTP `404 Not Found` when no preset exists for the supplied id
-
-### `GET /api/users/{id}/presets`
-
-Purpose:
-
-- return presets owned by the requested user
-
-Request notes:
-
-- requires an `Authorization: Bearer <accessToken>` header using a token issued by `POST /api/auth/login` or `POST /api/auth/google`
-
-Success behavior:
-
-- HTTP `200 OK` for a valid authenticated request
-- response includes an array of preset records for the requested user id
-- returns an empty array when the requested user has no presets
-
-Failure behavior:
-
-- HTTP `401 Unauthorized` when the request is missing a bearer token, uses an invalid token, or the token points to a user record that no longer exists
-
-## Operational Verification Checklist
-
-After startup, verify these items in order:
-
-1. `docker compose ps` shows healthy PostgreSQL if you are using Docker Compose
-2. backend logs show Hikari datasource startup
-3. backend logs show Flyway applying or validating migrations
-4. `curl http://localhost:8080/health` returns `200`
-5. `curl http://localhost:8080/ready` returns `200`
-6. `POST /api/auth/register` succeeds for a new local email address
-7. `POST /api/auth/login` succeeds for that local account and returns an `accessToken`
-8. `GET /api/users/me` succeeds when called with `Authorization: Bearer <accessToken>`
-9. `POST /api/auth/google` succeeds with a valid Google ID token issued for a configured client ID and returns an `accessToken`
-10. `POST /api/auth/link/google` succeeds when both the local credentials and Google token prove ownership of the same email
-11. `POST /api/auth/link/local` succeeds for an existing Google-backed account with a valid Google ID token
-12. `POST /api/tags` succeeds with a valid tag payload and returns the normalized tag record
-13. `POST /api/presets` succeeds when called with `Authorization: Bearer <accessToken>` and a valid preset payload
-14. `GET /api/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either all presets, only presets matching `?tag=<name>`, or an empty array when no presets match
-15. `POST /api/presets/{id}/tags` succeeds when called with `Authorization: Bearer <accessToken>`, an existing preset id, and an existing tag id
-16. `GET /api/presets/{id}` succeeds for public requests and returns the preset when the id exists
-17. `DELETE /api/presets/{id}` succeeds when called with `Authorization: Bearer <accessToken>` by the preset owner and returns `204 No Content`
-18. `GET /api/users/{id}/presets` succeeds when called with `Authorization: Bearer <accessToken>` and returns either preset records or an empty array
-
-If step 5 fails with `503`, the app is running but not ready to serve traffic.
-
-## Logs and What to Look For
 
 Useful log commands:
 
@@ -460,246 +29,125 @@ docker compose logs -f backend
 docker compose logs -f postgres
 ```
 
-During a healthy startup, expect to see:
+## Health Checks
 
-- backend startup on port `8080`
-- Hikari datasource creation
-- successful PostgreSQL connection
-- Flyway validation and migration output
-- no Google tokens, passwords, or raw auth payloads in logs
+### `GET /health`
 
-If the backend fails early, focus on the first infrastructure error rather than the final stack trace tail.
+Use this as a liveness check.
+
+Healthy response:
+
+```json
+{ "status": "UP" }
+```
+
+### `GET /ready`
+
+Use this as a readiness check.
+
+Healthy response:
+
+```json
+{ "status": "UP", "database": "UP" }
+```
+
+If this returns `503`, the app process is alive but not ready to serve traffic.
+
+## Route Matrix
+
+| Route | Auth | Notes |
+| --- | --- | --- |
+| `GET /health` | Public | Process liveness only |
+| `GET /ready` | Public | Includes database readiness |
+| `POST /api/auth/register` | Public | Creates a local account |
+| `POST /api/auth/login` | Public | Returns an access token for local auth |
+| `POST /api/auth/google` | Public | Returns an access token for Google auth |
+| `POST /api/auth/link/google` | Public | Requires valid local credentials plus a valid Google ID token |
+| `POST /api/auth/link/local` | Public | Requires a valid Google ID token |
+| `GET /api/users/me` | Bearer token | Current authenticated user |
+| `POST /api/tags` | Public | Tag creation is currently public |
+| `POST /api/presets` | Bearer token | Creates an owned preset |
+| `GET /api/presets` | Bearer token | Supports `?tag=<name>` |
+| `POST /api/presets/{id}/tags` | Bearer token | Attaches an existing tag to an existing preset |
+| `GET /api/presets/{id}` | Public | Preset detail is public |
+| `DELETE /api/presets/{id}` | Bearer token | Owner-only |
+| `GET /api/users/{id}/presets` | Bearer token | User-scoped preset list |
+
+## Common Success and Failure Signals
+
+### Authentication
+
+- `POST /api/auth/register`: `201` on success, `409` for duplicate or link-required cases
+- `POST /api/auth/login`: `200` on success, `401` for invalid credentials
+- `POST /api/auth/google`: `201` or `200` on success, `401` for invalid token, `409` for collision or link-required cases
+- `POST /api/auth/link/google`: `200` on success, `401` for invalid local credentials, `409` for account conflicts
+- `POST /api/auth/link/local`: `200` on success, `401` for invalid Google token, `409` for incompatible account state
+
+### Presets and Tags
+
+- `POST /api/tags`: `201` on success, `409` for duplicates
+- `POST /api/presets`: `201` on success, `401` without a valid bearer token
+- `GET /api/presets`: `200` on success, `401` without a valid bearer token
+- `POST /api/presets/{id}/tags`: `201` on success, `404` if the preset or tag is missing, `409` if the link already exists
+- `GET /api/presets/{id}`: `200` on success, `404` if missing
+- `DELETE /api/presets/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
 
 ## Database Operations
 
-### Where Schema Changes Live
+### Migrations
 
-Schema changes belong in:
+Flyway migrations live in:
 
 `src/main/resources/db/migration`
 
-### How Migrations Run
+Rules:
+- add new versioned SQL files
+- do not rewrite shared migrations
+- keep local schema changes migration-driven
 
-Flyway runs automatically during application startup.
+### Reset Local State
 
-### Migration Rules
-
-- add a new versioned file for every schema change
-- do not rewrite previously shared migrations
-- keep Hibernate schema mode at `validate`
-
-### Reset Local Database State
-
-If local schema state becomes inconsistent:
+If local database state is corrupted or out of sync:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-This removes the PostgreSQL volume and recreates the local database from scratch.
+This deletes the PostgreSQL volume and recreates the schema from migrations.
 
 ## Troubleshooting
 
-### The backend fails with a datasource validation or connection error
+### The backend fails on startup with datasource errors
 
 Check:
-
-- `SPRING_DATASOURCE_URL` is present
-- the URL starts with `jdbc:postgresql:`
-- username and password are present
-- the hostname matches the runtime mode you are using
-
-### The backend fails during Google auth configuration
-
-Check:
-
-- `MAGE_AUTH_GOOGLE_CLIENT_IDS` is present
-- the value contains the frontend Google OAuth client ID
-- multiple client IDs, if used, are comma-separated without extra quoting
-
-### PostgreSQL never becomes healthy in Docker Compose
-
-Check:
-
-- Docker is actually running
-- port `5432` is not already taken
-- the configured database username and password are valid in `.env`
-
-If needed, reset the volume:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- PostgreSQL container health
 
 ### `/ready` returns `503`
 
-Interpretation:
-
-- the backend process is up
-- either Spring is not yet accepting traffic or the database probe failed
-
 Check:
-
 - backend logs
-- PostgreSQL container health
-- datasource environment variables
+- PostgreSQL logs
+- datasource values in `.env`
 
-### `POST /api/auth/google` returns `401`
-
-Interpretation:
-
-- the Google ID token was invalid, expired, missing required claims, or the email was not verified
+### Google auth fails
 
 Check:
+- `MAGE_AUTH_GOOGLE_CLIENT_IDS` is set
+- the frontend sent a Google ID token, not an access token
+- the ID token was issued for one of the configured client IDs
 
-- the frontend sent an ID token, not an access token
-- the token was issued for a client ID listed in `MAGE_AUTH_GOOGLE_CLIENT_IDS`
-- the token has not expired
+### Tests fail before any assertions run
 
-### `POST /api/auth/google` returns `409`
+The usual cause is that Docker is unavailable, so Testcontainers cannot start PostgreSQL.
 
-Interpretation:
+### Ports are already in use
 
-- either a local-only account already owns that email and `/api/auth/link/google` must be used
-- or a different Google identity already owns that email in the backend
+The local stack expects:
+- `8080` for the backend
+- `5432` for PostgreSQL
 
-### `POST /api/auth/register` returns `409`
-
-Interpretation:
-
-- either local authentication is already configured for that email
-- or the email belongs to a Google-backed account and `/api/auth/link/local` must be used instead
-
-### `POST /api/auth/login` returns `401`
-
-Interpretation:
-
-- the supplied credentials did not match an account with local authentication
-
-### `POST /api/auth/link/google` returns `401`
-
-Interpretation:
-
-- the supplied local email/password pair did not pass the ownership check
-
-### `POST /api/auth/link/google` returns `409`
-
-Interpretation:
-
-- the Google token email does not match the local account email
-- or the Google identity is already linked to a different account
-
-### `POST /api/auth/link/local` returns `409`
-
-Interpretation:
-
-- the Google-backed account has not been provisioned yet through `POST /api/auth/google`
-- or the request conflicts with an incompatible existing account state
-
-### `GET /api/users/me` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
-### `POST /api/tags` returns `409`
-
-Interpretation:
-
-- the supplied tag name already exists after normalization, so the backend rejects the duplicate tag creation request
-
-### `POST /api/presets` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
-### `POST /api/presets/{id}/tags` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
-### `GET /api/presets` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
-### `DELETE /api/presets/{id}` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
-### `GET /api/users/{id}/presets` returns `401`
-
-Interpretation:
-
-- the request was missing a bearer token, the token was invalid, or the token points to a user record that no longer exists
-
-### `GET /api/presets/{id}` returns `404`
-
-Interpretation:
-
-- no preset exists for that id, regardless of whether the caller is signed in
-
-### `DELETE /api/presets/{id}` returns `403`
-
-Interpretation:
-
-- the request was authenticated successfully, but the preset belongs to a different user
-
-### `DELETE /api/presets/{id}` returns `404`
-
-Interpretation:
-
-- the request was authenticated successfully, but no preset exists for that id
-
-### `POST /api/presets/{id}/tags` returns `404`
-
-Interpretation:
-
-- the request was authenticated successfully, but either the preset id or tag id did not match an existing record
-
-### `POST /api/presets/{id}/tags` returns `409`
-
-Interpretation:
-
-- the supplied tag is already attached to the preset, so the backend rejects the duplicate association request
-
-### Tests fail before running assertions
-
-Likely cause:
-
-- Docker is unavailable, so Testcontainers cannot start PostgreSQL
-
-### The database seems out of sync with migrations
-
-Check:
-
-- migration files are in the correct folder
-- filenames use Flyway naming conventions
-- local state was not carried forward from an old incompatible volume
-
-Resetting the local volume is usually the fastest way to recover.
-
-## Test Operations
-
-Run the full backend suite with:
-
-Windows PowerShell:
-
-```powershell
-.\mvnw.cmd test
-```
-
-macOS/Linux:
-
-```bash
-./mvnw test
-```
-
-
+Stop the conflicting process or adjust the local port mapping.

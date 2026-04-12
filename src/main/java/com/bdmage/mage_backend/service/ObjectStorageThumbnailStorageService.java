@@ -23,9 +23,9 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 @Service
-public class S3ThumbnailStorageService implements ThumbnailStorageService {
+public class ObjectStorageThumbnailStorageService implements ThumbnailStorageService {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(S3ThumbnailStorageService.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObjectStorageThumbnailStorageService.class);
 	private static final Map<String, String> CONTENT_TYPE_EXTENSIONS = Map.of(
 			"image/jpeg", "jpg",
 			"image/png", "png",
@@ -39,7 +39,7 @@ public class S3ThumbnailStorageService implements ThumbnailStorageService {
 	private final S3Presigner s3Presigner;
 	private final ThumbnailStorageProperties properties;
 
-	public S3ThumbnailStorageService(
+	public ObjectStorageThumbnailStorageService(
 			S3Client s3Client,
 			S3Presigner s3Presigner,
 			ThumbnailStorageProperties properties) {

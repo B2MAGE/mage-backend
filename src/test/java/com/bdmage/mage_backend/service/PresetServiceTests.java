@@ -561,9 +561,15 @@ class PresetServiceTests {
 
 	private ThumbnailStorageProperties thumbnailStorageProperties() {
 		return new ThumbnailStorageProperties(
+				"aws-s3",
 				"us-east-1",
 				"mage-test-thumbnails",
 				"presets",
+				null,
+				null,
+				null,
+				null,
+				null,
 				"https://cdn.example.com",
 				"image/jpeg,image/png,image/webp,image/gif",
 				5L * 1024 * 1024,

@@ -32,15 +32,20 @@ Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
+
+`docker-compose.yml` stays deployment-friendly and does not publish host ports.
+`docker-compose.local.yml` adds the local host bindings for:
+- backend: `http://localhost:8080`
+- postgres: `localhost:5432`
 
 Once the stack is up:
 - app: `http://localhost:8080`
@@ -125,6 +130,7 @@ mage-backend/
 |  |     `- db/migration/
 |  `- test/
 |- CONTRIBUTING.md
+|- docker-compose.local.yml
 |- docker-compose.yml
 |- Dockerfile
 |- pom.xml

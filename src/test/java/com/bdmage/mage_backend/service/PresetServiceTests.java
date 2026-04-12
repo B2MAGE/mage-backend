@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
@@ -129,6 +130,101 @@ class PresetServiceTests {
 
 		verify(userRepository).existsById(99L);
 		verify(presetRepository, never()).saveAndFlush(any(Preset.class));
+	}
+
+	@Test
+	void deletePresetDeletesOwnedPresetForAuthenticatedOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+		Preset preset = new Preset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		presetService.deletePreset(42L, 15L);
+
+		verify(userRepository).existsById(42L);
+		verify(presetRepository).findById(15L);
+		verify(presetRepository).delete(preset);
+	}
+
+	@Test
+	void deletePresetRejectsMissingAuthenticatedUserIdentity() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+
+		assertThatThrownBy(() -> presetService.deletePreset(null, 15L))
+				.isInstanceOf(AuthenticationRequiredException.class)
+				.hasMessage("Authentication is required.");
+
+		verifyNoInteractions(userRepository);
+		verifyNoInteractions(presetRepository);
+	}
+
+	@Test
+	void deletePresetRejectsUnknownAuthenticatedUserIdentity() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+
+		when(userRepository.existsById(99L)).thenReturn(false);
+
+		assertThatThrownBy(() -> presetService.deletePreset(99L, 15L))
+				.isInstanceOf(AuthenticationRequiredException.class)
+				.hasMessage("Authentication is required.");
+
+		verify(userRepository).existsById(99L);
+		verify(presetRepository, never()).findById(any());
+		verify(presetRepository, never()).delete(any(Preset.class));
+	}
+
+	@Test
+	void deletePresetRejectsMissingPreset() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> presetService.deletePreset(42L, 15L))
+				.isInstanceOf(PresetNotFoundException.class)
+				.hasMessage("Preset not found.");
+
+		verify(userRepository).existsById(42L);
+		verify(presetRepository).findById(15L);
+		verify(presetRepository, never()).delete(any(Preset.class));
+	}
+
+	@Test
+	void deletePresetRejectsAuthenticatedNonOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.deletePreset(42L, 15L))
+				.isInstanceOf(PresetForbiddenException.class)
+				.hasMessage("You do not have permission to delete this preset.");
+
+		verify(userRepository).existsById(42L);
+		verify(presetRepository).findById(15L);
+		verify(presetRepository, never()).delete(any(Preset.class));
 	}
 
 	@Test
@@ -421,6 +517,38 @@ class PresetServiceTests {
 		assertThat(result.getThumbnailRef()).isEqualTo("thumbnails/15/abc123.png");
 		verify(thumbnailStorageService).store(file, 15L);
 		verify(presetRepository).saveAndFlush(existingPreset);
+	}
+
+	@Test
+	void uploadThumbnailDeletesPreviousThumbnailAfterSuccessfulReplacement() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+
+		Preset existingPreset = new Preset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"thumbnails/15/old-thumb.png");
+		ReflectionTestUtils.setField(existingPreset, "id", 15L);
+		ReflectionTestUtils.setField(existingPreset, "createdAt", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(existingPreset));
+		when(thumbnailStorageService.store(any(MultipartFile.class), any(Long.class)))
+				.thenReturn("thumbnails/15/new-thumb.png");
+		when(presetRepository.saveAndFlush(any(Preset.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0, Preset.class));
+
+		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
+
+		Preset result = presetService.uploadThumbnail(42L, 15L, file);
+
+		assertThat(result.getThumbnailRef()).isEqualTo("thumbnails/15/new-thumb.png");
+		verify(thumbnailStorageService).delete("thumbnails/15/old-thumb.png");
 	}
 
 	@Test

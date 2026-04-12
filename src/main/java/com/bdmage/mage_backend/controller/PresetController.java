@@ -1,11 +1,12 @@
 package com.bdmage.mage_backend.controller;
 
 import java.util.List;
+
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.dto.AttachTagToPresetRequest;
 import com.bdmage.mage_backend.dto.CreatePresetRequest;
-import com.bdmage.mage_backend.dto.PresetTagResponse;
 import com.bdmage.mage_backend.dto.PresetResponse;
+import com.bdmage.mage_backend.dto.PresetTagResponse;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
@@ -13,6 +14,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,11 +25,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/presets")
+@RequestMapping("/api/presets")
 public class PresetController {
 
 	private final PresetService presetService;
@@ -86,5 +88,13 @@ public class PresetController {
 		Preset preset = this.presetService.uploadThumbnail(authenticatedUserId, id, file);
 
 		return ResponseEntity.ok(PresetResponse.from(preset));
+	}
+
+	@DeleteMapping("/{id}")
+	ResponseEntity<Void> deletePreset(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id) {
+		this.presetService.deletePreset(authenticatedUserId, id);
+		return ResponseEntity.noContent().build();
 	}
 }

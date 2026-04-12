@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -60,7 +61,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -84,7 +85,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Preset User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -93,7 +94,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		MvcResult createResult = this.mockMvc.perform(post("/presets")
+		MvcResult createResult = this.mockMvc.perform(post("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -132,7 +133,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Preset Validation User"));
 
-		MvcResult loginResult = this.mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -141,7 +142,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -158,7 +159,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void attachTagToPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":7}
@@ -187,14 +188,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						""")));
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -229,14 +230,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
 		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -266,14 +267,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{"visualizer":{"shader":"glacier"}}
 						""")));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -286,7 +287,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void getPresetsReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(get("/presets")
+		this.mockMvc.perform(get("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
@@ -322,14 +323,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.presetTagRepository.saveAndFlush(new PresetTag(ambientPreset.getId(), ambientTag.getId()));
 		this.presetTagRepository.saveAndFlush(new PresetTag(otherPreset.getId(), showcaseTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(get("/presets")
+		this.mockMvc.perform(get("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.param("tag", " " + ambientTagName.toUpperCase() + " ")
 				.contentType(MediaType.APPLICATION_JSON))
@@ -350,14 +351,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Empty Filter Presets User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(get("/presets")
+		this.mockMvc.perform(get("/api/presets")
 				.header("Authorization", "Bearer " + accessToken)
 				.param("tag", "ambient")
 				.contentType(MediaType.APPLICATION_JSON))
@@ -366,12 +367,33 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(get("/presets/99999")
+	void getPresetReturnsPresetWithAllFieldsForPublicRequest() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "public-get-preset-user-" + uniqueSuffix + "@example.com";
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
+				"Public Get Preset User"));
+
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						"""),
+				"thumbnails/preset-1.png"));
+
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.contentType(MediaType.APPLICATION_JSON))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("Authentication is required."));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
+				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
+				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.createdAt").isNotEmpty());
 	}
 
 	@Test
@@ -385,7 +407,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Get Preset User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -400,7 +422,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""),
 				"thumbnails/preset-1.png"));
 
-		this.mockMvc.perform(get("/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -414,24 +436,131 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetReturnsNotFoundForNonexistentPreset() throws Exception {
-		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "missing-preset-user-" + uniqueSuffix + "@example.com";
-		String password = "password-" + uniqueSuffix;
+	void getPresetReturnsNotFoundForPublicRequestWhenPresetDoesNotExist() throws Exception {
+		this.mockMvc.perform(get("/api/presets/99999")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
 
-		this.userRepository.saveAndFlush(new User(
+	@Test
+	void deletePresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(delete("/api/presets/15")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void deletePresetDeletesOwnedPresetAndRemovesItFromSubsequentReads() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "delete-preset-owner-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+		String tagName = "delete-tag-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
-				"Missing Preset User"));
+				"Delete Preset Owner"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(get("/presets/99999")
+		this.mockMvc.perform(delete("/api/presets/" + savedPreset.getId())
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNoContent());
+
+		assertThat(this.presetRepository.findById(savedPreset.getId())).isEmpty();
+		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId())).isEmpty();
+
+		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+
+		this.mockMvc.perform(get("/api/users/" + savedUser.getId() + "/presets")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").doesNotExist());
+	}
+
+	@Test
+	void deletePresetReturnsForbiddenWhenAuthenticatedUserDoesNotOwnPreset() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String ownerEmail = "delete-owner-" + uniqueSuffix + "@example.com";
+		String ownerPassword = "owner-password-" + uniqueSuffix;
+		String otherEmail = "delete-other-" + uniqueSuffix + "@example.com";
+		String otherPassword = "other-password-" + uniqueSuffix;
+
+		User owner = this.userRepository.saveAndFlush(new User(
+				ownerEmail,
+				this.passwordHashingService.hash(ownerPassword),
+				"Delete Owner"));
+		this.userRepository.saveAndFlush(new User(
+				otherEmail,
+				this.passwordHashingService.hash(otherPassword),
+				"Delete Other User"));
+		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				owner.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(otherEmail, otherPassword)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(delete("/api/presets/" + savedPreset.getId())
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("You do not have permission to delete this preset."));
+
+		assertThat(this.presetRepository.findById(savedPreset.getId())).isPresent();
+	}
+
+	@Test
+	void deletePresetReturnsNotFoundForNonexistentPreset() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "delete-missing-preset-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Delete Missing Preset User"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(delete("/api/presets/99999")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
@@ -457,3 +586,5 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return Long.valueOf(matcher.group(1));
 	}
 }
+
+

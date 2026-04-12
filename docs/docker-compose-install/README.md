@@ -82,8 +82,12 @@ If Docker Desktop is installed, start it before running backend commands.
 You should then be able to run:
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
+
+For this repository:
+- `docker-compose.yml` is the deployment-friendly base file
+- `docker-compose.local.yml` adds the local host ports needed for `localhost:8080` and `localhost:5432`
 
 ## Next Step
 

@@ -7,6 +7,7 @@ import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
@@ -23,11 +24,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
-
 import org.springframework.mock.web.MockMultipartFile;
-
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -81,7 +82,7 @@ class PresetControllerTests {
 				"thumbnails/preset-1.png"))
 				.thenReturn(preset);
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -104,7 +105,7 @@ class PresetControllerTests {
 
 	@Test
 	void createPresetRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -131,7 +132,7 @@ class PresetControllerTests {
 				null))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -165,7 +166,7 @@ class PresetControllerTests {
 
 		when(this.presetService.getAllPresets()).thenReturn(List.of(firstPreset, secondPreset));
 
-		this.mockMvc.perform(get("/presets"))
+		this.mockMvc.perform(get("/api/presets"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].presetId").value(15L))
@@ -187,7 +188,7 @@ class PresetControllerTests {
 
 		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of(preset));
 
-		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+		this.mockMvc.perform(get("/api/presets").param("tag", "ambient"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].presetId").value(15L))
@@ -198,7 +199,7 @@ class PresetControllerTests {
 	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
 		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of());
 
-		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+		this.mockMvc.perform(get("/api/presets").param("tag", "ambient"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(content().json("[]"));
@@ -211,7 +212,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
 				.thenReturn(presetTag);
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -225,7 +226,7 @@ class PresetControllerTests {
 
 	@Test
 	void attachTagToPresetRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -241,7 +242,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(null, 15L, 7L))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":7}
@@ -256,7 +257,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
 				.thenThrow(new TagNotFoundException("Tag not found."));
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -272,7 +273,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
 				.thenThrow(new PresetTagAlreadyExistsException("This tag is already attached to the preset."));
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -297,7 +298,7 @@ class PresetControllerTests {
 
 		when(this.presetService.getPreset(15L)).thenReturn(preset);
 
-		this.mockMvc.perform(get("/presets/15"))
+		this.mockMvc.perform(get("/api/presets/15"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.presetId").value(15L))
@@ -314,7 +315,53 @@ class PresetControllerTests {
 		when(this.presetService.getPreset(99999L))
 				.thenThrow(new PresetNotFoundException("Preset not found."));
 
-		this.mockMvc.perform(get("/presets/99999"))
+		this.mockMvc.perform(get("/api/presets/99999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void deletePresetReturnsNoContentForAuthenticatedOwner() throws Exception {
+		this.mockMvc.perform(delete("/api/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void deletePresetReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		doThrow(new AuthenticationRequiredException("Authentication is required."))
+				.when(this.presetService)
+				.deletePreset(null, 15L);
+
+		this.mockMvc.perform(delete("/api/presets/15"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void deletePresetReturnsForbiddenWhenAuthenticatedUserDoesNotOwnPreset() throws Exception {
+		doThrow(new PresetForbiddenException("You do not have permission to delete this preset."))
+				.when(this.presetService)
+				.deletePreset(77L, 15L);
+
+		this.mockMvc.perform(delete("/api/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("You do not have permission to delete this preset."));
+	}
+
+	@Test
+	void deletePresetReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		doThrow(new PresetNotFoundException("Preset not found."))
+				.when(this.presetService)
+				.deletePreset(77L, 15L);
+
+		this.mockMvc.perform(delete("/api/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Preset not found."));
@@ -335,7 +382,7 @@ class PresetControllerTests {
 
 		when(this.presetService.uploadThumbnail(77L, 15L, file)).thenReturn(updatedPreset);
 
-		this.mockMvc.perform(multipart("/presets/15/thumbnail").file(file)
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file)
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -350,7 +397,7 @@ class PresetControllerTests {
 		when(this.presetService.uploadThumbnail(null, 15L, file))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(multipart("/presets/15/thumbnail").file(file))
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
@@ -363,7 +410,7 @@ class PresetControllerTests {
 		when(this.presetService.uploadThumbnail(77L, 99999L, file))
 				.thenThrow(new PresetNotFoundException("Preset not found."));
 
-		this.mockMvc.perform(multipart("/presets/99999/thumbnail").file(file)
+		this.mockMvc.perform(multipart("/api/presets/99999/thumbnail").file(file)
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
@@ -378,7 +425,7 @@ class PresetControllerTests {
 		when(this.presetService.uploadThumbnail(88L, 15L, file))
 				.thenThrow(new PresetOwnershipRequiredException("Preset ownership is required."));
 
-		this.mockMvc.perform(multipart("/presets/15/thumbnail").file(file)
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file)
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
@@ -393,10 +440,11 @@ class PresetControllerTests {
 		when(this.presetService.uploadThumbnail(77L, 15L, file))
 				.thenThrow(new InvalidThumbnailException("Thumbnail must be a valid image (jpeg, png, webp, or gif)."));
 
-		this.mockMvc.perform(multipart("/presets/15/thumbnail").file(file)
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file)
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_THUMBNAIL"))
 				.andExpect(jsonPath("$.message").value("Thumbnail must be a valid image (jpeg, png, webp, or gif)."));
 	}
 }
+

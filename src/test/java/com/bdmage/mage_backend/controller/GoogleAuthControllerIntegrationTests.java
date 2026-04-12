@@ -48,7 +48,7 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 		String token = verifiedToken(subject, email, "Google User");
 		long countBefore = this.userRepository.count();
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(token)))
 				.andExpect(status().isCreated())
@@ -59,7 +59,7 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 
 		User savedUser = this.userRepository.findByGoogleSubject(subject).orElseThrow();
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(token)))
 				.andExpect(status().isOk())
@@ -77,20 +77,20 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 		String email = "local-conflict-" + uniqueSuffix + "@example.com";
 		this.userRepository.saveAndFlush(new User(email, "hashed-password-value", "Local User"));
 
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(verifiedToken(subject, email, "Google User"))))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("ACCOUNT_CONFLICT"))
+				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"))
 				.andExpect(jsonPath("$.message").value(
-						"A local account already exists for this email. Account linking is not available yet."));
+						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account."));
 
 		assertThat(this.userRepository.findByGoogleSubject(subject)).isEmpty();
 	}
 
 	@Test
 	void googleAuthenticationRejectsInvalidTokens() throws Exception {
-		this.mockMvc.perform(post("/auth/google")
+		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody("invalid-token")))
 				.andExpect(status().isUnauthorized())
@@ -126,3 +126,4 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 		}
 	}
 }
+

@@ -1,59 +1,58 @@
 # MAGE Backend
 
-## Overview
+Spring Boot service for the MAGE platform.
 
-This backend is the Java and Spring Boot service for the MAGE platform. At its current stage, the repository provides the backend foundation plus the first account-authentication flows and preset persistence APIs: application startup, PostgreSQL connectivity, Flyway-managed schema migration, health and readiness endpoints, local account registration and login, Google authentication account provisioning, bearer-token authentication middleware, current-user profile lookup, preset creation, preset tag attachment, preset listing with optional tag filtering, user preset listing, Docker-based local development, and integrated testing.
+This repository currently provides the backend foundations for:
+- health and readiness checks
+- local account registration and login
+- Google authentication and explicit provider linking
+- bearer-token authentication for protected routes
+- user profile lookup
+- preset creation, retrieval, deletion, and user-scoped listing
+- tag creation and preset tagging
 
-The codebase is small at the moment, but the documentation and engineering expectations are structured like a team-owned backend project. New contributors should be able to clone the repository, run it locally, understand the architecture, and make disciplined changes without relying on extra explanation.
-
-## Tech Stack
+## Stack
 
 - Java 21
-- Spring Boot 4.0.3
+- Spring Boot 4
 - Spring Web MVC
-- Spring Security Crypto
 - Spring Data JPA
 - PostgreSQL 16
 - Flyway
 - Google API Client
 - Maven Wrapper
-- JUnit 5, AssertJ, Mockito, and Testcontainers
-- Docker and Docker Compose
+- JUnit 5, Mockito, AssertJ, Testcontainers
+- Docker Compose
 
-## Quick Start
+## Getting Started
 
-For a first run, use the Docker workflow.
+The default local workflow uses Docker Compose.
 
 Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
-Once the stack is healthy:
-
+`docker-compose.yml` stays deployment-friendly and does not publish host ports.
+`docker-compose.local.yml` adds the local host bindings for:
 - backend: `http://localhost:8080`
-- liveness: `http://localhost:8080/health`
-- readiness: `http://localhost:8080/ready`
-- local registration: `POST http://localhost:8080/auth/register`
-- local login: `POST http://localhost:8080/auth/login`
-- Google auth: `POST http://localhost:8080/auth/google`
-- current user profile: `GET http://localhost:8080/users/me`
-- preset creation: `POST http://localhost:8080/presets`
-- preset list: `GET http://localhost:8080/presets`
-- preset list filtered by tag: `GET http://localhost:8080/presets?tag=ambient`
-- preset tag attachment: `POST http://localhost:8080/presets/{id}/tags`
-- user preset list: `GET http://localhost:8080/users/{id}/presets`
+- postgres: `localhost:5432`
 
-Run the test suite with:
+Once the stack is up:
+- app: `http://localhost:8080`
+- liveness: `GET /health`
+- readiness: `GET /ready`
+
+Run tests with:
 
 Windows PowerShell:
 
@@ -67,59 +66,99 @@ macOS/Linux:
 ./mvnw test
 ```
 
-## Environment and Local Run Notes
+The test suite uses Testcontainers, so Docker must be running.
 
-- `.env.example` is designed for Docker Compose.
-- `MAGE_AUTH_GOOGLE_CLIENT_IDS` must contain the Google OAuth client ID used by the frontend.
-- if the backend runs inside Docker, the datasource host is `postgres`
-- Flyway runs automatically during application startup
-- the test suite requires Docker because integration tests use Testcontainers
+## Configuration
 
-Full local setup instructions live in [docs/getting-started.md](docs/getting-started.md).
+The backend reads configuration from environment variables. The local Docker setup is driven by `.env`.
 
-## Project Structure
+Required values for local development:
+
+| Variable | Purpose |
+| --- | --- |
+| `SERVER_PORT` | Backend HTTP port. Defaults to `8080`. |
+| `MAGE_AUTH_GOOGLE_CLIENT_IDS` | Allowed Google OAuth client IDs for server-side ID token verification. |
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL. Docker Compose expects `jdbc:postgresql://postgres:5432/mage`. |
+| `SPRING_DATASOURCE_USERNAME` | Database username. |
+| `SPRING_DATASOURCE_PASSWORD` | Database password. |
+
+Other useful defaults in `.env.example`:
+- `SPRING_APPLICATION_NAME`
+- `SPRING_PROFILES_ACTIVE`
+- `SPRING_JPA_HIBERNATE_DDL_AUTO`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+
+## Deployment Strategy
+
+The supported production path is same-origin deployment behind a reverse proxy:
+
+- the frontend is served from the public app origin
+- `/api/*` is routed to this backend service
+- browser auth requests stay on the same HTTPS origin as the frontend
+- CORS is not part of the supported deployment path
+
+See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy contract and the required backend environment variables.
+
+## Current API Surface
+
+| Route | Auth | Purpose |
+| --- | --- | --- |
+| `GET /health` | Public | Process liveness |
+| `GET /ready` | Public | Application and database readiness |
+| `POST /api/auth/register` | Public | Create a local account |
+| `POST /api/auth/login` | Public | Authenticate a local account |
+| `POST /api/auth/google` | Public | Authenticate with a Google ID token |
+| `POST /api/auth/link/google` | Public | Link Google auth to an existing local account |
+| `POST /api/auth/link/local` | Public | Add local auth to an existing Google-backed account |
+| `GET /api/users/me` | Bearer token | Return the current user profile |
+| `POST /api/tags` | Public | Create a tag |
+| `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user |
+| `GET /api/presets` | Bearer token | List presets, optionally filtered by tag |
+| `POST /api/presets/{id}/tags` | Bearer token | Attach a tag to a preset |
+| `POST /api/presets/{id}/thumbnail` | Bearer token | Upload or replace a preset thumbnail owned by the authenticated user |
+| `GET /api/presets/{id}` | Public | Fetch a preset by id |
+| `DELETE /api/presets/{id}` | Bearer token | Delete a preset owned by the authenticated user |
+| `GET /api/users/{id}/presets` | Bearer token | List presets for a specific user |
+
+## Repository Layout
 
 ```text
 mage-backend/
 |- docs/
-|  |- architecture.md
-|  |- engineering-standards.md
-|  |- getting-started.md
-|  `- operations.md
 |- src/
 |  |- main/
 |  |  |- java/com/bdmage/mage_backend/
-|  |  |  |- config/
 |  |  |  |- client/
+|  |  |  |- config/
 |  |  |  |- controller/
 |  |  |  |- dto/
 |  |  |  |- exception/
-|  |  |  |- service/
-|  |  |  `- MageBackendApplication.java
+|  |  |  |- model/
+|  |  |  |- repository/
+|  |  |  `- service/
 |  |  `- resources/
-|  |     |- application.properties
 |  |     `- db/migration/
 |  `- test/
-|     `- java/com/bdmage/mage_backend/
-|        |- config/
-|        |- controller/
-|        |- service/
-|        |- support/
-|        `- MageBackendApplicationTests.java
-|- .env.example
 |- CONTRIBUTING.md
+|- docker-compose.local.yml
 |- docker-compose.yml
 |- Dockerfile
 |- pom.xml
-|- mvnw
-|- mvnw.cmd
 `- README.md
 ```
 
 ## Documentation
 
-- [docs/getting-started.md](docs/getting-started.md): setup, environment variables, local run, tests, migrations, and authentication endpoint usage
-- [docs/architecture.md](docs/architecture.md): current codebase structure and the layered design behind health, authentication, and current-user profile features
-- [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, persistence, testing, logging, security, and collaboration standards
-- [docs/operations.md](docs/operations.md): operational runbook for Docker, health checks, Google auth behavior, logs, migrations, and troubleshooting
-- [CONTRIBUTING.md](CONTRIBUTING.md): pull request and contribution workflow
+- [docs/README.md](docs/README.md): documentation index and reading order
+- [docs/getting-started.md](docs/getting-started.md): local setup, configuration, tests, and first verification steps
+- [docs/deployment.md](docs/deployment.md): same-origin production deployment contract and reverse-proxy expectations
+- [docs/architecture.md](docs/architecture.md): package layout, request flow, auth model, and persistence model
+- [docs/operations.md](docs/operations.md): runbook, health checks, auth matrix, and troubleshooting
+- [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, testing, and review expectations
+- [CONTRIBUTING.md](CONTRIBUTING.md): branch, PR, and review workflow
+
+## Current Scope
+
+The backend is still early-stage infrastructure. It already has a real authentication model, persistence layer, migrations, and tests, but it does not yet have a broader authorization framework, logout/token revocation, or token expiration.

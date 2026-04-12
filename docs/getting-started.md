@@ -1,250 +1,149 @@
 # Getting Started
 
-## Purpose
-
-This guide provides the fastest path from cloning the repository to running the MAGE backend locally. It assumes contributors are comfortable with developer tooling but may be new to this repository's setup and conventions.
-
-The local development environment is fully containerized using Docker Compose. This keeps setup consistent across machines and avoids installing PostgreSQL or managing runtime configuration manually.
+This guide is the shortest path from clone to a working local backend.
 
 ## Prerequisites
 
-| Tool                            | Required version        | Why it matters                                                |
-| ------------------------------- | ----------------------- | ------------------------------------------------------------- |
-| Git                             | current stable          | clone the repository and manage branches                      |
-| Docker Desktop or Docker Engine | current stable          | run the backend and PostgreSQL locally                        |
-| Java                            | 21                      | required by the build and test runtime                        |
-| Maven                           | not required separately | use the Maven wrapper included in the repository              |
-| IDE                             | optional                | IntelliJ IDEA or VS Code with Java support are common choices |
+- Git
+- Docker Desktop or a local Docker Engine
+- Java 21
+- an IDE with Java support if you want local editing/debugging
 
-Docker must also be running when executing the integration test suite because Testcontainers is used.
+You do not need a separate Maven install. Use the wrapper in the repo.
 
-## Clone the Repository
+## First Run
 
-    git clone https://github.com/B2MAGE/mage-backend.git
-    cd mage-backend
-
-The first Maven wrapper command downloads project dependencies automatically.
-
-## Configure Environment Variables
-
-Copy the example environment file.
+1. Clone the repository and enter the project directory.
+2. Copy the example environment file.
+3. Start the local stack with Docker Compose.
 
 Windows PowerShell:
 
-    Copy-Item .env.example .env
+```powershell
+Copy-Item .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
 
 macOS/Linux:
 
-    cp .env.example .env
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
 
-The `.env` file provides configuration used by Docker Compose.
+This starts:
+- `postgres`: PostgreSQL 16
+- `backend`: the Spring Boot service from this repo
 
-Important details:
+The split is intentional:
+- `docker-compose.yml`: base services for deployment-friendly container networking
+- `docker-compose.local.yml`: local-only host port bindings for `8080` and `5432`
 
-- the backend connects to PostgreSQL using the hostname `postgres`
-- this hostname works because both containers run in the same Docker network
-- `MAGE_AUTH_GOOGLE_CLIENT_IDS` must be set to the Google OAuth client ID used by the frontend
-- multiple Google client IDs can be provided as a comma-separated list if more than one frontend must be trusted
+## Environment Variables
 
-Avoid changing these values unless you understand the container network configuration.
+The Docker workflow uses `.env`.
 
-## Start the Backend
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `SERVER_PORT` | Yes | Defaults to `8080`. |
+| `MAGE_AUTH_GOOGLE_CLIENT_IDS` | Yes | Must include the frontend Google OAuth client ID used for ID token sign-in. |
+| `SPRING_DATASOURCE_URL` | Yes | For Docker Compose, use `jdbc:postgresql://postgres:5432/mage`. |
+| `SPRING_DATASOURCE_USERNAME` | Yes | Database username. |
+| `SPRING_DATASOURCE_PASSWORD` | Yes | Database password. |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | No | Local default is `validate`. Keep it that way unless you have a specific reason to change it. |
 
-Run the full development stack:
+`.env.example` is set up for the containerized workflow. If you change the datasource host, make sure it still matches the way you are running the app.
 
-    docker compose up --build
+## Verify the Service
 
-This command will:
+Once startup completes, check:
 
-- build the backend image
-- start the PostgreSQL container
-- wait for the database health check
-- start the backend service
-- stream logs to your terminal
-
-## Verify the Application
-
-Once the backend is running, open the following endpoints:
-
-- http://localhost:8080/health
-- http://localhost:8080/ready
-- POST http://localhost:8080/auth/register
-- POST http://localhost:8080/auth/login
-- POST http://localhost:8080/auth/google
-- GET http://localhost:8080/users/me
-- POST http://localhost:8080/tags
-- POST http://localhost:8080/presets
-- GET http://localhost:8080/presets
-- POST http://localhost:8080/presets/{presetId}/tags
-- GET http://localhost:8080/presets/{presetId}
-- GET http://localhost:8080/users/{id}/presets
+- `GET http://localhost:8080/health`
+- `GET http://localhost:8080/ready`
 
 Expected responses:
+- `/health`: `200 OK`
+- `/ready`: `200 OK` when PostgreSQL is reachable, `503` while the app is still coming up or the database is unavailable
 
-- `/health` returns `200 OK` with `{"status":"UP"}`
-- `/ready` returns `200 OK` with `{"status":"UP","database":"UP"}` when PostgreSQL is reachable
-- `POST /auth/register` returns `201 Created` for a new local account and never returns the raw password or stored password hash
-- `POST /auth/login` returns `200 OK` when a local account's credentials are valid and includes an `accessToken` for protected endpoints without exposing the raw password or stored password hash
-- `POST /auth/google` returns either `201 Created` or `200 OK` and includes an `accessToken` for protected endpoints
-- `GET /users/me` returns `200 OK` with the authenticated user's profile when the request includes `Authorization: Bearer <accessToken>`
-- `POST /tags` returns `201 Created` with the persisted normalized tag fields
-- `POST /presets` returns `201 Created` with the created preset fields when the request includes `Authorization: Bearer <accessToken>`
-- `GET /presets` returns `200 OK` with an array of presets when the request includes `Authorization: Bearer <accessToken>`, and `GET /presets?tag=ambient` returns only presets linked to that tag or an empty array when none match
-- `POST /presets/{presetId}/tags` returns `201 Created` with the preset/tag association fields when the request includes `Authorization: Bearer <accessToken>` and both records exist
-- `GET /presets/{presetId}` returns `200 OK` with the preset metadata, scene data, thumbnail reference, and creation timestamp when the request includes `Authorization: Bearer <accessToken>` and the preset exists
-- `GET /users/{id}/presets` returns `200 OK` with an array of presets for the requested user when the request includes `Authorization: Bearer <accessToken>`
+Useful follow-up checks:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/users/me` with a bearer token
+- `POST /api/presets`
+- `POST /api/presets/{id}/thumbnail` with `multipart/form-data` and a bearer token
+- `GET /api/presets/{id}`
 
-If `/ready` returns `503`, the application process is running but not yet ready to serve traffic.
-
-To exercise the local registration endpoint:
-
-    curl -X POST http://localhost:8080/auth/register \
-      -H "Content-Type: application/json" \
-      -d '{"email":"user@example.com","password":"example-password","displayName":"Example User"}'
-
-To exercise the local login endpoint:
-
-    curl -X POST http://localhost:8080/auth/login \
-      -H "Content-Type: application/json" \
-      -d '{"email":"user@example.com","password":"example-password"}'
-
-Use the `accessToken` from the login response or Google auth response when calling protected endpoints.
-
-    curl -X POST http://localhost:8080/tags \
-      -H "Content-Type: application/json" \
-      -d '{"name":"Ambient"}'
-
-    curl http://localhost:8080/users/me \
-      -H "Authorization: Bearer <access-token>"
-
-    curl -X POST http://localhost:8080/presets \
-      -H "Authorization: Bearer <access-token>" \
-      -H "Content-Type: application/json" \
-      -d '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}},"thumbnailRef":"thumbnails/preset-1.png"}'
-
-    curl http://localhost:8080/presets?tag=ambient \
-      -H "Authorization: Bearer <access-token>"
-
-    curl -X POST http://localhost:8080/presets/<preset-id>/tags \
-      -H "Authorization: Bearer <access-token>" \
-      -H "Content-Type: application/json" \
-      -d '{"tagId":<tag-id>}'
-
-    curl http://localhost:8080/presets/<preset-id> \
-      -H "Authorization: Bearer <access-token>"
-
-    curl http://localhost:8080/users/<user-id>/presets \
-      -H "Authorization: Bearer <access-token>"
-
-To exercise the Google auth endpoint, send a Google ID token issued for one of the configured client IDs:
-
-    curl -X POST http://localhost:8080/auth/google \
-      -H "Content-Type: application/json" \
-      -d '{"idToken":"<google-id-token>"}'
+For endpoint behavior and auth requirements, use [operations.md](operations.md).
 
 ## Running Tests
 
-Run the full test suite using the Maven wrapper.
-
 Windows PowerShell:
 
-    .\mvnw.cmd test
+```powershell
+.\mvnw.cmd test
+```
 
 macOS/Linux:
 
-    ./mvnw test
+```bash
+./mvnw test
+```
 
-The test suite includes:
+The suite includes:
+- unit tests for controllers, services, and configuration
+- integration tests for HTTP behavior and persistence
+- Flyway migration coverage
+- PostgreSQL-backed tests through Testcontainers
 
-- unit tests for controllers, services, and configuration logic
-- Spring Boot integration tests
-- PostgreSQL-backed integration tests using Testcontainers
-- Flyway migration verification
-
-Docker must be running because Testcontainers starts PostgreSQL automatically during integration tests.
+Docker must be running for the integration suite.
 
 ## Database Migrations
 
-Flyway migrations run automatically during application startup.
+Flyway runs automatically at startup.
 
-Schema changes must follow these rules:
+Migration rules:
+- add new files under `src/main/resources/db/migration`
+- use `V<version>__<description>.sql`
+- treat shared migrations as append-only
 
-- add migration files under `src/main/resources/db/migration`
-- use filenames in the format `V<version>__<description>.sql`
-- treat migrations as append-only
-- do not modify migrations that have already been applied in shared environments
+If local schema state gets messy, the quickest reset is:
 
-To test migrations against a clean database:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
 
-    docker compose down -v
-    docker compose up --build
+## Common Local Issues
 
-This resets the PostgreSQL volume and re-applies all migrations.
+### `/ready` returns `503`
 
-## Common Setup Problems
+The process is up, but the app is not ready to serve traffic yet. Check:
+- PostgreSQL container health
+- backend logs
+- datasource values in `.env`
 
-### Backend fails with a datasource configuration error
+### Docker startup fails
 
-Check that:
+Check:
+- Docker is running
+- ports `5432` and `8080` are available
 
-- the `.env` file exists
-- Docker Compose is loading environment variables correctly
-- PostgreSQL container is running
+### Google auth fails immediately
 
-### `/ready` returns `503 Service Unavailable`
+Check:
+- `MAGE_AUTH_GOOGLE_CLIENT_IDS` is set
+- the client ID matches the frontend that issued the ID token
 
-This usually means PostgreSQL is not reachable yet. Check container health and backend logs.
+### Tests fail before assertions run
 
-### Docker commands fail
+The usual cause is that Docker is unavailable, so Testcontainers cannot start PostgreSQL.
 
-Make sure Docker Desktop or your local Docker daemon is running.
+## Suggested Reading Order
 
-### Port `5432` or `8080` is already in use
+If you are new to the backend:
 
-Stop the conflicting process or change the port mapping in `docker-compose.yml`.
-
-### Database state appears inconsistent
-
-Reset the Docker volume:
-
-    docker compose down -v
-    docker compose up --build
-
-### First run is slow
-
-On a fresh machine, Docker images and Maven dependencies must be downloaded. Subsequent runs will be significantly faster.
-
-## Suggested First-Day Workflow
-
-If you are new to the repository, this sequence builds the fastest mental model of the system:
-
-1. clone the repository
-2. run `docker compose up --build`
-3. verify `/health` and `/ready`
-4. run the test suite
-5. read `architecture.md`
-6. read `engineering-standards.md`
-7. trace the `/ready` endpoint from controller to service to datasource
-8. trace `POST /auth/register` from controller to service to repository and password hashing
-9. trace `POST /auth/login` from controller to service to repository and password hashing
-10. trace `POST /auth/google` from controller to service to verifier to repository
-11. trace `GET /users/me` from authentication middleware to controller to service to repository
-12. trace `POST /tags` from controller to service to repository
-13. trace `POST /presets` from authentication middleware to controller to service to repository
-14. trace `GET /presets` from authentication middleware to controller to service to repository, including the optional `tag` query parameter path
-15. trace `POST /presets/{id}/tags` from authentication middleware to controller to service to repository
-16. trace `GET /presets/{id}` from authentication middleware to controller to service to repository
-17. trace `GET /users/{id}/presets` from authentication middleware to controller to service to repository
-
-## Expected Change Workflow
-
-When making backend changes, follow this order:
-
-1. understand the current behavior
-2. determine which layer owns the change
-3. implement the change
-4. add or update tests
-5. add Flyway migrations if the schema changes
-6. update documentation if developer or operational workflows change
-
-Also check out: [architecture.md](architecture.md), [engineering-standards.md](engineering-standards.md), and [operations.md](operations.md)
+1. Read [README.md](../README.md)
+2. Run the stack locally
+3. Read [architecture.md](architecture.md)
+4. Read [engineering-standards.md](engineering-standards.md)
+5. Trace one request end to end, such as `POST /api/auth/register` or `POST /api/presets`

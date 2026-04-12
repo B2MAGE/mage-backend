@@ -4,7 +4,8 @@ import java.util.Optional;
 
 import com.bdmage.mage_backend.client.GoogleTokenVerifier;
 import com.bdmage.mage_backend.client.GoogleTokenVerifier.VerifiedGoogleToken;
-import com.bdmage.mage_backend.exception.GoogleAccountConflictException;
+import com.bdmage.mage_backend.exception.AccountConflictException;
+import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
 import com.bdmage.mage_backend.model.AuthProvider;
 import com.bdmage.mage_backend.model.User;
@@ -41,8 +42,7 @@ class GoogleAuthenticationServiceTests {
 
 		when(googleTokenVerifier.verify("valid-token")).thenReturn(Optional.of(verifiedGoogleToken));
 		when(userRepository.findByGoogleSubject("google-subject-1")).thenReturn(Optional.empty());
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.LOCAL)).thenReturn(Optional.empty());
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.GOOGLE)).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
 		when(userRepository.saveAndFlush(any(User.class))).thenReturn(savedUser);
 
 		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate(
@@ -124,12 +124,32 @@ class GoogleAuthenticationServiceTests {
 		when(googleTokenVerifier.verify("conflict-token")).thenReturn(Optional.of(
 				new VerifiedGoogleToken("google-subject-4", "user@example.com", true, "Google User")));
 		when(userRepository.findByGoogleSubject("google-subject-4")).thenReturn(Optional.empty());
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.LOCAL))
+		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(new User("user@example.com", "password-hash", "Local User")));
 
 		assertThatThrownBy(() -> googleAuthenticationService.authenticate("conflict-token"))
-				.isInstanceOf(GoogleAccountConflictException.class)
-				.hasMessage("A local account already exists for this email. Account linking is not available yet.");
+				.isInstanceOf(AccountLinkRequiredException.class)
+				.hasMessage(
+						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
+	}
+
+	@Test
+	void rejectsConflictsWithExistingGoogleAccountUsingSameEmail() {
+		GoogleTokenVerifier googleTokenVerifier = mock(GoogleTokenVerifier.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		GoogleAuthenticationService googleAuthenticationService = new GoogleAuthenticationService(
+				googleTokenVerifier,
+				userRepository);
+
+		when(googleTokenVerifier.verify("same-email-conflict-token")).thenReturn(Optional.of(
+				new VerifiedGoogleToken("google-subject-4b", "user@example.com", true, "Google User")));
+		when(userRepository.findByGoogleSubject("google-subject-4b")).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("user@example.com"))
+				.thenReturn(Optional.of(User.google("user@example.com", "google-subject-existing", "Existing Google User")));
+
+		assertThatThrownBy(() -> googleAuthenticationService.authenticate("same-email-conflict-token"))
+				.isInstanceOf(AccountConflictException.class)
+				.hasMessage("A Google-backed account already exists for this email under a different Google identity.");
 	}
 
 	@Test
@@ -152,8 +172,7 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.findByGoogleSubject("google-subject-5"))
 				.thenReturn(Optional.empty())
 				.thenReturn(Optional.of(existingUser));
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.LOCAL)).thenReturn(Optional.empty());
-		when(userRepository.findByEmailAndAuthProvider("user@example.com", AuthProvider.GOOGLE)).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
 		when(userRepository.saveAndFlush(any(User.class))).thenThrow(new DataIntegrityViolationException("duplicate"));
 
 		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate("race-token");
@@ -162,3 +181,4 @@ class GoogleAuthenticationServiceTests {
 		assertThat(result.user().getId()).isEqualTo(128L);
 	}
 }
+

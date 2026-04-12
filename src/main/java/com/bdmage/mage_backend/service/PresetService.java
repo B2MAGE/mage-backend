@@ -7,19 +7,19 @@ import java.util.Set;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
 import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
-import com.bdmage.mage_backend.repository.PresetTagRepository;
 import com.bdmage.mage_backend.repository.PresetRepository;
+import com.bdmage.mage_backend.repository.PresetTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PresetService {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
+	private static final String PRESET_FORBIDDEN_MESSAGE = "You do not have permission to delete this preset.";
 	private static final String PRESET_NOT_FOUND_MESSAGE = "Preset not found.";
 	private static final String TAG_NOT_FOUND_MESSAGE = "Tag not found.";
 	private static final String PRESET_TAG_ALREADY_EXISTS_MESSAGE = "This tag is already attached to the preset.";
@@ -54,7 +55,7 @@ public class PresetService {
 	@PersistenceContext
 	private EntityManager entityManager;
 
-	// This is the original constructor — kept so existing tests don't need to change
+	// Keep the four-argument constructor for tests that do not need storage.
 	public PresetService(
 			PresetRepository presetRepository,
 			TagRepository tagRepository,
@@ -63,7 +64,7 @@ public class PresetService {
 		this(presetRepository, tagRepository, presetTagRepository, userRepository, null);
 	}
 
-	// Spring uses this one in production since it can satisfy all five dependencies
+	// Spring uses this constructor in production because it can satisfy all dependencies.
 	@Autowired
 	public PresetService(
 			PresetRepository presetRepository,
@@ -92,6 +93,19 @@ public class PresetService {
 			this.entityManager.refresh(savedPreset);
 		}
 		return savedPreset;
+	}
+
+	@Transactional
+	public void deletePreset(Long authenticatedUserId, Long presetId) {
+		requireAuthenticatedUser(authenticatedUserId);
+
+		Preset preset = this.presetRepository.findById(presetId)
+				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+		if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
+			throw new PresetForbiddenException(PRESET_FORBIDDEN_MESSAGE);
+		}
+
+		this.presetRepository.delete(preset);
 	}
 
 	@Transactional(readOnly = true)
@@ -145,12 +159,16 @@ public class PresetService {
 		requirePresetOwnership(preset, authenticatedUserId);
 		validateThumbnail(file);
 
+		String previousThumbnailRef = preset.getThumbnailRef();
 		String thumbnailRef = this.thumbnailStorageService.store(file, presetId);
 		preset.updateThumbnailRef(thumbnailRef);
 
 		Preset savedPreset = this.presetRepository.saveAndFlush(preset);
 		if (this.entityManager != null) {
 			this.entityManager.refresh(savedPreset);
+		}
+		if (StringUtils.hasText(previousThumbnailRef) && !previousThumbnailRef.equals(thumbnailRef)) {
+			this.thumbnailStorageService.delete(previousThumbnailRef);
 		}
 		return savedPreset;
 	}

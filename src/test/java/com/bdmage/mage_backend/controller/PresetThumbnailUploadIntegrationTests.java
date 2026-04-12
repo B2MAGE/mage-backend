@@ -62,7 +62,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	void uploadThumbnailReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
 		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
 
-		this.mockMvc.perform(multipart("/presets/15/thumbnail").file(file))
+		this.mockMvc.perform(multipart("/api/presets/15/thumbnail").file(file))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
@@ -86,7 +86,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						{"visualizer":{"shader":"nebula"}}
 						""")));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -94,7 +94,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 
 		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
 
-		this.mockMvc.perform(multipart("/presets/" + preset.getId() + "/thumbnail")
+		this.mockMvc.perform(multipart("/api/presets/" + preset.getId() + "/thumbnail")
 				.file(file)
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
@@ -132,7 +132,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						""")));
 
 		// Log in as the non-owner
-		String otherAccessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String otherAccessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(otherEmail, otherPassword)))
 				.andExpect(status().isOk())
@@ -140,7 +140,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 
 		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
 
-		this.mockMvc.perform(multipart("/presets/" + preset.getId() + "/thumbnail")
+		this.mockMvc.perform(multipart("/api/presets/" + preset.getId() + "/thumbnail")
 				.file(file)
 				.header("Authorization", "Bearer " + otherAccessToken))
 				.andExpect(status().isForbidden())
@@ -159,7 +159,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 				this.passwordHashingService.hash(password),
 				"Missing Preset User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -167,7 +167,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 
 		MockMultipartFile file = new MockMultipartFile("file", "thumb.png", "image/png", new byte[]{1, 2, 3});
 
-		this.mockMvc.perform(multipart("/presets/99999/thumbnail")
+		this.mockMvc.perform(multipart("/api/presets/99999/thumbnail")
 				.file(file)
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isNotFound())
@@ -193,7 +193,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						{"visualizer":{"shader":"nebula"}}
 						""")));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/auth/login")
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginRequestBody(email, password)))
 				.andExpect(status().isOk())
@@ -202,7 +202,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 		// PDFs are not valid thumbnails — should be rejected before storage is ever called
 		MockMultipartFile pdfFile = new MockMultipartFile("file", "doc.pdf", "application/pdf", new byte[]{1, 2, 3});
 
-		this.mockMvc.perform(multipart("/presets/" + preset.getId() + "/thumbnail")
+		this.mockMvc.perform(multipart("/api/presets/" + preset.getId() + "/thumbnail")
 				.file(pdfFile)
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isBadRequest())

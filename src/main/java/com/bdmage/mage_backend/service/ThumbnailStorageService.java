@@ -13,4 +13,14 @@ public interface ThumbnailStorageService {
 	 * @return a non-null reference string identifying the stored thumbnail
 	 */
 	String store(MultipartFile file, Long presetId);
+
+	/**
+	 * Removes a previously stored thumbnail reference when the caller replaces it.
+	 * Implementations may treat missing files as a no-op.
+	 *
+	 * @param thumbnailRef the persisted thumbnail reference to remove
+	 */
+	default void delete(String thumbnailRef) {
+		// Optional for storage implementations that do not need cleanup.
+	}
 }

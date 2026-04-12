@@ -50,6 +50,33 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
+	void preHandleAllowsPublicApiPresetDetailRequestWithoutAuthenticationHeader() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/presets/15");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isNull();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isNull();
+		verifyNoInteractions(authenticationTokenService);
+	}
+
+	@Test
+	void preHandleStillRejectsDeleteApiPresetRequestWithoutAuthenticationHeader() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/presets/15");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
+				.isInstanceOf(AuthenticationRequiredException.class)
+				.hasMessage("Authentication is required.");
+
+		verifyNoInteractions(authenticationTokenService);
+	}
+
+	@Test
 	void preHandleRejectsBlankBearerToken() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);

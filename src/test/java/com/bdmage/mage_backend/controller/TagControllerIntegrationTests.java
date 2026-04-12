@@ -39,7 +39,7 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createTagPersistsNormalizedTag() throws Exception {
-		this.mockMvc.perform(post("/tags")
+		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"  Chillwave  "}
@@ -57,7 +57,7 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	void createTagReturnsConflictWhenTagAlreadyExists() throws Exception {
 		this.tagRepository.saveAndFlush(new Tag("ambient"));
 
-		this.mockMvc.perform(post("/tags")
+		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"  AMBIENT  "}
@@ -71,7 +71,7 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createTagRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/tags")
+		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":" "}
@@ -81,3 +81,4 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.details.name").value("name must not be blank"));
 	}
 }
+

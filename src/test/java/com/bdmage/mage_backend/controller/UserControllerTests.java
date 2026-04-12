@@ -49,7 +49,7 @@ class UserControllerTests {
 
 		when(this.userProfileService.getAuthenticatedUser(51L)).thenReturn(user);
 
-		this.mockMvc.perform(get("/users/me")
+		this.mockMvc.perform(get("/api/users/me")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.userId").value(51L))
@@ -67,7 +67,7 @@ class UserControllerTests {
 		when(this.userProfileService.getAuthenticatedUser(null))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(get("/users/me"))
+		this.mockMvc.perform(get("/api/users/me"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
@@ -81,7 +81,7 @@ class UserControllerTests {
 		when(this.presetService.getPresetsForUser(51L, 77L))
 				.thenReturn(List.of(firstPreset, secondPreset));
 
-		this.mockMvc.perform(get("/users/77/presets")
+		this.mockMvc.perform(get("/api/users/77/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].presetId").value(15L))
@@ -98,7 +98,7 @@ class UserControllerTests {
 		when(this.presetService.getPresetsForUser(51L, 77L))
 				.thenReturn(List.of());
 
-		this.mockMvc.perform(get("/users/77/presets")
+		this.mockMvc.perform(get("/api/users/77/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray())
@@ -110,7 +110,7 @@ class UserControllerTests {
 		when(this.presetService.getPresetsForUser(null, 77L))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(get("/users/77/presets"))
+		this.mockMvc.perform(get("/api/users/77/presets"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
@@ -128,3 +128,5 @@ class UserControllerTests {
 		return preset;
 	}
 }
+
+

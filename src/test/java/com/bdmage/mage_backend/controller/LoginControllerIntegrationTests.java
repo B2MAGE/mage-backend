@@ -45,7 +45,7 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Login User"));
 
-		this.mockMvc.perform(post("/auth/login")
+		this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, password)))
 				.andExpect(status().isOk())
@@ -67,7 +67,7 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash("correct-password"),
 				"Local User"));
 
-		this.mockMvc.perform(post("/auth/login")
+		this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, "wrong-password")))
 				.andExpect(status().isUnauthorized())
@@ -85,7 +85,7 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				"google-subject-" + uniqueSuffix,
 				"Google User"));
 
-		this.mockMvc.perform(post("/auth/login")
+		this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody(email, "some-password")))
 				.andExpect(status().isUnauthorized())
@@ -97,3 +97,4 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
 	}
 }
+

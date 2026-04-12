@@ -114,7 +114,7 @@ Rules:
 If local database state is corrupted or out of sync:
 
 ```bash
-docker compose down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 

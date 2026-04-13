@@ -83,10 +83,12 @@ In the supported same-origin deployment model, these health endpoints are typica
 | `POST /api/auth/link/local` | Public | Requires a valid Google ID token |
 | `GET /api/users/me` | Bearer token | Current authenticated user |
 | `POST /api/tags` | Public | Tag creation is currently public |
-| `POST /api/presets` | Bearer token | Creates an owned preset |
+| `POST /api/presets` | Bearer token | Creates an owned preset and optionally finalizes a staged thumbnail |
+| `POST /api/presets/thumbnail/presign` | Bearer token | Presigns a staged thumbnail upload before preset creation |
 | `GET /api/presets` | Bearer token | Supports `?tag=<name>` |
 | `POST /api/presets/{id}/tags` | Bearer token | Attaches an existing tag to an existing preset |
-| `POST /api/presets/{id}/thumbnail` | Bearer token | Owner-only multipart thumbnail upload |
+| `POST /api/presets/{id}/thumbnail/presign` | Bearer token | Owner-only presigned thumbnail upload preparation |
+| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement |
 | `GET /api/presets/{id}` | Public | Preset detail is public |
 | `DELETE /api/presets/{id}` | Bearer token | Owner-only |
 | `GET /api/users/{id}/presets` | Bearer token | User-scoped preset list |
@@ -104,36 +106,119 @@ In the supported same-origin deployment model, these health endpoints are typica
 ### Presets and Tags
 
 - `POST /api/tags`: `201` on success, `409` for duplicates
-- `POST /api/presets`: `201` on success, `401` without a valid bearer token
+- `POST /api/presets`: `201` on success, `400` for invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
+- `POST /api/presets/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
 - `GET /api/presets`: `200` on success, `401` without a valid bearer token
 - `POST /api/presets/{id}/tags`: `201` on success, `404` if the preset or tag is missing, `409` if the link already exists
-- `POST /api/presets/{id}/thumbnail`: `200` on success, `400` for invalid uploads, `403` for non-owner uploads, `404` if the preset is missing
+- `POST /api/presets/{id}/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `403` for non-owner requests, `404` if the preset is missing
+- `POST /api/presets/{id}/thumbnail/finalize`: `200` on success, `400` for invalid upload state, `403` for non-owner requests, `404` if the preset is missing
 - `GET /api/presets/{id}`: `200` on success, `404` if missing
 - `DELETE /api/presets/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
 
 ## Thumbnail Upload Contract
 
-`POST /api/presets/{id}/thumbnail` accepts `multipart/form-data` with one required part:
+Thumbnail uploads support two flows.
 
-- `file`: the thumbnail image payload
+### New preset creation with a thumbnail
 
-Request requirements:
+This flow avoids leaving behind a partial preset when upload fails:
+
+1. `POST /api/presets/thumbnail/presign`
+2. browser `PUT` to the returned object-storage upload URL
+3. `POST /api/presets` with `thumbnailObjectKey`
+
+`POST /api/presets/thumbnail/presign` accepts JSON:
+
+```json
+{
+  "filename": "cover.png",
+  "contentType": "image/png",
+  "sizeBytes": 524288
+}
+```
+
+Requirements:
 - include `Authorization: Bearer <accessToken>`
-- the authenticated user must own the target preset
+- the caller must be authenticated
 - supported content types are `image/jpeg`, `image/png`, `image/webp`, and `image/gif`
 - the business validation limit is `5 MB`
 
 Success behavior:
 - returns `200 OK`
-- returns the full updated `PresetResponse`
-- updates `thumbnailRef` to the stored thumbnail path
-- later uploads replace the preset's stored thumbnail reference and attempt to clean up the previous local file
+- returns the object-storage upload URL, HTTP method, object key, and required upload headers
+- scopes the staged object key under the authenticated user's pending thumbnail prefix
+
+After the browser upload succeeds, create the preset with:
+
+```json
+{
+  "name": "Preset Name",
+  "sceneData": {
+    "visualizer": {},
+    "controls": {},
+    "intent": {},
+    "fx": {},
+    "state": {}
+  },
+  "thumbnailObjectKey": "presets/pending/42/thumbnails/abc123.png"
+}
+```
+
+Success behavior:
+- returns `201 Created`
+- verifies the uploaded object exists in the configured object-storage provider before the preset is written
+- persists `thumbnailRef` using the configured public thumbnail base URL
+- attempts to delete the staged uploaded object if preset persistence fails after thumbnail verification
 
 Failure behavior:
-- returns `400 INVALID_THUMBNAIL` when the file is empty, unsupported, or larger than `5 MB`
+- returns `400 INVALID_THUMBNAIL` when the staged object key or uploaded object metadata is invalid
+- returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
+- returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
+
+### Existing preset thumbnail replacement
+
+This flow updates the thumbnail for an already persisted preset:
+
+1. `POST /api/presets/{id}/thumbnail/presign`
+2. browser `PUT` to the returned object-storage upload URL
+3. `POST /api/presets/{id}/thumbnail/finalize`
+
+### Presign request
+
+`POST /api/presets/{id}/thumbnail/presign` accepts JSON:
+
+### Browser upload
+
+The browser uploads directly to the configured object-storage provider with:
+- `PUT <uploadUrl>`
+- the returned headers, including `Content-Type`
+- the raw file body
+
+This step bypasses the backend application server. The active provider must allow the frontend origins to perform `PUT` uploads.
+
+### Finalize request
+
+`POST /api/presets/{id}/thumbnail/finalize` accepts JSON:
+
+```json
+{
+  "objectKey": "presets/15/thumbnails/abc123.png"
+}
+```
+
+Success behavior:
+- returns `200 OK`
+- returns the full updated `PresetResponse`
+- verifies the uploaded object exists in the configured object-storage provider
+- updates `thumbnailRef` to the configured public thumbnail base URL
+- later finalized uploads replace the preset's stored thumbnail reference and attempt to clean up the previous uploaded object
+
+Failure behavior:
+- returns `400 INVALID_THUMBNAIL` when the metadata or uploaded object state is invalid
 - returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
 - returns `403 PRESET_OWNERSHIP_REQUIRED` when the caller does not own the preset
 - returns `404 PRESET_NOT_FOUND` when the preset id does not exist
+- returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
 
 ## Database Operations
 

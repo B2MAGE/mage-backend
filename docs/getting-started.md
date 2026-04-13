@@ -35,6 +35,14 @@ This starts:
 - `postgres`: PostgreSQL 16
 - `backend`: the Spring Boot service from this repo
 
+To run local self-hosted object storage instead of AWS S3, add:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
+```
+
+That override uses the `MAGE_THUMBNAIL_MINIO_*` values in `.env.example`, so you do not need to replace your normal S3 settings just to switch locally.
+
 The split is intentional:
 - `docker-compose.yml`: base services for deployment-friendly container networking
 - `docker-compose.local.yml`: local-only host port bindings for `8080` and `5432`
@@ -50,7 +58,31 @@ The Docker workflow uses `.env`.
 | `SPRING_DATASOURCE_URL` | Yes | For Docker Compose, use `jdbc:postgresql://postgres:5432/mage`. |
 | `SPRING_DATASOURCE_USERNAME` | Yes | Database username. |
 | `SPRING_DATASOURCE_PASSWORD` | Yes | Database password. |
+| `MAGE_THUMBNAIL_PROVIDER` | Yes | `aws-s3` or `minio`. |
+| `MAGE_THUMBNAIL_REGION` or `AWS_REGION` | Yes | Region for the S3-compatible thumbnail bucket. |
+| `MAGE_THUMBNAIL_BUCKET` | Yes | Bucket used for preset thumbnails. |
+| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Yes | Public CDN or object-storage base URL written into `thumbnailRef`. |
 | `SPRING_JPA_HIBERNATE_DDL_AUTO` | No | Local default is `validate`. Keep it that way unless you have a specific reason to change it. |
+
+Useful optional defaults in `.env.example`:
+- `MAGE_THUMBNAIL_KEY_PREFIX`
+- `MAGE_THUMBNAIL_ENDPOINT`
+- `MAGE_THUMBNAIL_PRESIGN_ENDPOINT`
+- `MAGE_THUMBNAIL_PATH_STYLE_ACCESS`
+- `MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES`
+- `MAGE_THUMBNAIL_MAX_BYTES`
+- `MAGE_THUMBNAIL_PRESIGN_DURATION`
+
+If you use `aws-s3` and run the backend in Docker on a local machine instead of on the EC2 production host, also provide AWS credentials through standard environment variables:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN` if your credentials are temporary
+
+If you use `minio`, also provide:
+- `MAGE_THUMBNAIL_ACCESS_KEY_ID`
+- `MAGE_THUMBNAIL_SECRET_ACCESS_KEY`
+
+The backend must have valid credentials for the active object-storage provider because it generates the presigned thumbnail upload URLs server-side.
 
 `.env.example` is set up for the containerized workflow. If you change the datasource host, make sure it still matches the way you are running the app.
 
@@ -70,7 +102,9 @@ Useful follow-up checks:
 - `POST /api/auth/login`
 - `GET /api/users/me` with a bearer token
 - `POST /api/presets`
-- `POST /api/presets/{id}/thumbnail` with `multipart/form-data` and a bearer token
+- `POST /api/presets/thumbnail/presign`
+- `POST /api/presets/{id}/thumbnail/presign`
+- `POST /api/presets/{id}/thumbnail/finalize`
 - `GET /api/presets/{id}`
 
 For endpoint behavior and auth requirements, use [operations.md](operations.md).
@@ -133,6 +167,13 @@ Check:
 Check:
 - `MAGE_AUTH_GOOGLE_CLIENT_IDS` is set
 - the client ID matches the frontend that issued the ID token
+
+### Thumbnail presign or finalize calls fail
+
+Check:
+- `MAGE_THUMBNAIL_PROVIDER`, `MAGE_THUMBNAIL_BUCKET`, and `MAGE_THUMBNAIL_PUBLIC_BASE_URL`
+- the active provider credentials available to the backend
+- the active provider CORS for local frontend origins if you are testing direct browser uploads
 
 ### Tests fail before assertions run
 

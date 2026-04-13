@@ -1,26 +1,30 @@
 package com.bdmage.mage_backend.service;
 
-import org.springframework.web.multipart.MultipartFile;
+import java.time.Instant;
+import java.util.Map;
 
 public interface ThumbnailStorageService {
 
-	/**
-	 * Stores a thumbnail image file for the given preset and returns
-	 * a reference string that can be persisted as the preset's thumbnailRef.
-	 *
-	 * @param file     the uploaded image file
-	 * @param presetId the ID of the preset this thumbnail belongs to
-	 * @return a non-null reference string identifying the stored thumbnail
-	 */
-	String store(MultipartFile file, Long presetId);
+	PresignedThumbnailUpload createPresetCreationUpload(Long ownerUserId, String filename, String contentType);
 
-	/**
-	 * Removes a previously stored thumbnail reference when the caller replaces it.
-	 * Implementations may treat missing files as a no-op.
-	 *
-	 * @param thumbnailRef the persisted thumbnail reference to remove
-	 */
+	FinalizedThumbnail finalizePresetCreationUpload(Long ownerUserId, String objectKey);
+
+	PresignedThumbnailUpload createPresignedUpload(Long presetId, String filename, String contentType);
+
+	FinalizedThumbnail finalizeUpload(Long presetId, String objectKey);
+
 	default void delete(String thumbnailRef) {
 		// Optional for storage implementations that do not need cleanup.
+	}
+
+	record PresignedThumbnailUpload(
+			String objectKey,
+			String uploadUrl,
+			String method,
+			Map<String, String> headers,
+			Instant expiresAt) {
+	}
+
+	record FinalizedThumbnail(String objectKey, String publicUrl) {
 	}
 }

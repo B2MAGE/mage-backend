@@ -42,6 +42,14 @@ cp .env.example .env
 docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
+To run local self-hosted object storage instead of AWS S3, add the MinIO override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
+```
+
+That override reads its own `MAGE_THUMBNAIL_MINIO_*` values from `.env`, so you can keep your normal S3 settings in the same file.
+
 `docker-compose.yml` stays deployment-friendly and does not publish host ports.
 `docker-compose.local.yml` adds the local host bindings for:
 - backend: `http://localhost:8080`
@@ -81,14 +89,42 @@ Required values for local development:
 | `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL. Docker Compose expects `jdbc:postgresql://postgres:5432/mage`. |
 | `SPRING_DATASOURCE_USERNAME` | Database username. |
 | `SPRING_DATASOURCE_PASSWORD` | Database password. |
+| `MAGE_THUMBNAIL_PROVIDER` | Thumbnail storage provider. Supported values are `aws-s3` and `minio`. |
+| `MAGE_THUMBNAIL_BUCKET` | Object-storage bucket used for preset thumbnails. |
+| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Public base URL used in persisted `thumbnailRef` values. |
 
 Other useful defaults in `.env.example`:
+- `MAGE_THUMBNAIL_REGION`
 - `SPRING_APPLICATION_NAME`
 - `SPRING_PROFILES_ACTIVE`
 - `SPRING_JPA_HIBERNATE_DDL_AUTO`
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
+- `MAGE_THUMBNAIL_KEY_PREFIX`
+- `MAGE_THUMBNAIL_ENDPOINT`
+- `MAGE_THUMBNAIL_PRESIGN_ENDPOINT`
+- `MAGE_THUMBNAIL_PATH_STYLE_ACCESS`
+- `MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES`
+- `MAGE_THUMBNAIL_MAX_BYTES`
+- `MAGE_THUMBNAIL_PRESIGN_DURATION`
+
+Optional for `aws-s3` local Docker development outside EC2:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN`
+
+Optional for `minio` local/self-hosted mode:
+- `MAGE_THUMBNAIL_MINIO_ACCESS_KEY_ID`
+- `MAGE_THUMBNAIL_MINIO_SECRET_ACCESS_KEY`
+- `MAGE_THUMBNAIL_MINIO_ROOT_USER`
+- `MAGE_THUMBNAIL_MINIO_ROOT_PASSWORD`
+- `MAGE_THUMBNAIL_MINIO_BUCKET`
+- `MAGE_THUMBNAIL_MINIO_ENDPOINT`
+- `MAGE_THUMBNAIL_MINIO_PRESIGN_ENDPOINT`
+- `MAGE_THUMBNAIL_MINIO_PUBLIC_BASE_URL`
+
+The backend generates presigned object-storage uploads itself. In `aws-s3` mode, the Dockerized backend needs valid AWS credentials when it is not running on the EC2 host with the attached IAM role. In `minio` mode, the backend signs requests against the configured MinIO endpoint with static credentials.
 
 ## Deployment Strategy
 
@@ -114,10 +150,12 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/local` | Public | Add local auth to an existing Google-backed account |
 | `GET /api/users/me` | Bearer token | Return the current user profile |
 | `POST /api/tags` | Public | Create a tag |
-| `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user |
+| `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user and optionally finalize a staged thumbnail |
+| `POST /api/presets/thumbnail/presign` | Bearer token | Presign a staged thumbnail upload before preset creation |
 | `GET /api/presets` | Bearer token | List presets, optionally filtered by tag |
 | `POST /api/presets/{id}/tags` | Bearer token | Attach a tag to a preset |
-| `POST /api/presets/{id}/thumbnail` | Bearer token | Upload or replace a preset thumbnail owned by the authenticated user |
+| `POST /api/presets/{id}/thumbnail/presign` | Bearer token | Owner-only presigned thumbnail upload preparation |
+| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement |
 | `GET /api/presets/{id}` | Public | Fetch a preset by id |
 | `DELETE /api/presets/{id}` | Bearer token | Delete a preset owned by the authenticated user |
 | `GET /api/users/{id}/presets` | Bearer token | List presets for a specific user |
@@ -143,6 +181,7 @@ mage-backend/
 |  `- test/
 |- CONTRIBUTING.md
 |- docker-compose.local.yml
+|- docker-compose.minio.yml
 |- docker-compose.yml
 |- Dockerfile
 |- pom.xml

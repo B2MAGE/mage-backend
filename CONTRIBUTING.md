@@ -1,55 +1,57 @@
 # Contributing
 
-A good contribution is small enough to review and clear enough that another developer can extend it without re-learning your intent from scratch.
+Keep changes small, focused, and easy to reason about.
 
-## Read Before You Change Code
+## Read First
+
+Before changing backend code, read:
 
 - [README.md](README.md)
-- [docs/getting-started.md](docs/getting-started.md)
+- [docs/README.md](docs/README.md)
 - [docs/architecture.md](docs/architecture.md)
 - [docs/engineering-standards.md](docs/engineering-standards.md)
-- [docs/operations.md](docs/operations.md)
+
+Use [docs/operations.md](docs/operations.md) when the change affects setup, runtime behavior, or troubleshooting guidance.
 
 ## Standard Workflow
 
-1. Pull the latest `main` branch.
-2. Create a focused branch for one feature, fix, or refactor.
-3. Start the backend locally and confirm the current behavior.
+1. Pull the latest `main`.
+2. Create a focused branch.
+3. Start the backend and confirm the current behavior.
 4. Make the change in the correct layer.
-5. Add or update a Flyway migration if the schema changes.
-6. Add or update tests for the behavior you changed.
-7. Update documentation if setup, configuration, architecture, or operations changed.
-8. Run the full test suite before opening a pull request.
+5. Add or update tests.
+6. Add a Flyway migration if the schema changes.
+7. Update docs if setup, architecture, or operations changed.
+8. Run the relevant checks before opening a pull request.
 
 ## Pull Request Expectations
 
-Every pull request should answer these questions clearly:
+Every PR should explain:
 
-- What changed?
-- Why was the change needed?
-- How was it tested?
-- Does it change the schema, environment variables, or public API?
-- What should a reviewer pay special attention to?
+- what changed
+- why it changed
+- how it was tested
+- whether it changes schema, configuration, or public API
+- any reviewer risk areas
 
-Keep pull requests focused:
-
-- avoid combining unrelated cleanup work with behavioral changes in the same pull request.
-- do not rename files or packages unless the change provides a clear architectural or maintainability benefit.
-- avoid including formatting-only changes unless the pull request is specifically intended to address formatting.
+Keep PRs reviewable:
+- avoid unrelated cleanup in behavior-changing PRs
+- do not mix refactors and feature work unless they are tightly coupled
+- avoid file churn that does not materially help the change
 
 ## Definition of Done
 
 A backend change is ready to merge when:
 
-- the code fits the repository's layer boundaries
+- the code fits the repository’s layers
 - tests cover the changed behavior
-- schema changes are captured in Flyway migrations
-- configuration changes are documented
-- the change is understandable to someone who did not write it
+- schema changes are represented with Flyway migrations
+- config or workflow changes are documented
+- the change is understandable to a reviewer without extra verbal context
 
 ## Quality Checks
 
-Run the full Maven wrapper test command before requesting review:
+Run the backend test suite before requesting review.
 
 Windows PowerShell:
 
@@ -63,17 +65,15 @@ macOS/Linux:
 ./mvnw test
 ```
 
-Because the suite uses Testcontainers, Docker must be running.
+Docker must be running because integration tests use Testcontainers.
 
 ## Review Mindset
 
-When you review someone else's backend change, look for:
-
+Prioritize:
 - correctness
 - architectural fit
-- maintainability
+- migration and configuration risk
 - missing tests
-- migration or configuration risk
 - API contract clarity
 
-The goal is not to find style nits in isolation. The goal is to keep the codebase predictable as it grows.
+Style concerns matter, but they are secondary to behavior and maintainability.

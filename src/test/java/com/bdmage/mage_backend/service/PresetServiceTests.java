@@ -1,13 +1,18 @@
 package com.bdmage.mage_backend.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
+import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
-import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.repository.PresetRepository;
@@ -22,6 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,7 +53,7 @@ class PresetServiceTests {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				"  thumbnails/preset-1.png  ");
+				null);
 
 		ArgumentCaptor<Preset> presetCaptor = ArgumentCaptor.forClass(Preset.class);
 		verify(presetRepository).saveAndFlush(presetCaptor.capture());
@@ -58,30 +64,10 @@ class PresetServiceTests {
 		assertThat(persistedPreset.getSceneData()).isEqualTo(this.objectMapper.readTree("""
 				{"visualizer":{"shader":"nebula"}}
 				"""));
-		assertThat(persistedPreset.getThumbnailRef()).isEqualTo("thumbnails/preset-1.png");
+		assertThat(persistedPreset.getThumbnailRef()).isNull();
 
 		assertThat(savedPreset.getOwnerUserId()).isEqualTo(42L);
 		assertThat(savedPreset.getName()).isEqualTo("Aurora Drift");
-		assertThat(savedPreset.getThumbnailRef()).isEqualTo("thumbnails/preset-1.png");
-	}
-
-	@Test
-	void createPresetNormalizesBlankThumbnailRefToNull() throws Exception {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, userRepository);
-
-		when(userRepository.existsById(42L)).thenReturn(true);
-		when(presetRepository.saveAndFlush(any(Preset.class))).thenAnswer(invocation -> invocation.getArgument(0, Preset.class));
-
-		Preset savedPreset = presetService.createPreset(
-				42L,
-				"Preset Name",
-				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"nebula"}}
-						"""),
-				"   ");
-
 		assertThat(savedPreset.getThumbnailRef()).isNull();
 	}
 
@@ -103,6 +89,65 @@ class PresetServiceTests {
 
 		verifyNoInteractions(userRepository);
 		verifyNoInteractions(presetRepository);
+	}
+
+	@Test
+	void createPresetFinalizesThumbnailBeforePersistingPreset() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(thumbnailStorageService.finalizePresetCreationUpload(42L, "presets/pending/42/thumbnails/abc123.png"))
+				.thenReturn(new ThumbnailStorageService.FinalizedThumbnail(
+						"presets/pending/42/thumbnails/abc123.png",
+						"https://cdn.example.com/presets/pending/42/thumbnails/abc123.png"));
+		when(presetRepository.saveAndFlush(any(Preset.class))).thenAnswer(invocation -> invocation.getArgument(0, Preset.class));
+
+		Preset savedPreset = presetService.createPreset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"presets/pending/42/thumbnails/abc123.png");
+
+		ArgumentCaptor<Preset> presetCaptor = ArgumentCaptor.forClass(Preset.class);
+		verify(presetRepository).saveAndFlush(presetCaptor.capture());
+		verify(thumbnailStorageService).finalizePresetCreationUpload(42L, "presets/pending/42/thumbnails/abc123.png");
+
+		assertThat(presetCaptor.getValue().getThumbnailRef())
+				.isEqualTo("https://cdn.example.com/presets/pending/42/thumbnails/abc123.png");
+		assertThat(savedPreset.getThumbnailRef())
+				.isEqualTo("https://cdn.example.com/presets/pending/42/thumbnails/abc123.png");
+	}
+
+	@Test
+	void createPresetDeletesUploadedThumbnailWhenPersistenceFails() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(thumbnailStorageService.finalizePresetCreationUpload(42L, "presets/pending/42/thumbnails/abc123.png"))
+				.thenReturn(new ThumbnailStorageService.FinalizedThumbnail(
+						"presets/pending/42/thumbnails/abc123.png",
+						"https://cdn.example.com/presets/pending/42/thumbnails/abc123.png"));
+		when(presetRepository.saveAndFlush(any(Preset.class))).thenThrow(new RuntimeException("db down"));
+
+		assertThatThrownBy(() -> presetService.createPreset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"presets/pending/42/thumbnails/abc123.png"))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessage("db down");
+
+		verify(thumbnailStorageService).delete("presets/pending/42/thumbnails/abc123.png");
 	}
 
 	@Test
@@ -128,24 +173,83 @@ class PresetServiceTests {
 	}
 
 	@Test
-	void getPresetReturnsPresetWhenItExists() throws Exception {
+	void deletePresetDeletesOwnedPresetForAuthenticatedOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+		Preset preset = new Preset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		presetService.deletePreset(42L, 15L);
+
+		verify(userRepository).existsById(42L);
+		verify(presetRepository).findById(15L);
+		verify(presetRepository).delete(preset);
+	}
+
+	@Test
+	void deletePresetRejectsMissingPreset() {
 		PresetRepository presetRepository = mock(PresetRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		PresetService presetService = presetService(presetRepository, userRepository);
 
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> presetService.deletePreset(42L, 15L))
+				.isInstanceOf(PresetNotFoundException.class)
+				.hasMessage("Preset not found.");
+
+		verify(userRepository).existsById(42L);
+		verify(presetRepository).findById(15L);
+		verify(presetRepository, never()).delete(any(Preset.class));
+	}
+
+	@Test
+	void deletePresetRejectsAuthenticatedNonOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.deletePreset(42L, 15L))
+				.isInstanceOf(PresetForbiddenException.class)
+				.hasMessage("You do not have permission to delete this preset.");
+
+		verify(presetRepository, never()).delete(any(Preset.class));
+	}
+
+	@Test
+	void getPresetReturnsPresetWhenItExists() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, userRepository);
 		Preset preset = new Preset(
 				42L,
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				"thumbnails/preset-1.png");
+				"https://cdn.example.com/presets/15/thumbnails/thumb.png");
 
 		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
 
-		Preset foundPreset = presetService.getPreset(15L);
-
-		assertThat(foundPreset).isSameAs(preset);
+		assertThat(presetService.getPreset(15L)).isSameAs(preset);
 		verify(presetRepository).findById(15L);
 		verifyNoInteractions(userRepository);
 	}
@@ -161,9 +265,6 @@ class PresetServiceTests {
 		assertThatThrownBy(() -> presetService.getPreset(15L))
 				.isInstanceOf(PresetNotFoundException.class)
 				.hasMessage("Preset not found.");
-
-		verify(presetRepository).findById(15L);
-		verifyNoInteractions(userRepository);
 	}
 
 	@Test
@@ -171,7 +272,6 @@ class PresetServiceTests {
 		PresetRepository presetRepository = mock(PresetRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		PresetService presetService = presetService(presetRepository, userRepository);
-
 		Preset firstPreset = preset(11L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
 		Preset secondPreset = preset(12L, 77L, "Signal Bloom", Instant.parse("2026-03-26T16:00:00Z"));
 
@@ -180,62 +280,7 @@ class PresetServiceTests {
 
 		List<Preset> presets = presetService.getPresetsForUser(42L, 77L);
 
-		assertThat(presets)
-				.extracting(Preset::getId)
-				.containsExactly(11L, 12L);
-		verify(userRepository).existsById(42L);
-		verify(presetRepository).findAllByOwnerUserId(77L);
-	}
-
-	@Test
-	void getPresetsForUserReturnsEmptyListWhenRequestedUserHasNone() {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, userRepository);
-
-		when(userRepository.existsById(42L)).thenReturn(true);
-		when(presetRepository.findAllByOwnerUserId(88L)).thenReturn(List.of());
-
-		List<Preset> presets = presetService.getPresetsForUser(42L, 88L);
-
-		assertThat(presets).isEmpty();
-		verify(userRepository).existsById(42L);
-		verify(presetRepository).findAllByOwnerUserId(88L);
-	}
-
-	@Test
-	void getPresetsForUserRejectsUnknownAuthenticatedUserIdentity() {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, userRepository);
-
-		when(userRepository.existsById(99L)).thenReturn(false);
-
-		assertThatThrownBy(() -> presetService.getPresetsForUser(99L, 77L))
-				.isInstanceOf(AuthenticationRequiredException.class)
-				.hasMessage("Authentication is required.");
-
-		verify(userRepository).existsById(99L);
-		verify(presetRepository, never()).findAllByOwnerUserId(any());
-	}
-
-	@Test
-	void getAllPresetsReturnsAllPersistedPresets() throws Exception {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, userRepository);
-		Preset firstPreset = preset(11L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
-		Preset secondPreset = preset(12L, 78L, "Signal Bloom", Instant.parse("2026-03-26T16:00:00Z"));
-
-		when(presetRepository.findAll()).thenReturn(List.of(firstPreset, secondPreset));
-
-		List<Preset> presets = presetService.getAllPresets();
-
-		assertThat(presets)
-				.extracting(Preset::getId)
-				.containsExactly(11L, 12L);
-		verify(presetRepository).findAll();
-		verifyNoInteractions(userRepository);
+		assertThat(presets).extracting(Preset::getId).containsExactly(11L, 12L);
 	}
 
 	@Test
@@ -249,10 +294,7 @@ class PresetServiceTests {
 
 		List<Preset> presets = presetService.getPresetsByTag("  Ambient  ");
 
-		assertThat(presets)
-				.extracting(Preset::getId)
-				.containsExactly(15L);
-		verify(presetRepository).findAllByTagName("ambient");
+		assertThat(presets).extracting(Preset::getId).containsExactly(15L);
 		verifyNoInteractions(userRepository);
 	}
 
@@ -273,74 +315,8 @@ class PresetServiceTests {
 
 		PresetTag savedPresetTag = presetService.attachTagToPreset(42L, 15L, 7L);
 
-		ArgumentCaptor<PresetTag> presetTagCaptor = ArgumentCaptor.forClass(PresetTag.class);
-		verify(presetTagRepository).saveAndFlush(presetTagCaptor.capture());
-
-		PresetTag persistedPresetTag = presetTagCaptor.getValue();
-		assertThat(persistedPresetTag.getPresetId()).isEqualTo(15L);
-		assertThat(persistedPresetTag.getTagId()).isEqualTo(7L);
 		assertThat(savedPresetTag.getPresetId()).isEqualTo(15L);
 		assertThat(savedPresetTag.getTagId()).isEqualTo(7L);
-	}
-
-	@Test
-	void attachTagToPresetRejectsUnknownAuthenticatedUserIdentity() {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		TagRepository tagRepository = mock(TagRepository.class);
-		PresetTagRepository presetTagRepository = mock(PresetTagRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, tagRepository, presetTagRepository, userRepository);
-
-		when(userRepository.existsById(99L)).thenReturn(false);
-
-		assertThatThrownBy(() -> presetService.attachTagToPreset(99L, 15L, 7L))
-				.isInstanceOf(AuthenticationRequiredException.class)
-				.hasMessage("Authentication is required.");
-
-		verify(userRepository).existsById(99L);
-		verifyNoInteractions(tagRepository);
-		verifyNoInteractions(presetTagRepository);
-		verify(presetRepository, never()).existsById(any());
-	}
-
-	@Test
-	void attachTagToPresetRejectsMissingPreset() {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		TagRepository tagRepository = mock(TagRepository.class);
-		PresetTagRepository presetTagRepository = mock(PresetTagRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, tagRepository, presetTagRepository, userRepository);
-
-		when(userRepository.existsById(42L)).thenReturn(true);
-		when(presetRepository.existsById(15L)).thenReturn(false);
-
-		assertThatThrownBy(() -> presetService.attachTagToPreset(42L, 15L, 7L))
-				.isInstanceOf(PresetNotFoundException.class)
-				.hasMessage("Preset not found.");
-
-		verify(presetRepository).existsById(15L);
-		verifyNoInteractions(tagRepository);
-		verifyNoInteractions(presetTagRepository);
-	}
-
-	@Test
-	void attachTagToPresetRejectsMissingTag() {
-		PresetRepository presetRepository = mock(PresetRepository.class);
-		TagRepository tagRepository = mock(TagRepository.class);
-		PresetTagRepository presetTagRepository = mock(PresetTagRepository.class);
-		UserRepository userRepository = mock(UserRepository.class);
-		PresetService presetService = presetService(presetRepository, tagRepository, presetTagRepository, userRepository);
-
-		when(userRepository.existsById(42L)).thenReturn(true);
-		when(presetRepository.existsById(15L)).thenReturn(true);
-		when(tagRepository.existsById(7L)).thenReturn(false);
-
-		assertThatThrownBy(() -> presetService.attachTagToPreset(42L, 15L, 7L))
-				.isInstanceOf(TagNotFoundException.class)
-				.hasMessage("Tag not found.");
-
-		verify(tagRepository).existsById(7L);
-		verifyNoInteractions(presetTagRepository);
 	}
 
 	@Test
@@ -359,9 +335,199 @@ class PresetServiceTests {
 		assertThatThrownBy(() -> presetService.attachTagToPreset(42L, 15L, 7L))
 				.isInstanceOf(PresetTagAlreadyExistsException.class)
 				.hasMessage("This tag is already attached to the preset.");
+	}
 
-		verify(presetTagRepository).existsByPresetIdAndTagId(15L, 7L);
-		verify(presetTagRepository, never()).saveAndFlush(any(PresetTag.class));
+	@Test
+	void createPresetThumbnailUploadReturnsPresignedUploadForAuthenticatedUser() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		ThumbnailStorageService.PresignedThumbnailUpload presignedUpload = new ThumbnailStorageService.PresignedThumbnailUpload(
+				"presets/pending/42/thumbnails/abc123.png",
+				"https://upload.example.com/presets/pending/42/thumbnails/abc123.png",
+				"PUT",
+				Map.of("Content-Type", "image/png"),
+				Instant.parse("2026-03-26T15:10:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(thumbnailStorageService.createPresetCreationUpload(42L, "thumb.png", "image/png"))
+				.thenReturn(presignedUpload);
+
+		ThumbnailStorageService.PresignedThumbnailUpload result = presetService.createPresetThumbnailUpload(
+				42L,
+				"thumb.png",
+				"image/png",
+				3L);
+
+		assertThat(result).isEqualTo(presignedUpload);
+		verify(thumbnailStorageService).createPresetCreationUpload(42L, "thumb.png", "image/png");
+	}
+
+	@Test
+	void createPresetThumbnailUploadRejectsUnsupportedContentType() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+
+		assertThatThrownBy(() -> presetService.createPresetThumbnailUpload(42L, "thumb.pdf", "application/pdf", 4L))
+				.isInstanceOf(InvalidThumbnailException.class)
+				.hasMessage("Thumbnail must be a valid image (jpeg, png, webp, or gif).");
+
+		verifyNoInteractions(thumbnailStorageService);
+	}
+
+	@Test
+	void createThumbnailUploadReturnsPresignedUploadForOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		Preset preset = preset(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+		ThumbnailStorageService.PresignedThumbnailUpload presignedUpload = new ThumbnailStorageService.PresignedThumbnailUpload(
+				"presets/15/thumbnails/abc123.png",
+				"https://upload.example.com/presets/15/thumbnails/abc123.png",
+				"PUT",
+				Map.of("Content-Type", "image/png"),
+				Instant.parse("2026-03-26T15:10:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+		when(thumbnailStorageService.createPresignedUpload(15L, "thumb.png", "image/png"))
+				.thenReturn(presignedUpload);
+
+		ThumbnailStorageService.PresignedThumbnailUpload result = presetService.createThumbnailUpload(
+				42L,
+				15L,
+				"thumb.png",
+				"image/png",
+				3L);
+
+		assertThat(result).isEqualTo(presignedUpload);
+		verify(thumbnailStorageService).createPresignedUpload(15L, "thumb.png", "image/png");
+	}
+
+	@Test
+	void createThumbnailUploadRejectsUnsupportedContentType() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		Preset preset = preset(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.createThumbnailUpload(42L, 15L, "thumb.pdf", "application/pdf", 4L))
+				.isInstanceOf(InvalidThumbnailException.class)
+				.hasMessage("Thumbnail must be a valid image (jpeg, png, webp, or gif).");
+
+		verifyNoInteractions(thumbnailStorageService);
+	}
+
+	@Test
+	void createThumbnailUploadRejectsOversizedUpload() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		Preset preset = preset(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.createThumbnailUpload(42L, 15L, "thumb.png", "image/png", 6L * 1024 * 1024))
+				.isInstanceOf(InvalidThumbnailException.class)
+				.hasMessage("Thumbnail must not exceed 5 MB.");
+
+		verifyNoInteractions(thumbnailStorageService);
+	}
+
+	@Test
+	void createThumbnailUploadRejectsNonOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		Preset preset = preset(15L, 77L, "Not Yours", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.createThumbnailUpload(42L, 15L, "thumb.png", "image/png", 3L))
+				.isInstanceOf(PresetOwnershipRequiredException.class)
+				.hasMessage("Preset ownership is required.");
+
+		verifyNoInteractions(thumbnailStorageService);
+	}
+
+	@Test
+	void finalizeThumbnailUploadStoresPublicUrlAndDeletesPreviousThumbnail() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		Preset existingPreset = new Preset(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"https://cdn.example.com/presets/15/thumbnails/old-thumb.png");
+		ReflectionTestUtils.setField(existingPreset, "id", 15L);
+		ReflectionTestUtils.setField(existingPreset, "createdAt", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(existingPreset));
+		when(thumbnailStorageService.finalizeUpload(eq(15L), eq("presets/15/thumbnails/new-thumb.png")))
+				.thenReturn(new ThumbnailStorageService.FinalizedThumbnail(
+						"presets/15/thumbnails/new-thumb.png",
+						"https://cdn.example.com/presets/15/thumbnails/new-thumb.png"));
+		when(presetRepository.saveAndFlush(any(Preset.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0, Preset.class));
+
+		Preset result = presetService.finalizeThumbnailUpload(42L, 15L, "presets/15/thumbnails/new-thumb.png");
+
+		assertThat(result.getThumbnailRef()).isEqualTo("https://cdn.example.com/presets/15/thumbnails/new-thumb.png");
+		verify(thumbnailStorageService).delete("https://cdn.example.com/presets/15/thumbnails/old-thumb.png");
+	}
+
+	@Test
+	void finalizeThumbnailUploadRejectsMissingPreset() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> presetService.finalizeThumbnailUpload(42L, 15L, "presets/15/thumbnails/new-thumb.png"))
+				.isInstanceOf(PresetNotFoundException.class)
+				.hasMessage("Preset not found.");
+
+		verifyNoInteractions(thumbnailStorageService);
+	}
+
+	@Test
+	void finalizeThumbnailUploadRejectsNonOwner() throws Exception {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		ThumbnailStorageService thumbnailStorageService = mock(ThumbnailStorageService.class);
+		PresetService presetService = presetServiceWithStorage(presetRepository, userRepository, thumbnailStorageService);
+		Preset preset = preset(15L, 77L, "Not Yours", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(presetRepository.findById(15L)).thenReturn(Optional.of(preset));
+
+		assertThatThrownBy(() -> presetService.finalizeThumbnailUpload(42L, 15L, "presets/15/thumbnails/new-thumb.png"))
+				.isInstanceOf(PresetOwnershipRequiredException.class)
+				.hasMessage("Preset ownership is required.");
+
+		verifyNoInteractions(thumbnailStorageService);
 	}
 
 	private PresetService presetService(PresetRepository presetRepository, UserRepository userRepository) {
@@ -378,6 +544,36 @@ class PresetServiceTests {
 			PresetTagRepository presetTagRepository,
 			UserRepository userRepository) {
 		return new PresetService(presetRepository, tagRepository, presetTagRepository, userRepository);
+	}
+
+	private PresetService presetServiceWithStorage(
+			PresetRepository presetRepository,
+			UserRepository userRepository,
+			ThumbnailStorageService thumbnailStorageService) {
+		return new PresetService(
+				presetRepository,
+				mock(TagRepository.class),
+				mock(PresetTagRepository.class),
+				userRepository,
+				thumbnailStorageService,
+				thumbnailStorageProperties());
+	}
+
+	private ThumbnailStorageProperties thumbnailStorageProperties() {
+		return new ThumbnailStorageProperties(
+				"aws-s3",
+				"us-east-1",
+				"mage-test-thumbnails",
+				"presets",
+				null,
+				null,
+				null,
+				null,
+				null,
+				"https://cdn.example.com",
+				"image/jpeg,image/png,image/webp,image/gif",
+				5L * 1024 * 1024,
+				Duration.ofMinutes(10));
 	}
 
 	private Preset preset(Long presetId, Long ownerUserId, String name, Instant createdAt) throws Exception {

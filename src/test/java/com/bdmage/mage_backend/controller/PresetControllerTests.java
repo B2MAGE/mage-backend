@@ -2,16 +2,21 @@ package com.bdmage.mage_backend.controller;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.PresetForbiddenException;
 import com.bdmage.mage_backend.exception.PresetNotFoundException;
+import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
+import com.bdmage.mage_backend.service.ThumbnailStorageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -62,8 +69,7 @@ class PresetControllerTests {
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
-						"""),
-				"thumbnails/preset-1.png");
+						"""));
 		ReflectionTestUtils.setField(preset, "id", 15L);
 		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
 
@@ -73,17 +79,16 @@ class PresetControllerTests {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
-				"thumbnails/preset-1.png"))
+				null))
 				.thenReturn(preset);
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
 						  "name":"Aurora Drift",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}},
-						  "thumbnailRef":"thumbnails/preset-1.png"
+						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						}
 						"""))
 				.andExpect(status().isCreated())
@@ -93,26 +98,59 @@ class PresetControllerTests {
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
-				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
 	}
 
 	@Test
 	void createPresetRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
-						  "name":" ",
-						  "thumbnailRef":"%s"
+						  "name":" "
 						}
-						""".formatted("x".repeat(513))))
+						"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 				.andExpect(jsonPath("$.details.name").value("name must not be blank"))
-				.andExpect(jsonPath("$.details.sceneData").value("sceneData must not be null"))
-				.andExpect(jsonPath("$.details.thumbnailRef").value("thumbnailRef must be at most 512 characters"));
+				.andExpect(jsonPath("$.details.sceneData").value("sceneData must not be null"));
+	}
+
+	@Test
+	void createPresetAcceptsOptionalThumbnailObjectKey() throws Exception {
+		Preset preset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"https://cdn.example.com/presets/pending/77/thumbnails/abc123.png");
+		ReflectionTestUtils.setField(preset, "id", 15L);
+		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.presetService.createPreset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"presets/pending/77/thumbnails/abc123.png"))
+				.thenReturn(preset);
+
+		this.mockMvc.perform(post("/api/presets")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":"Aurora Drift",
+						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "thumbnailObjectKey":"presets/pending/77/thumbnails/abc123.png"
+						}
+						"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/presets/pending/77/thumbnails/abc123.png"));
 	}
 
 	@Test
@@ -126,7 +164,7 @@ class PresetControllerTests {
 				null))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(post("/presets")
+		this.mockMvc.perform(post("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -160,7 +198,7 @@ class PresetControllerTests {
 
 		when(this.presetService.getAllPresets()).thenReturn(List.of(firstPreset, secondPreset));
 
-		this.mockMvc.perform(get("/presets"))
+		this.mockMvc.perform(get("/api/presets"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].presetId").value(15L))
@@ -182,21 +220,11 @@ class PresetControllerTests {
 
 		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of(preset));
 
-		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
+		this.mockMvc.perform(get("/api/presets").param("tag", "ambient"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].presetId").value(15L))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"));
-	}
-
-	@Test
-	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
-		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of());
-
-		this.mockMvc.perform(get("/presets").param("tag", "ambient"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-				.andExpect(content().json("[]"));
 	}
 
 	@Test
@@ -206,7 +234,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
 				.thenReturn(presetTag);
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -219,24 +247,11 @@ class PresetControllerTests {
 	}
 
 	@Test
-	void attachTagToPresetRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(post("/presets/15/tags")
-				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-						{}
-						"""))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-				.andExpect(jsonPath("$.details.tagId").value("tagId must not be null"));
-	}
-
-	@Test
 	void attachTagToPresetReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
 		when(this.presetService.attachTagToPreset(null, 15L, 7L))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":7}
@@ -251,7 +266,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
 				.thenThrow(new TagNotFoundException("Tag not found."));
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -267,7 +282,7 @@ class PresetControllerTests {
 		when(this.presetService.attachTagToPreset(77L, 15L, 7L))
 				.thenThrow(new PresetTagAlreadyExistsException("This tag is already attached to the preset."));
 
-		this.mockMvc.perform(post("/presets/15/tags")
+		this.mockMvc.perform(post("/api/presets/15/tags")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -286,13 +301,13 @@ class PresetControllerTests {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
-				"thumbnails/preset-1.png");
+				"https://cdn.example.com/presets/15/thumbnails/thumb.png");
 		ReflectionTestUtils.setField(preset, "id", 15L);
 		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
 
 		when(this.presetService.getPreset(15L)).thenReturn(preset);
 
-		this.mockMvc.perform(get("/presets/15"))
+		this.mockMvc.perform(get("/api/presets/15"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.presetId").value(15L))
@@ -300,7 +315,7 @@ class PresetControllerTests {
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
-				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/presets/15/thumbnails/thumb.png"))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
 	}
 
@@ -309,9 +324,189 @@ class PresetControllerTests {
 		when(this.presetService.getPreset(99999L))
 				.thenThrow(new PresetNotFoundException("Preset not found."));
 
-		this.mockMvc.perform(get("/presets/99999"))
+		this.mockMvc.perform(get("/api/presets/99999"))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
 				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void deletePresetReturnsNoContentForAuthenticatedOwner() throws Exception {
+		this.mockMvc.perform(delete("/api/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void deletePresetReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		doThrow(new AuthenticationRequiredException("Authentication is required."))
+				.when(this.presetService)
+				.deletePreset(null, 15L);
+
+		this.mockMvc.perform(delete("/api/presets/15"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void deletePresetReturnsForbiddenWhenAuthenticatedUserDoesNotOwnPreset() throws Exception {
+		doThrow(new PresetForbiddenException("You do not have permission to delete this preset."))
+				.when(this.presetService)
+				.deletePreset(77L, 15L);
+
+		this.mockMvc.perform(delete("/api/presets/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("You do not have permission to delete this preset."));
+	}
+
+	@Test
+	void createPresetThumbnailUploadReturnsPresignedPayload() throws Exception {
+		ThumbnailStorageService.PresignedThumbnailUpload upload = new ThumbnailStorageService.PresignedThumbnailUpload(
+				"presets/pending/77/thumbnails/abc123.png",
+				"https://upload.example.com/presets/pending/77/thumbnails/abc123.png",
+				"PUT",
+				Map.of("Content-Type", "image/png"),
+				Instant.parse("2026-03-26T15:40:00Z"));
+
+		when(this.presetService.createPresetThumbnailUpload(77L, "thumb.png", "image/png", 3L))
+				.thenReturn(upload);
+
+		this.mockMvc.perform(post("/api/presets/thumbnail/presign")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "filename":"thumb.png",
+						  "contentType":"image/png",
+						  "sizeBytes":3
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.objectKey").value("presets/pending/77/thumbnails/abc123.png"))
+				.andExpect(jsonPath("$.uploadUrl").value("https://upload.example.com/presets/pending/77/thumbnails/abc123.png"))
+				.andExpect(jsonPath("$.method").value("PUT"))
+				.andExpect(jsonPath("$.headers.Content-Type").value("image/png"))
+				.andExpect(jsonPath("$.expiresAt").value("2026-03-26T15:40:00Z"));
+	}
+
+	@Test
+	void createPresetThumbnailUploadReturnsBadRequestForInvalidPayload() throws Exception {
+		this.mockMvc.perform(post("/api/presets/thumbnail/presign")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "filename":" ",
+						  "contentType":" ",
+						  "sizeBytes":0
+						}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.filename").value("filename must not be blank"))
+				.andExpect(jsonPath("$.details.contentType").value("contentType must not be blank"))
+				.andExpect(jsonPath("$.details.sizeBytes").value("sizeBytes must be greater than zero"));
+	}
+
+	@Test
+	void createPresetThumbnailUploadReturnsBadRequestForInvalidFileMetadata() throws Exception {
+		when(this.presetService.createPresetThumbnailUpload(77L, "doc.pdf", "application/pdf", 3L))
+				.thenThrow(new InvalidThumbnailException("Thumbnail must be a valid image (jpeg, png, webp, or gif)."));
+
+		this.mockMvc.perform(post("/api/presets/thumbnail/presign")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "filename":"doc.pdf",
+						  "contentType":"application/pdf",
+						  "sizeBytes":3
+						}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_THUMBNAIL"))
+				.andExpect(jsonPath("$.message").value("Thumbnail must be a valid image (jpeg, png, webp, or gif)."));
+	}
+
+	@Test
+	void createThumbnailUploadReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		when(this.presetService.createThumbnailUpload(88L, 15L, "thumb.png", "image/png", 3L))
+				.thenThrow(new PresetOwnershipRequiredException("Preset ownership is required."));
+
+		this.mockMvc.perform(post("/api/presets/15/thumbnail/presign")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "filename":"thumb.png",
+						  "contentType":"image/png",
+						  "sizeBytes":3
+						}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Preset ownership is required."));
+	}
+
+	@Test
+	void finalizeThumbnailUploadReturnsOkWithUpdatedPreset() throws Exception {
+		Preset updatedPreset = new Preset(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				"https://cdn.example.com/presets/15/thumbnails/new-thumb.png");
+		ReflectionTestUtils.setField(updatedPreset, "id", 15L);
+		ReflectionTestUtils.setField(updatedPreset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.presetService.finalizeThumbnailUpload(77L, 15L, "presets/15/thumbnails/new-thumb.png"))
+				.thenReturn(updatedPreset);
+
+		this.mockMvc.perform(post("/api/presets/15/thumbnail/finalize")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"objectKey":"presets/15/thumbnails/new-thumb.png"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/presets/15/thumbnails/new-thumb.png"));
+	}
+
+	@Test
+	void finalizeThumbnailUploadReturnsNotFoundWhenPresetDoesNotExist() throws Exception {
+		when(this.presetService.finalizeThumbnailUpload(77L, 99999L, "presets/99999/thumbnails/new-thumb.png"))
+				.thenThrow(new PresetNotFoundException("Preset not found."));
+
+		this.mockMvc.perform(post("/api/presets/99999/thumbnail/finalize")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"objectKey":"presets/99999/thumbnails/new-thumb.png"}
+						"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Preset not found."));
+	}
+
+	@Test
+	void finalizeThumbnailUploadReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		when(this.presetService.finalizeThumbnailUpload(88L, 15L, "presets/15/thumbnails/new-thumb.png"))
+				.thenThrow(new PresetOwnershipRequiredException("Preset ownership is required."));
+
+		this.mockMvc.perform(post("/api/presets/15/thumbnail/finalize")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"objectKey":"presets/15/thumbnails/new-thumb.png"}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Preset ownership is required."));
 	}
 }

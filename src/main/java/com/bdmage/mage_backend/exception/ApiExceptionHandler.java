@@ -88,9 +88,33 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
-	@ExceptionHandler(GoogleAccountConflictException.class)
-	ResponseEntity<ApiErrorResponse> handleGoogleAccountConflict(
-			GoogleAccountConflictException ex,
+	@ExceptionHandler(InvalidLocalCredentialsException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidLocalCredentials(
+			InvalidLocalCredentialsException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.UNAUTHORIZED,
+				"INVALID_LOCAL_CREDENTIALS",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(AccountLinkRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handleAccountLinkRequired(
+			AccountLinkRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"ACCOUNT_LINK_REQUIRED",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(AccountConflictException.class)
+	ResponseEntity<ApiErrorResponse> handleAccountConflict(
+			AccountConflictException ex,
 			HttpServletRequest request) {
 		return buildResponse(
 				HttpStatus.CONFLICT,
@@ -196,6 +220,18 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(PresetForbiddenException.class)
+	ResponseEntity<ApiErrorResponse> handleForbiddenException(
+			PresetForbiddenException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.FORBIDDEN,
+			"PRESET_FORBIDDEN",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
 	@ExceptionHandler(TagNotFoundException.class)
 	ResponseEntity<ApiErrorResponse> handleTagNotFound(
 			TagNotFoundException ex,
@@ -203,6 +239,42 @@ public class ApiExceptionHandler {
 		return buildResponse(
 			HttpStatus.NOT_FOUND,
 			"TAG_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(PresetOwnershipRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handlePresetOwnershipRequired(
+			PresetOwnershipRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.FORBIDDEN,
+			"PRESET_OWNERSHIP_REQUIRED",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidThumbnailException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidThumbnail(
+			InvalidThumbnailException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.BAD_REQUEST,
+			"INVALID_THUMBNAIL",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(ThumbnailStorageUnavailableException.class)
+	ResponseEntity<ApiErrorResponse> handleThumbnailStorageUnavailable(
+			ThumbnailStorageUnavailableException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.SERVICE_UNAVAILABLE,
+			"THUMBNAIL_STORAGE_UNAVAILABLE",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());

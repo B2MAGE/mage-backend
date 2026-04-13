@@ -7,6 +7,7 @@ import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.TagRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +39,7 @@ public class TagService {
 
 	@Transactional(readOnly = true)
 	public List<Tag> getAllTags() {
-		return this.tagRepository.findAll();
+		return this.tagRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
 	}
 
 	private static String normalizeName(String name) {

@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -283,25 +284,46 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetsReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+	void getPresetsReturnsAllPresetsForPublicRequest() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "public-list-presets-user-" + uniqueSuffix + "@example.com";
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
+				"Public List Presets User"));
+		Preset firstPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Preset secondPreset = this.presetRepository.saveAndFlush(new Preset(
+				savedUser.getId(),
+				"Signal Bloom",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")));
+
 		this.mockMvc.perform(get("/api/presets")
 				.contentType(MediaType.APPLICATION_JSON))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("Authentication is required."));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].presetId", hasItems(
+						firstPreset.getId().intValue(),
+						secondPreset.getId().intValue())))
+				.andExpect(jsonPath("$[*].name", hasItems("Aurora Drift", "Signal Bloom")));
 	}
 
 	@Test
-	void getPresetsFiltersByTagForAuthenticatedUser() throws Exception {
+	void getPresetsFiltersByTagForPublicRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "filter-presets-user-" + uniqueSuffix + "@example.com";
-		String password = "password-" + uniqueSuffix;
 		String ambientTagName = "ambient-" + uniqueSuffix;
 		String showcaseTagName = "showcase-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
-				this.passwordHashingService.hash(password),
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
 				"Filter Presets User"));
 		Preset ambientPreset = this.presetRepository.saveAndFlush(new Preset(
 				savedUser.getId(),
@@ -320,15 +342,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.presetTagRepository.saveAndFlush(new PresetTag(ambientPreset.getId(), ambientTag.getId()));
 		this.presetTagRepository.saveAndFlush(new PresetTag(otherPreset.getId(), showcaseTag.getId()));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(loginRequestBody(email, password)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.accessToken").isNotEmpty())
-				.andReturn());
-
 		this.mockMvc.perform(get("/api/presets")
-				.header("Authorization", "Bearer " + accessToken)
 				.param("tag", " " + ambientTagName.toUpperCase() + " ")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -341,22 +355,13 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "empty-filter-presets-user-" + uniqueSuffix + "@example.com";
-		String password = "password-" + uniqueSuffix;
 
 		this.userRepository.saveAndFlush(new User(
 				email,
-				this.passwordHashingService.hash(password),
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
 				"Empty Filter Presets User"));
 
-		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(loginRequestBody(email, password)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.accessToken").isNotEmpty())
-				.andReturn());
-
 		this.mockMvc.perform(get("/api/presets")
-				.header("Authorization", "Bearer " + accessToken)
 				.param("tag", "ambient")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -583,4 +588,3 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return Long.valueOf(matcher.group(1));
 	}
 }
-

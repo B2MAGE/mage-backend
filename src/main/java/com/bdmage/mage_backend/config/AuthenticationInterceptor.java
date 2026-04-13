@@ -5,6 +5,7 @@ import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,9 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
 	private static final String BEARER_PREFIX = "Bearer ";
-	private static final String PUBLIC_PRESET_DETAIL_PATTERN = "/api/presets/{id}";
+	private static final List<String> PUBLIC_PRESET_READ_PATTERNS = List.of(
+			"/api/presets",
+			"/api/presets/{id}");
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
 	private final AuthenticationTokenService authenticationTokenService;
@@ -28,9 +31,9 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-		// Public preset detail pages allow anonymous GET /api/presets/{id} reads without
-		// opening write or owner-sensitive preset routes.
-		if (isPublicPresetDetailRequest(request)) {
+		// Preset discovery and public preset detail pages allow anonymous GET reads
+		// without opening write or owner-sensitive preset routes.
+		if (isPublicPresetReadRequest(request)) {
 			return true;
 		}
 
@@ -40,9 +43,14 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 		return true;
 	}
 
-	private static boolean isPublicPresetDetailRequest(HttpServletRequest request) {
-		return HttpMethod.GET.matches(request.getMethod())
-				&& PATH_MATCHER.match(PUBLIC_PRESET_DETAIL_PATTERN, pathWithinApplication(request));
+	private static boolean isPublicPresetReadRequest(HttpServletRequest request) {
+		if (!HttpMethod.GET.matches(request.getMethod())) {
+			return false;
+		}
+
+		String requestPath = pathWithinApplication(request);
+		return PUBLIC_PRESET_READ_PATTERNS.stream()
+				.anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
 	}
 
 	private static String pathWithinApplication(HttpServletRequest request) {

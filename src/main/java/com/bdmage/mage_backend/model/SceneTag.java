@@ -9,28 +9,28 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "preset_tags")
-@IdClass(PresetTagId.class)
-public class PresetTag {
+@Table(name = "scene_tags")
+@IdClass(SceneTagId.class)
+public class SceneTag {
 
 	@Id
-	@Column(name = "preset_id", nullable = false)
-	private Long presetId;
+	@Column(name = "scene_id", nullable = false)
+	private Long sceneId;
 
 	@Id
 	@Column(name = "tag_id", nullable = false)
 	private Long tagId;
 
-	protected PresetTag() {
+	protected SceneTag() {
 	}
 
-	public PresetTag(Long presetId, Long tagId) {
-		this.presetId = Objects.requireNonNull(presetId, "presetId must not be null");
+	public SceneTag(Long sceneId, Long tagId) {
+		this.sceneId = Objects.requireNonNull(sceneId, "sceneId must not be null");
 		this.tagId = Objects.requireNonNull(tagId, "tagId must not be null");
 	}
 
-	public Long getPresetId() {
-		return this.presetId;
+	public Long getSceneId() {
+		return this.sceneId;
 	}
 
 	public Long getTagId() {

@@ -70,11 +70,11 @@ Useful follow-up checks:
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/users/me` with a bearer token
-- `POST /api/presets`
-- `POST /api/presets/thumbnail/presign`
-- `POST /api/presets/{id}/thumbnail/presign`
-- `POST /api/presets/{id}/thumbnail/finalize`
-- `GET /api/presets/{id}`
+- `POST /api/scenes`
+- `POST /api/scenes/thumbnail/presign`
+- `POST /api/scenes/{id}/thumbnail/presign`
+- `POST /api/scenes/{id}/thumbnail/finalize`
+- `GET /api/scenes/{id}`
 
 For endpoint behavior and auth requirements, use [operations.md](operations.md).
 
@@ -162,4 +162,4 @@ If you are new to the backend:
 2. Run the stack locally
 3. Read [architecture.md](architecture.md)
 4. Read [engineering-standards.md](engineering-standards.md)
-5. Trace one request end to end, such as `POST /api/auth/register` or `POST /api/presets`
+5. Trace one request end to end, such as `POST /api/auth/register` or `POST /api/scenes`

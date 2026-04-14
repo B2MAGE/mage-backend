@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-public record CreatePresetThumbnailUploadRequest(
+public record CreateSceneThumbnailUploadRequest(
 		@NotBlank(message = "filename must not be blank")
 		@Size(max = 255, message = "filename must be at most 255 characters")
 		String filename,

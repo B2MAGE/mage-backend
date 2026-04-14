@@ -78,7 +78,7 @@ public record ThumbnailStorageProperties(
 
 	public String normalizedKeyPrefix() {
 		if (!StringUtils.hasText(keyPrefix)) {
-			return "presets";
+			return "scenes";
 		}
 
 		String trimmed = keyPrefix.trim();

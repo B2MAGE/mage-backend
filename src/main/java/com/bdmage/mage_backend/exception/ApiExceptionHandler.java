@@ -148,13 +148,13 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
-	@ExceptionHandler(PresetTagAlreadyExistsException.class)
-	ResponseEntity<ApiErrorResponse> handlePresetTagAlreadyExists(
-			PresetTagAlreadyExistsException ex,
+	@ExceptionHandler(SceneTagAlreadyExistsException.class)
+	ResponseEntity<ApiErrorResponse> handleSceneTagAlreadyExists(
+			SceneTagAlreadyExistsException ex,
 			HttpServletRequest request) {
 		return buildResponse(
 				HttpStatus.CONFLICT,
-				"PRESET_TAG_ALREADY_EXISTS",
+				"SCENE_TAG_ALREADY_EXISTS",
 				ex.getMessage(),
 				Map.of(),
 				request.getRequestURI());
@@ -208,25 +208,25 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 	
-	@ExceptionHandler(PresetNotFoundException.class)
-	ResponseEntity<ApiErrorResponse> handlePresetNotFound(
-			PresetNotFoundException ex,
+	@ExceptionHandler(SceneNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleSceneNotFound(
+			SceneNotFoundException ex,
 			HttpServletRequest request) {
 		return buildResponse(
 			HttpStatus.NOT_FOUND,
-			"PRESET_NOT_FOUND",
+			"SCENE_NOT_FOUND",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());
 	}
 
-	@ExceptionHandler(PresetForbiddenException.class)
+	@ExceptionHandler(SceneForbiddenException.class)
 	ResponseEntity<ApiErrorResponse> handleForbiddenException(
-			PresetForbiddenException ex,
+			SceneForbiddenException ex,
 			HttpServletRequest request) {
 		return buildResponse(
 			HttpStatus.FORBIDDEN,
-			"PRESET_FORBIDDEN",
+			"SCENE_FORBIDDEN",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());
@@ -244,13 +244,13 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
-	@ExceptionHandler(PresetOwnershipRequiredException.class)
-	ResponseEntity<ApiErrorResponse> handlePresetOwnershipRequired(
-			PresetOwnershipRequiredException ex,
+	@ExceptionHandler(SceneOwnershipRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handleSceneOwnershipRequired(
+			SceneOwnershipRequiredException ex,
 			HttpServletRequest request) {
 		return buildResponse(
 			HttpStatus.FORBIDDEN,
-			"PRESET_OWNERSHIP_REQUIRED",
+			"SCENE_OWNERSHIP_REQUIRED",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());

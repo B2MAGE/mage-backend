@@ -66,14 +66,14 @@ class TagServiceTests {
 	}
 
 	@Test
-	void getAllTagsAttachedToPresetsDelegatesToRepositoryQuery() {
+	void getAllTagsAttachedToScenesDelegatesToRepositoryQuery() {
 		TagRepository tagRepository = mock(TagRepository.class);
 		TagService tagService = new TagService(tagRepository);
 		Tag ambient = new Tag("ambient");
 
-		when(tagRepository.findAllAttachedToPresets()).thenReturn(java.util.List.of(ambient));
+		when(tagRepository.findAllAttachedToScenes()).thenReturn(java.util.List.of(ambient));
 
-		assertThat(tagService.getAllTagsAttachedToPresets()).containsExactly(ambient);
-		verify(tagRepository).findAllAttachedToPresets();
+		assertThat(tagService.getAllTagsAttachedToScenes()).containsExactly(ambient);
+		verify(tagRepository).findAllAttachedToScenes();
 	}
 }

@@ -86,15 +86,15 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `GET /api/users/me`                         | Bearer token | Current authenticated user                                          |
 | `GET /api/tags`                             | Public       | Returns all tags in name order                                      |
 | `POST /api/tags`                            | Public       | Tag creation is currently public                                    |
-| `POST /api/presets`                         | Bearer token | Creates an owned preset and optionally finalizes a staged thumbnail |
-| `POST /api/presets/thumbnail/presign`       | Bearer token | Presigns a staged thumbnail upload before preset creation           |
-| `GET /api/presets`                          | Public       | Supports `?tag=<name>`                                              |
-| `POST /api/presets/{id}/tags`               | Bearer token | Attaches an existing tag to an existing preset                      |
-| `POST /api/presets/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                   |
-| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                       |
-| `GET /api/presets/{id}`                     | Public       | Preset detail is public                                             |
-| `DELETE /api/presets/{id}`                  | Bearer token | Owner-only                                                          |
-| `GET /api/users/{id}/presets`               | Bearer token | User-scoped preset list                                             |
+| `POST /api/scenes`                         | Bearer token | Creates an owned scene and optionally finalizes a staged thumbnail |
+| `POST /api/scenes/thumbnail/presign`       | Bearer token | Presigns a staged thumbnail upload before scene creation           |
+| `GET /api/scenes`                          | Public       | Supports `?tag=<name>`                                              |
+| `POST /api/scenes/{id}/tags`               | Bearer token | Attaches an existing tag to an existing scene                      |
+| `POST /api/scenes/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                   |
+| `POST /api/scenes/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                       |
+| `GET /api/scenes/{id}`                     | Public       | Scene detail is public                                             |
+| `DELETE /api/scenes/{id}`                  | Bearer token | Owner-only                                                          |
+| `GET /api/users/{id}/scenes`               | Bearer token | User-scoped scene list                                             |
 
 ## Common Success and Failure Signals
 
@@ -106,33 +106,33 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 - `POST /api/auth/link/google`: `200` on success, `401` for invalid local credentials, `409` for account conflicts
 - `POST /api/auth/link/local`: `200` on success, `401` for invalid Google token, `409` for incompatible account state
 
-### Presets and Tags
+### Scenes and Tags
 
 - `GET /api/tags`: `200` on success
 - `POST /api/tags`: `201` on success, `409` for duplicates
-- `POST /api/presets`: `201` on success, `400` for invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
-- `POST /api/presets/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
-- `GET /api/presets`: `200` on success and public for anonymous discovery, optionally filtered with `?tag=<name>`
-- `POST /api/presets/{id}/tags`: `201` on success, `404` if the preset or tag is missing, `409` if the link already exists
-- `POST /api/presets/{id}/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `403` for non-owner requests, `404` if the preset is missing
-- `POST /api/presets/{id}/thumbnail/finalize`: `200` on success, `400` for invalid upload state, `403` for non-owner requests, `404` if the preset is missing
-- `GET /api/presets/{id}`: `200` on success, `404` if missing
-- `DELETE /api/presets/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
-- `GET /api/users/{id}/presets`: `200` on success, `401` without a valid bearer token
+- `POST /api/scenes`: `201` on success, `400` for invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
+- `POST /api/scenes/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
+- `GET /api/scenes`: `200` on success and public for anonymous discovery, optionally filtered with `?tag=<name>`
+- `POST /api/scenes/{id}/tags`: `201` on success, `404` if the scene or tag is missing, `409` if the link already exists
+- `POST /api/scenes/{id}/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `403` for non-owner requests, `404` if the scene is missing
+- `POST /api/scenes/{id}/thumbnail/finalize`: `200` on success, `400` for invalid upload state, `403` for non-owner requests, `404` if the scene is missing
+- `GET /api/scenes/{id}`: `200` on success, `404` if missing
+- `DELETE /api/scenes/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
+- `GET /api/users/{id}/scenes`: `200` on success, `401` without a valid bearer token
 
 ## Thumbnail Upload Contract
 
 Thumbnail uploads support two flows.
 
-### New preset creation with a thumbnail
+### New scene creation with a thumbnail
 
-This flow avoids leaving behind a partial preset when upload fails:
+This flow avoids leaving behind a partial scene when upload fails:
 
-1. `POST /api/presets/thumbnail/presign`
+1. `POST /api/scenes/thumbnail/presign`
 2. browser `PUT` to the returned object-storage upload URL
-3. `POST /api/presets` with `thumbnailObjectKey`
+3. `POST /api/scenes` with `thumbnailObjectKey`
 
-`POST /api/presets/thumbnail/presign` accepts JSON:
+`POST /api/scenes/thumbnail/presign` accepts JSON:
 
 ```json
 {
@@ -155,11 +155,11 @@ Success behavior:
 - returns the object-storage upload URL, HTTP method, object key, and required upload headers
 - scopes the staged object key under the authenticated user's pending thumbnail prefix
 
-After the browser upload succeeds, create the preset with:
+After the browser upload succeeds, create the scene with:
 
 ```json
 {
-  "name": "Preset Name",
+  "name": "Scene Name",
   "sceneData": {
     "visualizer": {},
     "controls": {},
@@ -167,16 +167,16 @@ After the browser upload succeeds, create the preset with:
     "fx": {},
     "state": {}
   },
-  "thumbnailObjectKey": "presets/pending/42/thumbnails/abc123.png"
+  "thumbnailObjectKey": "scenes/pending/42/thumbnails/abc123.png"
 }
 ```
 
 Success behavior:
 
 - returns `201 Created`
-- verifies the uploaded object exists in the configured object-storage provider before the preset is written
+- verifies the uploaded object exists in the configured object-storage provider before the scene is written
 - persists `thumbnailRef` using the configured public thumbnail base URL
-- attempts to delete the staged uploaded object if preset persistence fails after thumbnail verification
+- attempts to delete the staged uploaded object if scene persistence fails after thumbnail verification
 
 Failure behavior:
 
@@ -184,17 +184,17 @@ Failure behavior:
 - returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
 - returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
 
-### Existing preset thumbnail replacement
+### Existing scene thumbnail replacement
 
-This flow updates the thumbnail for an already persisted preset:
+This flow updates the thumbnail for an already persisted scene:
 
-1. `POST /api/presets/{id}/thumbnail/presign`
+1. `POST /api/scenes/{id}/thumbnail/presign`
 2. browser `PUT` to the returned object-storage upload URL
-3. `POST /api/presets/{id}/thumbnail/finalize`
+3. `POST /api/scenes/{id}/thumbnail/finalize`
 
 ### Presign request
 
-`POST /api/presets/{id}/thumbnail/presign` accepts JSON:
+`POST /api/scenes/{id}/thumbnail/presign` accepts JSON:
 
 ### Browser upload
 
@@ -208,28 +208,28 @@ This step bypasses the backend application server. The active provider must allo
 
 ### Finalize request
 
-`POST /api/presets/{id}/thumbnail/finalize` accepts JSON:
+`POST /api/scenes/{id}/thumbnail/finalize` accepts JSON:
 
 ```json
 {
-  "objectKey": "presets/15/thumbnails/abc123.png"
+  "objectKey": "scenes/15/thumbnails/abc123.png"
 }
 ```
 
 Success behavior:
 
 - returns `200 OK`
-- returns the full updated `PresetResponse`
+- returns the full updated `SceneResponse`
 - verifies the uploaded object exists in the configured object-storage provider
 - updates `thumbnailRef` to the configured public thumbnail base URL
-- later finalized uploads replace the preset's stored thumbnail reference and attempt to clean up the previous uploaded object
+- later finalized uploads replace the scene's stored thumbnail reference and attempt to clean up the previous uploaded object
 
 Failure behavior:
 
 - returns `400 INVALID_THUMBNAIL` when the metadata or uploaded object state is invalid
 - returns `401 AUTHENTICATION_REQUIRED` when the bearer token is missing or invalid
-- returns `403 PRESET_OWNERSHIP_REQUIRED` when the caller does not own the preset
-- returns `404 PRESET_NOT_FOUND` when the preset id does not exist
+- returns `403 SCENE_OWNERSHIP_REQUIRED` when the caller does not own the scene
+- returns `404 SCENE_NOT_FOUND` when the scene id does not exist
 - returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
 
 ## Database Operations

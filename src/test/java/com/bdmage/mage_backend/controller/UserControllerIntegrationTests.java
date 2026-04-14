@@ -6,9 +6,9 @@ import java.util.Optional;
 
 import com.bdmage.mage_backend.client.GoogleTokenVerifier;
 import com.bdmage.mage_backend.client.GoogleTokenVerifier.VerifiedGoogleToken;
-import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
-import com.bdmage.mage_backend.repository.PresetRepository;
+import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
@@ -48,7 +48,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	private MockMvc mockMvc;
 
 	@Autowired
-	private PresetRepository presetRepository;
+	private SceneRepository sceneRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -133,27 +133,27 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void presetsReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(get("/api/users/77/presets"))
+	void scenesReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(get("/api/users/77/scenes"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
 	}
 
 	@Test
-	void presetsReturnsRequestedUsersPresetsForAuthenticatedRequest() throws Exception {
+	void scenesReturnsRequestedUsersScenesForAuthenticatedRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		User authenticatedUser = this.userRepository.saveAndFlush(new User(
-				"preset-viewer-" + uniqueSuffix + "@example.com",
+				"scene-viewer-" + uniqueSuffix + "@example.com",
 				this.passwordHashingService.hash("viewer-password-" + uniqueSuffix),
-				"Preset Viewer"));
+				"Scene Viewer"));
 		User ownerUser = this.userRepository.saveAndFlush(new User(
-				"preset-owner-" + uniqueSuffix + "@example.com",
+				"scene-owner-" + uniqueSuffix + "@example.com",
 				this.passwordHashingService.hash("owner-password-" + uniqueSuffix),
-				"Preset Owner"));
+				"Scene Owner"));
 
-		savePreset(ownerUser.getId(), "Aurora Drift");
-		savePreset(ownerUser.getId(), "Signal Bloom");
+		saveScene(ownerUser.getId(), "Aurora Drift");
+		saveScene(ownerUser.getId(), "Signal Bloom");
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -164,32 +164,32 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(get("/api/users/" + ownerUser.getId() + "/presets")
+		this.mockMvc.perform(get("/api/users/" + ownerUser.getId() + "/scenes")
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].ownerUserId").value(ownerUser.getId()))
-				.andExpect(jsonPath("$[0].creatorDisplayName").value("Preset Owner"))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").isNotEmpty())
 				.andExpect(jsonPath("$[1].ownerUserId").value(ownerUser.getId()))
-				.andExpect(jsonPath("$[1].creatorDisplayName").value("Preset Owner"))
+				.andExpect(jsonPath("$[1].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"))
 				.andExpect(jsonPath("$[1].createdAt").isNotEmpty());
 	}
 
 	@Test
-	void presetsReturnsEmptyListWhenRequestedUserHasNoPresets() throws Exception {
+	void scenesReturnsEmptyListWhenRequestedUserHasNoScenes() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		User authenticatedUser = this.userRepository.saveAndFlush(new User(
-				"preset-reader-" + uniqueSuffix + "@example.com",
+				"scene-reader-" + uniqueSuffix + "@example.com",
 				this.passwordHashingService.hash("reader-password-" + uniqueSuffix),
-				"Preset Reader"));
+				"Scene Reader"));
 		User requestedUser = this.userRepository.saveAndFlush(new User(
-				"preset-empty-" + uniqueSuffix + "@example.com",
+				"scene-empty-" + uniqueSuffix + "@example.com",
 				this.passwordHashingService.hash("empty-password-" + uniqueSuffix),
-				"Preset Empty"));
+				"Scene Empty"));
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -200,7 +200,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(get("/api/users/" + requestedUser.getId() + "/presets")
+		this.mockMvc.perform(get("/api/users/" + requestedUser.getId() + "/scenes")
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray())
@@ -219,14 +219,14 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return "verified|" + subject + "|" + email + "|" + displayName;
 	}
 
-	private void savePreset(Long ownerUserId, String name) throws Exception {
-		Preset preset = new Preset(
+	private void saveScene(Long ownerUserId, String name) throws Exception {
+		Scene scene = new Scene(
 				ownerUserId,
 				name,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
-		this.presetRepository.saveAndFlush(preset);
+		this.sceneRepository.saveAndFlush(scene);
 	}
 
 	private static String accessToken(MvcResult result) throws Exception {

@@ -5,13 +5,13 @@ import java.util.Map;
 
 public interface ThumbnailStorageService {
 
-	PresignedThumbnailUpload createPresetCreationUpload(Long ownerUserId, String filename, String contentType);
+	PresignedThumbnailUpload createSceneCreationUpload(Long ownerUserId, String filename, String contentType);
 
-	FinalizedThumbnail finalizePresetCreationUpload(Long ownerUserId, String objectKey);
+	FinalizedThumbnail finalizeSceneCreationUpload(Long ownerUserId, String objectKey);
 
-	PresignedThumbnailUpload createPresignedUpload(Long presetId, String filename, String contentType);
+	PresignedThumbnailUpload createPresignedUpload(Long sceneId, String filename, String contentType);
 
-	FinalizedThumbnail finalizeUpload(Long presetId, String objectKey);
+	FinalizedThumbnail finalizeUpload(Long sceneId, String objectKey);
 
 	default void delete(String thumbnailRef) {
 		// Optional for storage implementations that do not need cleanup.

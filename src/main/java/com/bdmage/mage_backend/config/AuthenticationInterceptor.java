@@ -18,9 +18,9 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
 	private static final String BEARER_PREFIX = "Bearer ";
-	private static final List<String> PUBLIC_PRESET_READ_PATTERNS = List.of(
-			"/api/presets",
-			"/api/presets/{id}");
+	private static final List<String> PUBLIC_SCENE_READ_PATTERNS = List.of(
+			"/api/scenes",
+			"/api/scenes/{id}");
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
 	private final AuthenticationTokenService authenticationTokenService;
@@ -31,9 +31,9 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-		// Preset discovery and public preset detail pages allow anonymous GET reads
-		// without opening write or owner-sensitive preset routes.
-		if (isPublicPresetReadRequest(request)) {
+		// Scene discovery and public scene detail pages allow anonymous GET reads
+		// without opening write or owner-sensitive scene routes.
+		if (isPublicSceneReadRequest(request)) {
 			return true;
 		}
 
@@ -43,13 +43,13 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 		return true;
 	}
 
-	private static boolean isPublicPresetReadRequest(HttpServletRequest request) {
+	private static boolean isPublicSceneReadRequest(HttpServletRequest request) {
 		if (!HttpMethod.GET.matches(request.getMethod())) {
 			return false;
 		}
 
 		String requestPath = pathWithinApplication(request);
-		return PUBLIC_PRESET_READ_PATTERNS.stream()
+		return PUBLIC_SCENE_READ_PATTERNS.stream()
 				.anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
 	}
 

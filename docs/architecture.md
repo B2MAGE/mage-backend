@@ -10,7 +10,7 @@ The service currently owns five main areas:
 - authentication and account linking
 - user profile lookup
 - tag management
-- preset storage and tagging
+- scene storage and tagging
 
 It also owns the infrastructure needed to support them:
 
@@ -69,7 +69,7 @@ The current API is split across five controllers:
 - `AuthController`
 - `UserController`
 - `TagController`
-- `PresetController`
+- `SceneController`
 
 ## Service Layer
 
@@ -83,7 +83,7 @@ The service layer owns the real behavior:
 - `AuthenticationTokenService`: token creation and validation
 - `UserProfileService`: current-user lookups
 - `TagService`: tag normalization and duplicate checks
-- `PresetService`: preset creation, lookup, deletion, filtering, tagging, and presigned thumbnail upload orchestration
+- `SceneService`: scene creation, lookup, deletion, filtering, tagging, and presigned thumbnail upload orchestration
 - `ObjectStorageThumbnailStorageService`: S3-compatible presign, object verification, public URL generation, and replacement cleanup for AWS S3 or MinIO
 - `PasswordHashingService`: password hashing and verification
 
@@ -111,8 +111,8 @@ The current data model is centered around these tables:
 - `users`
 - `auth_tokens`
 - `tags`
-- `presets`
-- `preset_tags`
+- `scenes`
+- `scene_tags`
 
 Those are backed by:
 
@@ -135,10 +135,10 @@ That keeps token verification logic out of controllers and makes the auth servic
 - validation failures
 - authentication failures
 - account conflicts and link-required cases
-- duplicate tags and duplicate preset-tag links
+- duplicate tags and duplicate scene-tag links
 - invalid thumbnail uploads, thumbnail storage availability, and owner-only thumbnail enforcement
-- missing presets or tags
-- forbidden preset deletion
+- missing scenes or tags
+- forbidden scene deletion
 
 ## Testing Shape
 

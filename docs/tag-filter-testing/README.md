@@ -1,6 +1,6 @@
 # Tag Filter Testing
 
-This guide walks through manually testing preset tag filtering in the backend.
+This guide walks through manually testing scene tag filtering in the backend.
 
 These steps assume Windows PowerShell and start from cloning the repository.
 
@@ -10,9 +10,9 @@ If Docker Compose is not installed yet, first follow [Install Docker Compose](..
 
 Verify that:
 
-- `GET /api/presets?tag=ambient` returns only presets linked to the `ambient` tag
+- `GET /api/scenes?tag=ambient` returns only scenes linked to the `ambient` tag
 - tag filtering is case-insensitive and whitespace-tolerant
-- the endpoint returns `[]` when no presets match
+- the endpoint returns `[]` when no scenes match
 
 ## 1. Clone the Repository
 
@@ -26,7 +26,7 @@ cd mage-backend
 If the filtering work has already been merged into the branch you want to test, you can skip this step.
 
 ```powershell
-git checkout 24-filter-presets-by-tag
+git checkout 24-filter-scenes-by-tag
 ```
 
 ## 3. Create the Local Environment File
@@ -81,33 +81,33 @@ $showcaseTag = Invoke-RestMethod -Method Post `
   -Body '{"name":"showcase"}'
 ```
 
-## 9. Create Two Presets
+## 9. Create Two Scenes
 
 ```powershell
-$preset1 = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/api/presets" `
+$scene1 = Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8080/api/scenes" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}}}'
 
-$preset2 = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/api/presets" `
+$scene2 = Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8080/api/scenes" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body '{"name":"Signal Bloom","sceneData":{"visualizer":{"shader":"pulse"}}}'
 ```
 
-## 10. Attach Different Tags to the Two Presets
+## 10. Attach Different Tags to the Two Scenes
 
 ```powershell
 Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/api/presets/$($preset1.presetId)/tags" `
+  -Uri "http://localhost:8080/api/scenes/$($scene1.sceneId)/tags" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body "{""tagId"":$($ambientTag.tagId)}"
 
 Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8080/api/presets/$($preset2.presetId)/tags" `
+  -Uri "http://localhost:8080/api/scenes/$($scene2.sceneId)/tags" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
   -Body "{""tagId"":$($showcaseTag.tagId)}"
@@ -117,7 +117,7 @@ Invoke-RestMethod -Method Post `
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/api/presets?tag=ambient" `
+  -Uri "http://localhost:8080/api/scenes?tag=ambient" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -129,7 +129,7 @@ Expected result:
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/api/presets?tag=%20AMBIENT%20" `
+  -Uri "http://localhost:8080/api/scenes?tag=%20AMBIENT%20" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -141,7 +141,7 @@ Expected result:
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/api/presets?tag=does-not-exist" `
+  -Uri "http://localhost:8080/api/scenes?tag=does-not-exist" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -153,13 +153,13 @@ Expected result:
 
 ```powershell
 Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8080/api/presets" `
+  -Uri "http://localhost:8080/api/scenes" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
 Expected result:
 
-- both presets are returned
+- both scenes are returned
 
 ## 15. Stop the Stack When Finished
 

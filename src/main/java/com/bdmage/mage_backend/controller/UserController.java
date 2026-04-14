@@ -2,12 +2,12 @@ package com.bdmage.mage_backend.controller;
 
 import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
-import com.bdmage.mage_backend.dto.PresetResponse;
+import com.bdmage.mage_backend.dto.SceneResponse;
 import com.bdmage.mage_backend.dto.UserProfileResponse;
-import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
-import com.bdmage.mage_backend.service.PresetService;
-import com.bdmage.mage_backend.service.PresetResponseFactory;
+import com.bdmage.mage_backend.service.SceneService;
+import com.bdmage.mage_backend.service.SceneResponseFactory;
 import com.bdmage.mage_backend.service.UserProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,17 +20,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/users")
 public class UserController {
 
-	private final PresetService presetService;
+	private final SceneService sceneService;
 	private final UserProfileService userProfileService;
-	private final PresetResponseFactory presetResponseFactory;
+	private final SceneResponseFactory sceneResponseFactory;
 
 	public UserController(
-			PresetService presetService,
+			SceneService sceneService,
 			UserProfileService userProfileService,
-			PresetResponseFactory presetResponseFactory) {
-		this.presetService = presetService;
+			SceneResponseFactory sceneResponseFactory) {
+		this.sceneService = sceneService;
 		this.userProfileService = userProfileService;
-		this.presetResponseFactory = presetResponseFactory;
+		this.sceneResponseFactory = sceneResponseFactory;
 	}
 
 	@GetMapping("/me")
@@ -46,12 +46,12 @@ public class UserController {
 				user.getCreatedAt()));
 	}
 
-	@GetMapping("/{userId}/presets")
-	ResponseEntity<List<PresetResponse>> presets(
+	@GetMapping("/{userId}/scenes")
+	ResponseEntity<List<SceneResponse>> scenes(
 			@PathVariable Long userId,
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId) {
-		List<Preset> presets = this.presetService.getPresetsForUser(authenticatedUserId, userId);
+		List<Scene> scenes = this.sceneService.getScenesForUser(authenticatedUserId, userId);
 
-		return ResponseEntity.ok(this.presetResponseFactory.from(presets));
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scenes));
 	}
 }

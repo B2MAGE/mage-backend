@@ -50,10 +50,10 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
-	void preHandleAllowsPublicApiPresetDetailRequestWithoutAuthenticationHeader() {
+	void preHandleAllowsPublicApiSceneDetailRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
-		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/presets/15");
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/scenes/15");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
 		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
@@ -63,10 +63,10 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
-	void preHandleAllowsPublicApiPresetListRequestWithoutAuthenticationHeader() {
+	void preHandleAllowsPublicApiSceneListRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
-		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/presets");
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/scenes");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
 		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
@@ -76,10 +76,10 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
-	void preHandleStillRejectsDeleteApiPresetRequestWithoutAuthenticationHeader() {
+	void preHandleStillRejectsDeleteApiSceneRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
-		MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/presets/15");
+		MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/scenes/15");
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
 		assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))

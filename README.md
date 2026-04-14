@@ -9,8 +9,8 @@ This repository currently provides the backend foundations for:
 - Google authentication and explicit provider linking
 - bearer-token authentication for protected routes
 - user profile lookup
-- preset creation, retrieval, deletion, and user-scoped listing
-- tag creation, retrieval, and preset tagging
+- scene creation, retrieval, deletion, and user-scoped listing
+- tag creation, retrieval, and scene tagging
 
 ## Stack
 
@@ -97,15 +97,15 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
-| `POST /api/presets`                         | Bearer token | Create a preset owned by the authenticated user and optionally finalize a staged thumbnail |
-| `POST /api/presets/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before preset creation                                   |
-| `GET /api/presets`                          | Public       | List presets, optionally filtered by tag                                                   |
-| `POST /api/presets/{id}/tags`               | Bearer token | Attach a tag to a preset                                                                   |
-| `POST /api/presets/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                                          |
-| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                                              |
-| `GET /api/presets/{id}`                     | Public       | Fetch a preset by id                                                                       |
-| `DELETE /api/presets/{id}`                  | Bearer token | Delete a preset owned by the authenticated user                                            |
-| `GET /api/users/{id}/presets`               | Bearer token | List presets for a specific user                                                           |
+| `POST /api/scenes`                         | Bearer token | Create a scene owned by the authenticated user and optionally finalize a staged thumbnail |
+| `POST /api/scenes/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before scene creation                                   |
+| `GET /api/scenes`                          | Public       | List scenes, optionally filtered by tag                                                   |
+| `POST /api/scenes/{id}/tags`               | Bearer token | Attach a tag to a scene                                                                   |
+| `POST /api/scenes/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                                          |
+| `POST /api/scenes/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                                              |
+| `GET /api/scenes/{id}`                     | Public       | Fetch a scene by id                                                                       |
+| `DELETE /api/scenes/{id}`                  | Bearer token | Delete a scene owned by the authenticated user                                            |
+| `GET /api/users/{id}/scenes`               | Bearer token | List scenes for a specific user                                                           |
 
 ## Repository Layout
 

@@ -25,19 +25,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @Testcontainers
-class PresetsTableMigrationIntegrationTests extends PostgresIntegrationTestSupport {
+class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private DataSource dataSource;
 
 	@Test
-	void presetsTableContainsExpectedColumns() throws Exception {
+	void scenesTableContainsExpectedColumns() throws Exception {
 		try (Connection connection = this.dataSource.getConnection();
 				PreparedStatement statement = connection.prepareStatement("""
 						SELECT column_name
 						FROM information_schema.columns
 						WHERE table_schema = 'public'
-						  AND table_name = 'presets'
+						  AND table_name = 'scenes'
 						ORDER BY ordinal_position
 						""");
 				ResultSet resultSet = statement.executeQuery()) {
@@ -58,21 +58,21 @@ class PresetsTableMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 	}
 
 	@Test
-	void presetsTableStoresSceneDataAsJsonbAndEnforcesOwnerForeignKeys() throws Exception {
+	void scenesTableStoresSceneDataAsJsonbAndEnforcesOwnerForeignKeys() throws Exception {
 		try (Connection connection = this.dataSource.getConnection()) {
-			long ownerUserId = insertLocalUser(connection, "preset-owner-" + System.nanoTime() + "@example.com");
-			long presetId = insertPreset(connection, ownerUserId, """
+			long ownerUserId = insertLocalUser(connection, "scene-owner-" + System.nanoTime() + "@example.com");
+			long sceneId = insertScene(connection, ownerUserId, """
 					{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
-					""", "thumbnails/preset-1.png");
+					""", "thumbnails/scene-1.png");
 
-			PresetRow savedPreset = loadPresetRow(connection, presetId);
+			SceneRow savedScene = loadSceneRow(connection, sceneId);
 
-			assertThat(savedPreset.createdAt()).isNotNull();
-			assertThat(savedPreset.thumbnailRef()).isEqualTo("thumbnails/preset-1.png");
-			assertThat(savedPreset.shader()).isEqualTo("nebula");
-			assertThat(savedPreset.sceneDataType()).isEqualTo("jsonb");
+			assertThat(savedScene.createdAt()).isNotNull();
+			assertThat(savedScene.thumbnailRef()).isEqualTo("thumbnails/scene-1.png");
+			assertThat(savedScene.shader()).isEqualTo("nebula");
+			assertThat(savedScene.sceneDataType()).isEqualTo("jsonb");
 
-			assertThatThrownBy(() -> insertPreset(connection, Long.MAX_VALUE, """
+			assertThatThrownBy(() -> insertScene(connection, Long.MAX_VALUE, """
 					{"visualizer":{"shader":"invalid-owner"}}
 					""", null))
 					.isInstanceOf(SQLException.class);
@@ -87,7 +87,7 @@ class PresetsTableMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 				""")) {
 			statement.setString(1, email);
 			statement.setString(2, "hashed-password-value");
-			statement.setString(3, "Preset Owner");
+			statement.setString(3, "Scene Owner");
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();
@@ -96,10 +96,10 @@ class PresetsTableMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 		}
 	}
 
-	private long insertPreset(Connection connection, long ownerUserId, String sceneData, String thumbnailRef)
+	private long insertScene(Connection connection, long ownerUserId, String sceneData, String thumbnailRef)
 			throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO presets (owner_user_id, name, scene_data, thumbnail_ref)
+				INSERT INTO scenes (owner_user_id, name, scene_data, thumbnail_ref)
 				VALUES (?, ?, CAST(? AS jsonb), ?)
 				RETURNING id
 				""")) {
@@ -115,20 +115,20 @@ class PresetsTableMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 		}
 	}
 
-	private PresetRow loadPresetRow(Connection connection, long presetId) throws SQLException {
+	private SceneRow loadSceneRow(Connection connection, long sceneId) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
 				SELECT created_at,
 				       thumbnail_ref,
 				       scene_data -> 'visualizer' ->> 'shader' AS shader,
 				       pg_typeof(scene_data)::text AS scene_data_type
-				FROM presets
+				FROM scenes
 				WHERE id = ?
 				""")) {
-			statement.setLong(1, presetId);
+			statement.setLong(1, sceneId);
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();
-				return new PresetRow(
+				return new SceneRow(
 						resultSet.getTimestamp("created_at"),
 						resultSet.getString("thumbnail_ref"),
 						resultSet.getString("shader"),
@@ -137,7 +137,7 @@ class PresetsTableMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 		}
 	}
 
-	private record PresetRow(
+	private record SceneRow(
 			Timestamp createdAt,
 			String thumbnailRef,
 			String shader,

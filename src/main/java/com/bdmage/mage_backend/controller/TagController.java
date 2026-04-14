@@ -30,7 +30,7 @@ public class TagController {
 	ResponseEntity<List<TagResponse>> getAllTags(
 			@RequestParam(name = "attachedOnly", defaultValue = "false") boolean attachedOnly) {
 		List<Tag> tags = attachedOnly
-				? this.tagService.getAllTagsAttachedToPresets()
+				? this.tagService.getAllTagsAttachedToScenes()
 				: this.tagService.getAllTags();
 
 		return ResponseEntity.ok(tags.stream()

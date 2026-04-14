@@ -14,8 +14,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "presets")
-public class Preset {
+@Table(name = "scenes")
+public class Scene {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,14 +37,14 @@ public class Preset {
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private Instant createdAt;
 
-	protected Preset() {
+	protected Scene() {
 	}
 
-	public Preset(Long ownerUserId, String name, JsonNode sceneData) {
+	public Scene(Long ownerUserId, String name, JsonNode sceneData) {
 		this(ownerUserId, name, sceneData, null);
 	}
 
-	public Preset(Long ownerUserId, String name, JsonNode sceneData, String thumbnailRef) {
+	public Scene(Long ownerUserId, String name, JsonNode sceneData, String thumbnailRef) {
 		this.ownerUserId = Objects.requireNonNull(ownerUserId, "ownerUserId must not be null");
 		this.name = Objects.requireNonNull(name, "name must not be null");
 		this.sceneData = Objects.requireNonNull(sceneData, "sceneData must not be null");

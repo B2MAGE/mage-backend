@@ -4,9 +4,9 @@ import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
-import com.bdmage.mage_backend.repository.PresetRepository;
+import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
 import com.bdmage.mage_backend.service.ThumbnailStorageService;
@@ -37,8 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
-@Import(PresetThumbnailUploadIntegrationTests.StubThumbnailStorageConfiguration.class)
-class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSupport {
+@Import(SceneThumbnailUploadIntegrationTests.StubThumbnailStorageConfiguration.class)
+class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSupport {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -46,7 +46,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	private MockMvc mockMvc;
 
 	@Autowired
-	private PresetRepository presetRepository;
+	private SceneRepository sceneRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -55,8 +55,8 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	private PasswordHashingService passwordHashingService;
 
 	@Test
-	void createPresetThumbnailUploadReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/presets/thumbnail/presign")
+	void createSceneThumbnailUploadReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(post("/api/scenes/thumbnail/presign")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -72,7 +72,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 
 	@Test
 	void createThumbnailUploadReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/presets/15/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/15/thumbnail/presign")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -87,11 +87,11 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	}
 
 	@Test
-	void createPresetThumbnailUploadReturnsPresignedPayloadForAuthenticatedUser() throws Exception {
+	void createSceneThumbnailUploadReturnsPresignedPayloadForAuthenticatedUser() throws Exception {
 		User owner = createUser("new-thumb-owner");
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/thumbnail/presign")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -102,7 +102,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						}
 						"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.objectKey").value("presets/pending/" + owner.getId() + "/thumbnails/stub-thumb.png"))
+				.andExpect(jsonPath("$.objectKey").value("scenes/pending/" + owner.getId() + "/thumbnails/stub-thumb.png"))
 				.andExpect(jsonPath("$.method").value("PUT"))
 				.andExpect(jsonPath("$.headers.Content-Type").value("image/png"));
 	}
@@ -110,7 +110,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	@Test
 	void createThumbnailUploadReturnsPresignedPayloadForOwner() throws Exception {
 		User owner = createUser("thumb-owner");
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
@@ -119,7 +119,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/" + preset.getId() + "/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -130,7 +130,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						}
 						"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.objectKey").value("presets/" + preset.getId() + "/thumbnails/stub-thumb.png"))
+				.andExpect(jsonPath("$.objectKey").value("scenes/" + scene.getId() + "/thumbnails/stub-thumb.png"))
 				.andExpect(jsonPath("$.method").value("PUT"))
 				.andExpect(jsonPath("$.headers.Content-Type").value("image/png"));
 	}
@@ -139,16 +139,16 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	void createThumbnailUploadReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
 		User owner = createUser("thumb-owner2");
 		User other = createUser("thumb-other");
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
-				"Owned Preset",
+				"Owned Scene",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"}}
 						""")));
 
 		String otherAccessToken = accessToken(login(other.getEmail(), ownerPassword(other.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/" + preset.getId() + "/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign")
 				.header("Authorization", "Bearer " + otherAccessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -159,16 +159,16 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						}
 						"""))
 				.andExpect(status().isForbidden())
-				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("Preset ownership is required."));
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
 	}
 
 	@Test
-	void createThumbnailUploadReturnsNotFoundForNonexistentPreset() throws Exception {
+	void createThumbnailUploadReturnsNotFoundForNonexistentScene() throws Exception {
 		User user = createUser("thumb-missing");
 		String accessToken = accessToken(login(user.getEmail(), ownerPassword(user.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/99999/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/99999/thumbnail/presign")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -179,14 +179,14 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						}
 						"""))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
-				.andExpect(jsonPath("$.message").value("Preset not found."));
+				.andExpect(jsonPath("$.code").value("SCENE_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Scene not found."));
 	}
 
 	@Test
 	void createThumbnailUploadReturnsBadRequestForInvalidContentType() throws Exception {
 		User owner = createUser("thumb-invalid");
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
@@ -194,7 +194,7 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						""")));
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/" + preset.getId() + "/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -210,40 +210,40 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 	}
 
 	@Test
-	void createPresetWithThumbnailObjectKeyPersistsThumbnailRefOnlyAfterFinalize() throws Exception {
+	void createSceneWithThumbnailObjectKeyPersistsThumbnailRefOnlyAfterFinalize() throws Exception {
 		User owner = createUser("thumb-create");
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		MvcResult createResult = this.mockMvc.perform(post("/api/presets")
+		MvcResult createResult = this.mockMvc.perform(post("/api/scenes")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
 						  "name":"Aurora Drift",
 						  "sceneData":{"visualizer":{"shader":"nebula"}},
-						  "thumbnailObjectKey":"presets/pending/%d/thumbnails/stub-thumb.png"
+						  "thumbnailObjectKey":"scenes/pending/%d/thumbnails/stub-thumb.png"
 						}
 						""".formatted(owner.getId())))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.thumbnailRef").value(
-						"https://cdn.test.example.com/presets/pending/" + owner.getId() + "/thumbnails/stub-thumb.png"))
+						"https://cdn.test.example.com/scenes/pending/" + owner.getId() + "/thumbnails/stub-thumb.png"))
 				.andReturn();
 
-		Long presetId = Long.valueOf(Pattern.compile("\"presetId\":(\\d+)")
+		Long sceneId = Long.valueOf(Pattern.compile("\"sceneId\":(\\d+)")
 				.matcher(createResult.getResponse().getContentAsString())
 				.results()
 				.findFirst()
 				.orElseThrow()
 				.group(1));
-		Preset savedPreset = this.presetRepository.findById(presetId).orElseThrow();
-		assertThat(savedPreset.getThumbnailRef())
-				.isEqualTo("https://cdn.test.example.com/presets/pending/" + owner.getId() + "/thumbnails/stub-thumb.png");
+		Scene savedScene = this.sceneRepository.findById(sceneId).orElseThrow();
+		assertThat(savedScene.getThumbnailRef())
+				.isEqualTo("https://cdn.test.example.com/scenes/pending/" + owner.getId() + "/thumbnails/stub-thumb.png");
 	}
 
 	@Test
-	void finalizeThumbnailUploadUpdatesPresetRefForOwner() throws Exception {
+	void finalizeThumbnailUploadUpdatesSceneRefForOwner() throws Exception {
 		User owner = createUser("thumb-finalize");
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
@@ -251,59 +251,59 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 						""")));
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/" + preset.getId() + "/thumbnail/finalize")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/finalize")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"objectKey":"presets/%d/thumbnails/stub-thumb.png"}
-						""".formatted(preset.getId())))
+						{"objectKey":"scenes/%d/thumbnails/stub-thumb.png"}
+						""".formatted(scene.getId())))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.presetId").value(preset.getId()))
+				.andExpect(jsonPath("$.sceneId").value(scene.getId()))
 				.andExpect(jsonPath("$.thumbnailRef").value(
-						"https://cdn.test.example.com/presets/" + preset.getId() + "/thumbnails/stub-thumb.png"));
+						"https://cdn.test.example.com/scenes/" + scene.getId() + "/thumbnails/stub-thumb.png"));
 
-		Preset refreshed = this.presetRepository.findById(preset.getId()).orElseThrow();
+		Scene refreshed = this.sceneRepository.findById(scene.getId()).orElseThrow();
 		assertThat(refreshed.getThumbnailRef())
-				.isEqualTo("https://cdn.test.example.com/presets/" + preset.getId() + "/thumbnails/stub-thumb.png");
+				.isEqualTo("https://cdn.test.example.com/scenes/" + scene.getId() + "/thumbnails/stub-thumb.png");
 	}
 
 	@Test
 	void finalizeThumbnailUploadReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
 		User owner = createUser("thumb-finalize-owner");
 		User other = createUser("thumb-finalize-other");
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
-				"Owned Preset",
+				"Owned Scene",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"}}
 						""")));
 		String otherAccessToken = accessToken(login(other.getEmail(), ownerPassword(other.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/" + preset.getId() + "/thumbnail/finalize")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/finalize")
 				.header("Authorization", "Bearer " + otherAccessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"objectKey":"presets/%d/thumbnails/stub-thumb.png"}
-						""".formatted(preset.getId())))
+						{"objectKey":"scenes/%d/thumbnails/stub-thumb.png"}
+						""".formatted(scene.getId())))
 				.andExpect(status().isForbidden())
-				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("Preset ownership is required."));
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
 	}
 
 	@Test
-	void finalizeThumbnailUploadReturnsNotFoundForNonexistentPreset() throws Exception {
+	void finalizeThumbnailUploadReturnsNotFoundForNonexistentScene() throws Exception {
 		User user = createUser("thumb-finalize-missing");
 		String accessToken = accessToken(login(user.getEmail(), ownerPassword(user.getEmail())));
 
-		this.mockMvc.perform(post("/api/presets/99999/thumbnail/finalize")
+		this.mockMvc.perform(post("/api/scenes/99999/thumbnail/finalize")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"objectKey":"presets/99999/thumbnails/stub-thumb.png"}
+						{"objectKey":"scenes/99999/thumbnails/stub-thumb.png"}
 						"""))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
-				.andExpect(jsonPath("$.message").value("Preset not found."));
+				.andExpect(jsonPath("$.code").value("SCENE_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Scene not found."));
 	}
 
 	@TestConfiguration
@@ -314,34 +314,34 @@ class PresetThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppo
 		ThumbnailStorageService stubThumbnailStorageService() {
 			return new ThumbnailStorageService() {
 				@Override
-				public PresignedThumbnailUpload createPresetCreationUpload(Long ownerUserId, String filename, String contentType) {
+				public PresignedThumbnailUpload createSceneCreationUpload(Long ownerUserId, String filename, String contentType) {
 					return new PresignedThumbnailUpload(
-							"presets/pending/" + ownerUserId + "/thumbnails/stub-thumb.png",
-							"https://upload.test.example.com/presets/pending/" + ownerUserId + "/thumbnails/stub-thumb.png",
+							"scenes/pending/" + ownerUserId + "/thumbnails/stub-thumb.png",
+							"https://upload.test.example.com/scenes/pending/" + ownerUserId + "/thumbnails/stub-thumb.png",
 							"PUT",
 							java.util.Map.of("Content-Type", contentType),
 							Instant.parse("2026-03-26T15:40:00Z"));
 				}
 
 				@Override
-				public FinalizedThumbnail finalizePresetCreationUpload(Long ownerUserId, String objectKey) {
+				public FinalizedThumbnail finalizeSceneCreationUpload(Long ownerUserId, String objectKey) {
 					return new FinalizedThumbnail(
 							objectKey,
 							"https://cdn.test.example.com/" + objectKey);
 				}
 
 				@Override
-				public PresignedThumbnailUpload createPresignedUpload(Long presetId, String filename, String contentType) {
+				public PresignedThumbnailUpload createPresignedUpload(Long sceneId, String filename, String contentType) {
 					return new PresignedThumbnailUpload(
-							"presets/" + presetId + "/thumbnails/stub-thumb.png",
-							"https://upload.test.example.com/presets/" + presetId + "/thumbnails/stub-thumb.png",
+							"scenes/" + sceneId + "/thumbnails/stub-thumb.png",
+							"https://upload.test.example.com/scenes/" + sceneId + "/thumbnails/stub-thumb.png",
 							"PUT",
 							java.util.Map.of("Content-Type", contentType),
 							Instant.parse("2026-03-26T15:40:00Z"));
 				}
 
 				@Override
-				public FinalizedThumbnail finalizeUpload(Long presetId, String objectKey) {
+				public FinalizedThumbnail finalizeUpload(Long sceneId, String objectKey) {
 					return new FinalizedThumbnail(
 							objectKey,
 							"https://cdn.test.example.com/" + objectKey);

@@ -7,16 +7,16 @@ import java.util.Map;
 import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
-import com.bdmage.mage_backend.exception.PresetForbiddenException;
-import com.bdmage.mage_backend.exception.PresetNotFoundException;
-import com.bdmage.mage_backend.exception.PresetOwnershipRequiredException;
-import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
+import com.bdmage.mage_backend.exception.SceneForbiddenException;
+import com.bdmage.mage_backend.exception.SceneNotFoundException;
+import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
+import com.bdmage.mage_backend.exception.SceneTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
-import com.bdmage.mage_backend.model.Preset;
-import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
-import com.bdmage.mage_backend.repository.PresetRepository;
-import com.bdmage.mage_backend.repository.PresetTagRepository;
+import com.bdmage.mage_backend.repository.SceneRepository;
+import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,23 +30,23 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
-public class PresetService {
+public class SceneService {
 
 	private static final String AUTHENTICATION_REQUIRED_MESSAGE = "Authentication is required.";
-	private static final String PRESET_FORBIDDEN_MESSAGE = "You do not have permission to delete this preset.";
-	private static final String PRESET_NOT_FOUND_MESSAGE = "Preset not found.";
+	private static final String SCENE_FORBIDDEN_MESSAGE = "You do not have permission to delete this scene.";
+	private static final String SCENE_NOT_FOUND_MESSAGE = "Scene not found.";
 	private static final String TAG_NOT_FOUND_MESSAGE = "Tag not found.";
-	private static final String PRESET_TAG_ALREADY_EXISTS_MESSAGE = "This tag is already attached to the preset.";
-	private static final String PRESET_OWNERSHIP_REQUIRED_MESSAGE = "Preset ownership is required.";
+	private static final String SCENE_TAG_ALREADY_EXISTS_MESSAGE = "This tag is already attached to the scene.";
+	private static final String SCENE_OWNERSHIP_REQUIRED_MESSAGE = "Scene ownership is required.";
 	private static final String INVALID_THUMBNAIL_EMPTY_MESSAGE = "Thumbnail file must not be empty.";
 	private static final String INVALID_THUMBNAIL_FILENAME_MESSAGE = "Thumbnail filename must not be blank.";
 	private static final String INVALID_THUMBNAIL_TYPE_MESSAGE = "Thumbnail must be a valid image (jpeg, png, webp, or gif).";
 	private static final String INVALID_THUMBNAIL_SIZE_MESSAGE = "Thumbnail must not exceed 5 MB.";
 	private static final ObjectMapper JSON_OBJECT_MAPPER = new ObjectMapper();
 
-	private final PresetRepository presetRepository;
+	private final SceneRepository sceneRepository;
 	private final TagRepository tagRepository;
-	private final PresetTagRepository presetTagRepository;
+	private final SceneTagRepository sceneTagRepository;
 	private final UserRepository userRepository;
 	private final ThumbnailStorageService thumbnailStorageService;
 	private final ThumbnailStorageProperties thumbnailStorageProperties;
@@ -55,53 +55,53 @@ public class PresetService {
 	private EntityManager entityManager;
 
 	// Keep the four-argument constructor for tests that do not need storage.
-	public PresetService(
-			PresetRepository presetRepository,
+	public SceneService(
+			SceneRepository sceneRepository,
 			TagRepository tagRepository,
-			PresetTagRepository presetTagRepository,
+			SceneTagRepository sceneTagRepository,
 			UserRepository userRepository) {
-		this(presetRepository, tagRepository, presetTagRepository, userRepository, null, null);
+		this(sceneRepository, tagRepository, sceneTagRepository, userRepository, null, null);
 	}
 
 	// Spring uses this constructor in production because it can satisfy all dependencies.
 	@Autowired
-	public PresetService(
-			PresetRepository presetRepository,
+	public SceneService(
+			SceneRepository sceneRepository,
 			TagRepository tagRepository,
-			PresetTagRepository presetTagRepository,
+			SceneTagRepository sceneTagRepository,
 			UserRepository userRepository,
 			ThumbnailStorageService thumbnailStorageService,
 			ThumbnailStorageProperties thumbnailStorageProperties) {
-		this.presetRepository = presetRepository;
+		this.sceneRepository = sceneRepository;
 		this.tagRepository = tagRepository;
-		this.presetTagRepository = presetTagRepository;
+		this.sceneTagRepository = sceneTagRepository;
 		this.userRepository = userRepository;
 		this.thumbnailStorageService = thumbnailStorageService;
 		this.thumbnailStorageProperties = thumbnailStorageProperties;
 	}
 
 	@Transactional
-	public Preset createPreset(Long authenticatedUserId, String name, JsonNode sceneData, String thumbnailObjectKey) {
+	public Scene createScene(Long authenticatedUserId, String name, JsonNode sceneData, String thumbnailObjectKey) {
 		requireAuthenticatedUser(authenticatedUserId);
 
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
 		if (StringUtils.hasText(thumbnailObjectKey)) {
 			finalizedThumbnail = requireThumbnailStorageService()
-					.finalizePresetCreationUpload(authenticatedUserId, thumbnailObjectKey);
+					.finalizeSceneCreationUpload(authenticatedUserId, thumbnailObjectKey);
 		}
 
-		Preset newPreset = new Preset(
+		Scene newScene = new Scene(
 				authenticatedUserId,
 				name.trim(),
 				sceneData,
 				finalizedThumbnail != null ? finalizedThumbnail.publicUrl() : null);
 
 		try {
-			Preset savedPreset = this.presetRepository.saveAndFlush(newPreset);
+			Scene savedScene = this.sceneRepository.saveAndFlush(newScene);
 			if (this.entityManager != null) {
-				this.entityManager.refresh(savedPreset);
+				this.entityManager.refresh(savedScene);
 			}
-			return savedPreset;
+			return savedScene;
 		} catch (RuntimeException ex) {
 			if (finalizedThumbnail != null) {
 				requireThumbnailStorageService().delete(finalizedThumbnail.objectKey());
@@ -111,44 +111,44 @@ public class PresetService {
 	}
 
 	@Transactional
-	public void deletePreset(Long authenticatedUserId, Long presetId) {
+	public void deleteScene(Long authenticatedUserId, Long sceneId) {
 		requireAuthenticatedUser(authenticatedUserId);
 
-		Preset preset = this.presetRepository.findById(presetId)
-				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
-		if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
-			throw new PresetForbiddenException(PRESET_FORBIDDEN_MESSAGE);
+		Scene scene = this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+		if (!scene.getOwnerUserId().equals(authenticatedUserId)) {
+			throw new SceneForbiddenException(SCENE_FORBIDDEN_MESSAGE);
 		}
 
-		this.presetRepository.delete(preset);
+		this.sceneRepository.delete(scene);
 	}
 
 	@Transactional(readOnly = true)
-	public Preset getPreset(Long presetId) {
-		return this.presetRepository.findById(presetId)
-				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+	public Scene getScene(Long sceneId) {
+		return this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
 	}
 
 	@Transactional(readOnly = true)
-	public List<Preset> getPresetsForUser(Long authenticatedUserId, Long requestedUserId) {
+	public List<Scene> getScenesForUser(Long authenticatedUserId, Long requestedUserId) {
 		requireAuthenticatedUser(authenticatedUserId);
-		return this.presetRepository.findAllByOwnerUserId(requestedUserId);
+		return this.sceneRepository.findAllByOwnerUserId(requestedUserId);
 	}
 
 	@Transactional(readOnly = true)
-	public List<Preset> getAllPresets() {
-		return this.presetRepository.findAll();
+	public List<Scene> getAllScenes() {
+		return this.sceneRepository.findAll();
 	}
 
 	@Transactional(readOnly = true)
-	public List<Preset> getPresetsByTag(String tag) {
-		return this.presetRepository.findAllByTagName(normalizeTagName(tag));
+	public List<Scene> getScenesByTag(String tag) {
+		return this.sceneRepository.findAllByTagName(normalizeTagName(tag));
 	}
 
 	@Transactional(readOnly = true)
-	public List<String> getTagNamesForPreset(Long presetId) {
-		List<Long> tagIds = this.presetTagRepository.findAllByPresetId(presetId).stream()
-				.map(PresetTag::getTagId)
+	public List<String> getTagNamesForScene(Long sceneId) {
+		List<Long> tagIds = this.sceneTagRepository.findAllBySceneId(sceneId).stream()
+				.map(SceneTag::getTagId)
 				.distinct()
 				.toList();
 
@@ -163,75 +163,75 @@ public class PresetService {
 	}
 
 	@Transactional
-	public PresetTag attachTagToPreset(Long authenticatedUserId, Long presetId, Long tagId) {
+	public SceneTag attachTagToScene(Long authenticatedUserId, Long sceneId, Long tagId) {
 		requireAuthenticatedUser(authenticatedUserId);
-		requirePresetExists(presetId);
+		requireSceneExists(sceneId);
 		requireTagExists(tagId);
 
-		if (this.presetTagRepository.existsByPresetIdAndTagId(presetId, tagId)) {
-			throw new PresetTagAlreadyExistsException(PRESET_TAG_ALREADY_EXISTS_MESSAGE);
+		if (this.sceneTagRepository.existsBySceneIdAndTagId(sceneId, tagId)) {
+			throw new SceneTagAlreadyExistsException(SCENE_TAG_ALREADY_EXISTS_MESSAGE);
 		}
 
 		try {
-			return this.presetTagRepository.saveAndFlush(new PresetTag(presetId, tagId));
+			return this.sceneTagRepository.saveAndFlush(new SceneTag(sceneId, tagId));
 		} catch (DataIntegrityViolationException ex) {
-			requirePresetExists(presetId);
+			requireSceneExists(sceneId);
 			requireTagExists(tagId);
-			throw new PresetTagAlreadyExistsException(PRESET_TAG_ALREADY_EXISTS_MESSAGE);
+			throw new SceneTagAlreadyExistsException(SCENE_TAG_ALREADY_EXISTS_MESSAGE);
 		}
 	}
 
 	@Transactional
-	public ThumbnailStorageService.PresignedThumbnailUpload createPresetThumbnailUpload(
+	public ThumbnailStorageService.PresignedThumbnailUpload createSceneThumbnailUpload(
 			Long authenticatedUserId,
 			String filename,
 			String contentType,
 			Long sizeBytes) {
 		requireAuthenticatedUser(authenticatedUserId);
 		validateThumbnailUploadRequest(filename, contentType, sizeBytes);
-		return requireThumbnailStorageService().createPresetCreationUpload(authenticatedUserId, filename, contentType);
+		return requireThumbnailStorageService().createSceneCreationUpload(authenticatedUserId, filename, contentType);
 	}
 
 	@Transactional
 	public ThumbnailStorageService.PresignedThumbnailUpload createThumbnailUpload(
 			Long authenticatedUserId,
-			Long presetId,
+			Long sceneId,
 			String filename,
 			String contentType,
 			Long sizeBytes) {
 		requireAuthenticatedUser(authenticatedUserId);
 
-		Preset preset = this.presetRepository.findById(presetId)
-				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+		Scene scene = this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
 
-		requirePresetOwnership(preset, authenticatedUserId);
+		requireSceneOwnership(scene, authenticatedUserId);
 		validateThumbnailUploadRequest(filename, contentType, sizeBytes);
 
-		return requireThumbnailStorageService().createPresignedUpload(presetId, filename, contentType);
+		return requireThumbnailStorageService().createPresignedUpload(sceneId, filename, contentType);
 	}
 
 	@Transactional
-	public Preset finalizeThumbnailUpload(Long authenticatedUserId, Long presetId, String objectKey) {
+	public Scene finalizeThumbnailUpload(Long authenticatedUserId, Long sceneId, String objectKey) {
 		requireAuthenticatedUser(authenticatedUserId);
 
-		Preset preset = this.presetRepository.findById(presetId)
-				.orElseThrow(() -> new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE));
+		Scene scene = this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
 
-		requirePresetOwnership(preset, authenticatedUserId);
+		requireSceneOwnership(scene, authenticatedUserId);
 
-		String previousThumbnailRef = preset.getThumbnailRef();
+		String previousThumbnailRef = scene.getThumbnailRef();
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = requireThumbnailStorageService()
-				.finalizeUpload(presetId, objectKey);
-		preset.updateThumbnailRef(finalizedThumbnail.publicUrl());
+				.finalizeUpload(sceneId, objectKey);
+		scene.updateThumbnailRef(finalizedThumbnail.publicUrl());
 
-		Preset savedPreset = this.presetRepository.saveAndFlush(preset);
+		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
 		if (this.entityManager != null) {
-			this.entityManager.refresh(savedPreset);
+			this.entityManager.refresh(savedScene);
 		}
 		if (StringUtils.hasText(previousThumbnailRef) && !previousThumbnailRef.equals(finalizedThumbnail.publicUrl())) {
 			requireThumbnailStorageService().delete(previousThumbnailRef);
 		}
-		return savedPreset;
+		return savedScene;
 	}
 
 	public static JsonNode sceneDataJson(Map<String, Object> sceneData) {
@@ -244,9 +244,9 @@ public class PresetService {
 		}
 	}
 
-	private void requirePresetExists(Long presetId) {
-		if (!this.presetRepository.existsById(presetId)) {
-			throw new PresetNotFoundException(PRESET_NOT_FOUND_MESSAGE);
+	private void requireSceneExists(Long sceneId) {
+		if (!this.sceneRepository.existsById(sceneId)) {
+			throw new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE);
 		}
 	}
 
@@ -260,9 +260,9 @@ public class PresetService {
 		return tag.trim().toLowerCase(Locale.ROOT);
 	}
 
-	private void requirePresetOwnership(Preset preset, Long authenticatedUserId) {
-		if (!preset.getOwnerUserId().equals(authenticatedUserId)) {
-			throw new PresetOwnershipRequiredException(PRESET_OWNERSHIP_REQUIRED_MESSAGE);
+	private void requireSceneOwnership(Scene scene, Long authenticatedUserId) {
+		if (!scene.getOwnerUserId().equals(authenticatedUserId)) {
+			throw new SceneOwnershipRequiredException(SCENE_OWNERSHIP_REQUIRED_MESSAGE);
 		}
 	}
 

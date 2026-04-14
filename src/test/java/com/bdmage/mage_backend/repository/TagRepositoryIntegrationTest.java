@@ -1,7 +1,7 @@
 package com.bdmage.mage_backend.repository;
 
-import com.bdmage.mage_backend.model.Preset;
-import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
@@ -32,10 +32,10 @@ class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
     private TagRepository tagRepository;
 
     @Autowired
-    private PresetRepository presetRepository;
+    private SceneRepository sceneRepository;
 
     @Autowired
-    private PresetTagRepository presetTagRepository;
+    private SceneTagRepository sceneTagRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -45,8 +45,8 @@ class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
 
     @BeforeEach
     void clearData() {
-        this.presetTagRepository.deleteAll();
-        this.presetRepository.deleteAll();
+        this.sceneTagRepository.deleteAll();
+        this.sceneRepository.deleteAll();
         this.tagRepository.deleteAll();
         this.userRepository.deleteAll();
     }
@@ -73,10 +73,10 @@ class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
     }
 
     @Test
-    void findAllAttachedToPresetsReturnsOnlyTagsWithPresetLinksSortedByName() throws Exception {
+    void findAllAttachedToScenesReturnsOnlyTagsWithSceneLinksSortedByName() throws Exception {
         User owner = this.userRepository.saveAndFlush(
                 new User("attached-tags-owner-" + System.nanoTime() + "@example.com", "hashed-password-value", "Attached Tags Owner"));
-        Preset preset = this.presetRepository.saveAndFlush(new Preset(
+        Scene scene = this.sceneRepository.saveAndFlush(new Scene(
                 owner.getId(),
                 "Aurora Drift",
                 this.objectMapper.readTree("""
@@ -86,15 +86,15 @@ class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
         Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag("showcase"));
         Tag ambientTag = this.tagRepository.saveAndFlush(new Tag("ambient"));
 
-        this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), showcaseTag.getId()));
-        this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), ambientTag.getId()));
+        this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), showcaseTag.getId()));
+        this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), ambientTag.getId()));
 
         this.entityManager.clear();
 
-        assertThat(this.tagRepository.findAllAttachedToPresets())
+        assertThat(this.tagRepository.findAllAttachedToScenes())
                 .extracting(Tag::getName)
                 .containsExactly("ambient", "showcase");
-        assertThat(this.tagRepository.findAllAttachedToPresets())
+        assertThat(this.tagRepository.findAllAttachedToScenes())
                 .extracting(Tag::getId)
                 .doesNotContain(unusedTag.getId());
     }

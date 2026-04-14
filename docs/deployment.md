@@ -31,8 +31,8 @@ The backend must receive:
 | `MAGE_AUTH_GOOGLE_CLIENT_IDS`           | Allowed Google OAuth client IDs for Google sign-in validation.       |
 | `MAGE_THUMBNAIL_PROVIDER`               | Thumbnail storage provider: `aws-s3` or `minio`.                     |
 | `MAGE_THUMBNAIL_REGION` or `AWS_REGION` | Region used by the S3-compatible client and presigner.               |
-| `MAGE_THUMBNAIL_BUCKET`                 | Bucket used for preset thumbnails.                                   |
-| `MAGE_THUMBNAIL_KEY_PREFIX`             | Object key prefix for thumbnail uploads. Defaults to `presets`.      |
+| `MAGE_THUMBNAIL_BUCKET`                 | Bucket used for scene thumbnails.                                   |
+| `MAGE_THUMBNAIL_KEY_PREFIX`             | Object key prefix for thumbnail uploads. Defaults to `scenes`.      |
 | `MAGE_THUMBNAIL_PUBLIC_BASE_URL`        | Public CDN or object-storage base URL persisted into `thumbnailRef`. |
 | `MAGE_THUMBNAIL_ENDPOINT`               | Optional internal S3-compatible API endpoint. Required for `minio`.  |
 | `MAGE_THUMBNAIL_PRESIGN_ENDPOINT`       | Optional public upload endpoint used in presigned browser URLs.      |
@@ -47,11 +47,11 @@ The backend will fail fast if required datasource values, Google auth settings, 
 
 ## Thumbnail Upload Infrastructure
 
-Preset thumbnails are no longer stored on local container disk.
+Scene thumbnails are no longer stored on local container disk.
 
 The production path is:
 
-1. backend issues a presigned object-storage upload for the preset owner
+1. backend issues a presigned object-storage upload for the scene owner
 2. the browser uploads the file directly to the configured object-storage provider
 3. the backend finalizes the object and stores the public thumbnail URL in `thumbnailRef`
 

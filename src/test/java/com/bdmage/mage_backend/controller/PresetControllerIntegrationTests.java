@@ -106,6 +106,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Preset User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
@@ -311,6 +312,9 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$[*].presetId", hasItems(
 						firstPreset.getId().intValue(),
 						secondPreset.getId().intValue())))
+				.andExpect(jsonPath("$[*].creatorDisplayName", hasItems(
+						"Public List Presets User",
+						"Public List Presets User")))
 				.andExpect(jsonPath("$[*].name", hasItems("Aurora Drift", "Signal Bloom")));
 	}
 
@@ -347,6 +351,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].presetId").value(ambientPreset.getId()))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Filter Presets User"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[1]").doesNotExist());
 	}
@@ -391,6 +396,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Public Get Preset User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
@@ -430,6 +436,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Get Preset User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))

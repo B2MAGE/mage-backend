@@ -3,6 +3,7 @@ package com.bdmage.mage_backend.controller;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
@@ -15,6 +16,9 @@ import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.service.PresetResponseFactory;
 import com.bdmage.mage_backend.service.PresetService;
 import com.bdmage.mage_backend.service.ThumbnailStorageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,16 +46,19 @@ class PresetControllerTests {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	private PresetService presetService;
+	private UserRepository userRepository;
 	private MockMvc mockMvc;
 	private LocalValidatorFactoryBean validator;
 
 	@BeforeEach
 	void setUp() {
 		this.presetService = mock(PresetService.class);
+		this.userRepository = mock(UserRepository.class);
 		this.validator = new LocalValidatorFactoryBean();
 		this.validator.afterPropertiesSet();
+		PresetResponseFactory presetResponseFactory = new PresetResponseFactory(this.userRepository);
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(new PresetController(this.presetService))
+				.standaloneSetup(new PresetController(this.presetService, presetResponseFactory))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.setValidator(this.validator)
 				.build();
@@ -81,6 +88,7 @@ class PresetControllerTests {
 						"""),
 				null))
 				.thenReturn(preset);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Preset Creator")));
 
 		this.mockMvc.perform(post("/api/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
@@ -95,6 +103,7 @@ class PresetControllerTests {
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.presetId").value(15L))
 				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Preset Creator"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
@@ -137,6 +146,7 @@ class PresetControllerTests {
 						"""),
 				"presets/pending/77/thumbnails/abc123.png"))
 				.thenReturn(preset);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Preset Creator")));
 
 		this.mockMvc.perform(post("/api/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
@@ -150,6 +160,7 @@ class PresetControllerTests {
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Preset Creator"))
 				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/presets/pending/77/thumbnails/abc123.png"));
 	}
 
@@ -197,13 +208,17 @@ class PresetControllerTests {
 		ReflectionTestUtils.setField(secondPreset, "createdAt", Instant.parse("2026-03-26T16:30:00Z"));
 
 		when(this.presetService.getAllPresets()).thenReturn(List.of(firstPreset, secondPreset));
+		when(this.userRepository.findAllById(java.util.Set.of(77L, 78L)))
+				.thenReturn(List.of(user(77L, "Aurora Artist"), user(78L, "Signal Artist")));
 
 		this.mockMvc.perform(get("/api/presets"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Aurora Artist"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[1].presetId").value(16L))
+				.andExpect(jsonPath("$[1].creatorDisplayName").value("Signal Artist"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
 	}
 
@@ -219,11 +234,14 @@ class PresetControllerTests {
 		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
 
 		when(this.presetService.getPresetsByTag("ambient")).thenReturn(List.of(preset));
+		when(this.userRepository.findAllById(java.util.Set.of(77L)))
+				.thenReturn(List.of(user(77L, "Aurora Artist")));
 
 		this.mockMvc.perform(get("/api/presets").param("tag", "ambient"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Aurora Artist"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"));
 	}
 
@@ -306,12 +324,14 @@ class PresetControllerTests {
 		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
 
 		when(this.presetService.getPreset(15L)).thenReturn(preset);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Preset Creator")));
 
 		this.mockMvc.perform(get("/api/presets/15"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.presetId").value(15L))
 				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Preset Creator"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
@@ -466,6 +486,7 @@ class PresetControllerTests {
 
 		when(this.presetService.finalizeThumbnailUpload(77L, 15L, "presets/15/thumbnails/new-thumb.png"))
 				.thenReturn(updatedPreset);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Preset Creator")));
 
 		this.mockMvc.perform(post("/api/presets/15/thumbnail/finalize")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
@@ -475,6 +496,7 @@ class PresetControllerTests {
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.presetId").value(15L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Preset Creator"))
 				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/presets/15/thumbnails/new-thumb.png"));
 	}
 
@@ -508,5 +530,11 @@ class PresetControllerTests {
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("PRESET_OWNERSHIP_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Preset ownership is required."));
+	}
+
+	private User user(Long userId, String displayName) {
+		User user = new User("user-" + userId + "@example.com", "hashed-password", displayName);
+		ReflectionTestUtils.setField(user, "id", userId);
+		return user;
 	}
 }

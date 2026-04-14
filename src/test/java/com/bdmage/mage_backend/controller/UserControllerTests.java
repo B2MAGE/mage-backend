@@ -2,13 +2,14 @@ package com.bdmage.mage_backend.controller;
 
 import java.time.Instant;
 import java.util.List;
-
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PresetService;
+import com.bdmage.mage_backend.service.PresetResponseFactory;
 import com.bdmage.mage_backend.service.UserProfileService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,14 +30,17 @@ class UserControllerTests {
 
 	private PresetService presetService;
 	private UserProfileService userProfileService;
+	private UserRepository userRepository;
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
 		this.presetService = mock(PresetService.class);
 		this.userProfileService = mock(UserProfileService.class);
+		this.userRepository = mock(UserRepository.class);
+		PresetResponseFactory presetResponseFactory = new PresetResponseFactory(this.userRepository);
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(new UserController(this.presetService, this.userProfileService))
+				.standaloneSetup(new UserController(this.presetService, this.userProfileService, presetResponseFactory))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.build();
 	}
@@ -80,16 +84,20 @@ class UserControllerTests {
 
 		when(this.presetService.getPresetsForUser(51L, 77L))
 				.thenReturn(List.of(firstPreset, secondPreset));
+		when(this.userRepository.findAllById(java.util.Set.of(77L)))
+				.thenReturn(List.of(user(77L, "Preset Owner")));
 
 		this.mockMvc.perform(get("/api/users/77/presets")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].presetId").value(15L))
 				.andExpect(jsonPath("$[0].ownerUserId").value(77L))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Preset Owner"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").value("2026-03-26T15:30:00Z"))
 				.andExpect(jsonPath("$[1].presetId").value(16L))
+				.andExpect(jsonPath("$[1].creatorDisplayName").value("Preset Owner"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
 	}
 
@@ -127,6 +135,10 @@ class UserControllerTests {
 		ReflectionTestUtils.setField(preset, "createdAt", createdAt);
 		return preset;
 	}
+
+	private User user(Long userId, String displayName) {
+		User user = new User("user-" + userId + "@example.com", "hashed-password", displayName);
+		ReflectionTestUtils.setField(user, "id", userId);
+		return user;
+	}
 }
-
-

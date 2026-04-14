@@ -1,7 +1,6 @@
 package com.bdmage.mage_backend.controller;
 
 import java.util.List;
-
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.dto.AttachTagToPresetRequest;
 import com.bdmage.mage_backend.dto.CreatePresetRequest;
@@ -13,6 +12,7 @@ import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.service.PresetService;
+import com.bdmage.mage_backend.service.PresetResponseFactory;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +32,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PresetController {
 
 	private final PresetService presetService;
+	private final PresetResponseFactory presetResponseFactory;
 
-	public PresetController(PresetService presetService) {
+	public PresetController(PresetService presetService, PresetResponseFactory presetResponseFactory) {
 		this.presetService = presetService;
+		this.presetResponseFactory = presetResponseFactory;
 	}
 
 	@PostMapping
@@ -48,7 +50,7 @@ public class PresetController {
 				request.thumbnailObjectKey());
 
 		return ResponseEntity.status(HttpStatus.CREATED)
-				.body(PresetResponse.from(preset));
+				.body(this.presetResponseFactory.from(preset));
 	}
 
 	@PostMapping("/thumbnail/presign")
@@ -79,16 +81,14 @@ public class PresetController {
 				? this.presetService.getPresetsByTag(tag)
 				: this.presetService.getAllPresets();
 
-		return ResponseEntity.ok(presets.stream()
-				.map(PresetResponse::from)
-				.toList());
+		return ResponseEntity.ok(this.presetResponseFactory.from(presets));
 	}
 
 	@GetMapping("/{id}")
 	ResponseEntity<PresetResponse> getPreset(@PathVariable Long id) {
 		Preset preset = this.presetService.getPreset(id);
 
-		return ResponseEntity.ok(PresetResponse.from(preset));
+		return ResponseEntity.ok(this.presetResponseFactory.from(preset));
 	}
 
 	@PostMapping("/{id}/thumbnail/presign")
@@ -110,7 +110,7 @@ public class PresetController {
 			@PathVariable Long id,
 			@Valid @RequestBody FinalizePresetThumbnailUploadRequest request) {
 		Preset preset = this.presetService.finalizeThumbnailUpload(authenticatedUserId, id, request.objectKey());
-		return ResponseEntity.ok(PresetResponse.from(preset));
+		return ResponseEntity.ok(this.presetResponseFactory.from(preset));
 	}
 
 	@DeleteMapping("/{id}")

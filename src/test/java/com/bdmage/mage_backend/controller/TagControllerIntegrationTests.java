@@ -1,8 +1,15 @@
 package com.bdmage.mage_backend.controller;
 
+import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.PresetTag;
 import com.bdmage.mage_backend.model.Tag;
+import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.repository.PresetRepository;
+import com.bdmage.mage_backend.repository.PresetTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
+import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,15 +35,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
+	private final ObjectMapper objectMapper = new ObjectMapper();
+
 	@Autowired
 	private MockMvc mockMvc;
 
 	@Autowired
 	private TagRepository tagRepository;
 
+	@Autowired
+	private PresetRepository presetRepository;
+
+	@Autowired
+	private PresetTagRepository presetTagRepository;
+
+	@Autowired
+	private UserRepository userRepository;
+
 	@BeforeEach
 	void clearTags() {
+		this.presetTagRepository.deleteAll();
+		this.presetRepository.deleteAll();
 		this.tagRepository.deleteAll();
+		this.userRepository.deleteAll();
 	}
 
 	@Test
@@ -91,5 +112,28 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 				.andExpect(jsonPath("$.details.name").value("name must not be blank"));
+	}
+
+	@Test
+	void getAllTagsWithAttachedOnlyReturnsOnlyTagsAttachedToPresets() throws Exception {
+		User owner = this.userRepository.saveAndFlush(
+				new User("tag-controller-attached-owner-" + System.nanoTime() + "@example.com", "hashed-password-value",
+						"Tag Controller Owner"));
+		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+				owner.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+		Tag ambient = this.tagRepository.saveAndFlush(new Tag("ambient"));
+		this.tagRepository.saveAndFlush(new Tag("unused"));
+		Tag showcase = this.tagRepository.saveAndFlush(new Tag("showcase"));
+
+		this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), showcase.getId()));
+		this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), ambient.getId()));
+
+		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase")));
 	}
 }

@@ -42,6 +42,11 @@ public class TagService {
 		return this.tagRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
 	}
 
+	@Transactional(readOnly = true)
+	public List<Tag> getAllTagsAttachedToPresets() {
+		return this.tagRepository.findAllAttachedToPresets();
+	}
+
 	private static String normalizeName(String name) {
 		return name.trim().toLowerCase(Locale.ROOT);
 	}

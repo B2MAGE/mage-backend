@@ -13,8 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class TagServiceTests {
@@ -63,5 +63,17 @@ class TagServiceTests {
 		assertThatThrownBy(() -> tagService.createTag("Ambient"))
 				.isInstanceOf(TagAlreadyExistsException.class)
 				.hasMessage("A tag with this name already exists.");
+	}
+
+	@Test
+	void getAllTagsAttachedToPresetsDelegatesToRepositoryQuery() {
+		TagRepository tagRepository = mock(TagRepository.class);
+		TagService tagService = new TagService(tagRepository);
+		Tag ambient = new Tag("ambient");
+
+		when(tagRepository.findAllAttachedToPresets()).thenReturn(java.util.List.of(ambient));
+
+		assertThat(tagService.getAllTagsAttachedToPresets()).containsExactly(ambient);
+		verify(tagRepository).findAllAttachedToPresets();
 	}
 }

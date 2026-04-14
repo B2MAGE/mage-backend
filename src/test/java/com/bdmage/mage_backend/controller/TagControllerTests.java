@@ -83,6 +83,20 @@ class TagControllerTests {
 	}
 
 	@Test
+	void getAllTagsWithAttachedOnlyReturnsAttachedTagResponses() throws Exception {
+		Tag ambient = new Tag("ambient");
+		ReflectionTestUtils.setField(ambient, "id", 15L);
+
+		when(this.tagService.getAllTagsAttachedToPresets()).thenReturn(List.of(ambient));
+
+		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].tagId").value(15L))
+				.andExpect(jsonPath("$[0].name").value("ambient"));
+	}
+
+	@Test
 	void createTagRejectsInvalidRequestBody() throws Exception {
 		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)

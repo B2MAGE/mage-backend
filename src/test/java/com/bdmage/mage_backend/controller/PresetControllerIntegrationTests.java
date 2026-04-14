@@ -377,6 +377,8 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	void getPresetReturnsPresetWithAllFieldsForPublicRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "public-get-preset-user-" + uniqueSuffix + "@example.com";
+		String showcaseTagName = "showcase-" + uniqueSuffix;
+		String ambientTagName = "ambient-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
@@ -390,6 +392,10 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
 				"thumbnails/preset-1.png"));
+		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag(showcaseTagName));
+		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), showcaseTag.getId()));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), ambientTag.getId()));
 
 		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.contentType(MediaType.APPLICATION_JSON))
@@ -401,7 +407,9 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
-				.andExpect(jsonPath("$.createdAt").isNotEmpty());
+				.andExpect(jsonPath("$.createdAt").isNotEmpty())
+				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
+				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName));
 	}
 
 	@Test
@@ -409,6 +417,8 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "get-preset-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
+		String showcaseTagName = "showcase-auth-" + uniqueSuffix;
+		String ambientTagName = "ambient-auth-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
@@ -429,6 +439,10 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
 				"thumbnails/preset-1.png"));
+		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag(showcaseTagName));
+		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), showcaseTag.getId()));
+		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), ambientTag.getId()));
 
 		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
 				.header("Authorization", "Bearer " + accessToken)
@@ -441,7 +455,9 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
-				.andExpect(jsonPath("$.createdAt").isNotEmpty());
+				.andExpect(jsonPath("$.createdAt").isNotEmpty())
+				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
+				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName));
 	}
 
 	@Test

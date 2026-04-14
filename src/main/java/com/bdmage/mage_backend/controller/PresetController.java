@@ -87,8 +87,9 @@ public class PresetController {
 	@GetMapping("/{id}")
 	ResponseEntity<PresetResponse> getPreset(@PathVariable Long id) {
 		Preset preset = this.presetService.getPreset(id);
+		List<String> tagNames = this.presetService.getTagNamesForPreset(id);
 
-		return ResponseEntity.ok(this.presetResponseFactory.from(preset));
+		return ResponseEntity.ok(this.presetResponseFactory.from(preset, tagNames));
 	}
 
 	@PostMapping("/{id}/thumbnail/presign")

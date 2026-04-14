@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,8 +27,11 @@ public class TagController {
 	}
 
 	@GetMapping
-	ResponseEntity<List<TagResponse>> getAllTags() {
-		List<Tag> tags = this.tagService.getAllTags();
+	ResponseEntity<List<TagResponse>> getAllTags(
+			@RequestParam(name = "attachedOnly", defaultValue = "false") boolean attachedOnly) {
+		List<Tag> tags = attachedOnly
+				? this.tagService.getAllTagsAttachedToPresets()
+				: this.tagService.getAllTags();
 
 		return ResponseEntity.ok(tags.stream()
 				.map(TagResponse::from)

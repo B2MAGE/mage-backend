@@ -14,6 +14,7 @@ import com.bdmage.mage_backend.exception.PresetTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.PresetRepository;
 import com.bdmage.mage_backend.repository.PresetTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
@@ -142,6 +143,23 @@ public class PresetService {
 	@Transactional(readOnly = true)
 	public List<Preset> getPresetsByTag(String tag) {
 		return this.presetRepository.findAllByTagName(normalizeTagName(tag));
+	}
+
+	@Transactional(readOnly = true)
+	public List<String> getTagNamesForPreset(Long presetId) {
+		List<Long> tagIds = this.presetTagRepository.findAllByPresetId(presetId).stream()
+				.map(PresetTag::getTagId)
+				.distinct()
+				.toList();
+
+		if (tagIds.isEmpty()) {
+			return List.of();
+		}
+
+		return this.tagRepository.findAllById(tagIds).stream()
+				.map(Tag::getName)
+				.sorted()
+				.toList();
 	}
 
 	@Transactional

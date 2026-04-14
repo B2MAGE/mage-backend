@@ -49,26 +49,26 @@ public class ObjectStorageThumbnailStorageService implements ThumbnailStorageSer
 	}
 
 	@Override
-	public PresignedThumbnailUpload createPresetCreationUpload(Long ownerUserId, String filename, String contentType) {
+	public PresignedThumbnailUpload createSceneCreationUpload(Long ownerUserId, String filename, String contentType) {
 		String objectKey = buildPendingObjectKey(ownerUserId, filename, contentType);
 		return createPresignedUpload(objectKey, contentType);
 	}
 
 	@Override
-	public FinalizedThumbnail finalizePresetCreationUpload(Long ownerUserId, String objectKey) {
+	public FinalizedThumbnail finalizeSceneCreationUpload(Long ownerUserId, String objectKey) {
 		String normalizedObjectKey = normalizePendingObjectKey(ownerUserId, objectKey);
 		return finalizeStoredObject(normalizedObjectKey);
 	}
 
 	@Override
-	public PresignedThumbnailUpload createPresignedUpload(Long presetId, String filename, String contentType) {
-		String objectKey = buildPresetObjectKey(presetId, filename, contentType);
+	public PresignedThumbnailUpload createPresignedUpload(Long sceneId, String filename, String contentType) {
+		String objectKey = buildSceneObjectKey(sceneId, filename, contentType);
 		return createPresignedUpload(objectKey, contentType);
 	}
 
 	@Override
-	public FinalizedThumbnail finalizeUpload(Long presetId, String objectKey) {
-		String normalizedObjectKey = normalizeObjectKey(presetId, objectKey);
+	public FinalizedThumbnail finalizeUpload(Long sceneId, String objectKey) {
+		String normalizedObjectKey = normalizeObjectKey(sceneId, objectKey);
 		return finalizeStoredObject(normalizedObjectKey);
 	}
 
@@ -134,7 +134,7 @@ public class ObjectStorageThumbnailStorageService implements ThumbnailStorageSer
 		}
 	}
 
-	private String buildPresetObjectKey(Long presetId, String filename, String contentType) {
+	private String buildSceneObjectKey(Long sceneId, String filename, String contentType) {
 		String extension = CONTENT_TYPE_EXTENSIONS.get(contentType);
 
 		if (!StringUtils.hasText(extension)) {
@@ -143,7 +143,7 @@ public class ObjectStorageThumbnailStorageService implements ThumbnailStorageSer
 
 		return this.properties.normalizedKeyPrefix()
 				+ "/"
-				+ presetId
+				+ sceneId
 				+ "/thumbnails/"
 				+ UUID.randomUUID()
 				+ "."
@@ -166,13 +166,13 @@ public class ObjectStorageThumbnailStorageService implements ThumbnailStorageSer
 				+ extension;
 	}
 
-	private String normalizeObjectKey(Long presetId, String objectKey) {
+	private String normalizeObjectKey(Long sceneId, String objectKey) {
 		if (!StringUtils.hasText(objectKey)) {
 			throw new InvalidThumbnailException(INVALID_UPLOAD_KEY_MESSAGE);
 		}
 
 		String normalizedObjectKey = objectKey.trim();
-		String expectedPrefix = this.properties.normalizedKeyPrefix() + "/" + presetId + "/thumbnails/";
+		String expectedPrefix = this.properties.normalizedKeyPrefix() + "/" + sceneId + "/thumbnails/";
 
 		if (!normalizedObjectKey.startsWith(expectedPrefix)) {
 			throw new InvalidThumbnailException(INVALID_UPLOAD_KEY_MESSAGE);

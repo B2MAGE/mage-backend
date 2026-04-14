@@ -87,7 +87,7 @@ class TagControllerTests {
 		Tag ambient = new Tag("ambient");
 		ReflectionTestUtils.setField(ambient, "id", 15L);
 
-		when(this.tagService.getAllTagsAttachedToPresets()).thenReturn(List.of(ambient));
+		when(this.tagService.getAllTagsAttachedToScenes()).thenReturn(List.of(ambient));
 
 		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
 				.andExpect(status().isOk())

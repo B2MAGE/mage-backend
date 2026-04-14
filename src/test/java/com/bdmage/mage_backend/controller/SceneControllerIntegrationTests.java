@@ -3,12 +3,12 @@ package com.bdmage.mage_backend.controller;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.bdmage.mage_backend.model.Preset;
-import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
-import com.bdmage.mage_backend.repository.PresetRepository;
-import com.bdmage.mage_backend.repository.PresetTagRepository;
+import com.bdmage.mage_backend.repository.SceneRepository;
+import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
-class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
+class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -46,10 +46,10 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	private MockMvc mockMvc;
 
 	@Autowired
-	private PresetRepository presetRepository;
+	private SceneRepository sceneRepository;
 
 	@Autowired
-	private PresetTagRepository presetTagRepository;
+	private SceneTagRepository sceneTagRepository;
 
 	@Autowired
 	private TagRepository tagRepository;
@@ -61,8 +61,8 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	private PasswordHashingService passwordHashingService;
 
 	@Test
-	void createPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/presets")
+	void createSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(post("/api/scenes")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -76,15 +76,15 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void createPresetPersistsPresetForTokenAuthenticatedUser() throws Exception {
+	void createScenePersistsSceneForTokenAuthenticatedUser() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "preset-user-" + uniqueSuffix + "@example.com";
+		String email = "scene-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
-				"Preset User"));
+				"Scene User"));
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -95,7 +95,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		MvcResult createResult = this.mockMvc.perform(post("/api/presets")
+		MvcResult createResult = this.mockMvc.perform(post("/api/scenes")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -106,32 +106,32 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
-				.andExpect(jsonPath("$.creatorDisplayName").value("Preset User"))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andReturn();
 
-		Long presetId = presetId(createResult);
-		Preset savedPreset = this.presetRepository.findById(presetId).orElseThrow();
+		Long sceneId = sceneId(createResult);
+		Scene savedScene = this.sceneRepository.findById(sceneId).orElseThrow();
 
-		assertThat(savedPreset.getOwnerUserId()).isEqualTo(savedUser.getId());
-		assertThat(savedPreset.getName()).isEqualTo("Aurora Drift");
-		assertThat(savedPreset.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("nebula");
-		assertThat(savedPreset.getThumbnailRef()).isNull();
-		assertThat(savedPreset.getCreatedAt()).isNotNull();
+		assertThat(savedScene.getOwnerUserId()).isEqualTo(savedUser.getId());
+		assertThat(savedScene.getName()).isEqualTo("Aurora Drift");
+		assertThat(savedScene.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("nebula");
+		assertThat(savedScene.getThumbnailRef()).isNull();
+		assertThat(savedScene.getCreatedAt()).isNotNull();
 	}
 
 	@Test
-	void createPresetRejectsInvalidRequestBody() throws Exception {
+	void createSceneRejectsInvalidRequestBody() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "preset-validation-" + uniqueSuffix + "@example.com";
+		String email = "scene-validation-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
 
 		this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
-				"Preset Validation User"));
+				"Scene Validation User"));
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +142,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(post("/api/presets")
+		this.mockMvc.perform(post("/api/scenes")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -157,8 +157,8 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void attachTagToPresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/presets/15/tags")
+	void attachTagToSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(post("/api/scenes/15/tags")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":7}
@@ -169,7 +169,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void attachTagToPresetPersistsAssociationForAuthenticatedUser() throws Exception {
+	void attachTagToScenePersistsAssociationForAuthenticatedUser() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "attach-tag-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -179,7 +179,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				email,
 				this.passwordHashingService.hash(password),
 				"Attach Tag User"));
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
@@ -194,23 +194,23 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":%d}
 						""".formatted(savedTag.getId())))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.sceneId").value(savedScene.getId()))
 				.andExpect(jsonPath("$.tagId").value(savedTag.getId()));
 
-		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId()))
-				.extracting(PresetTag::getTagId)
+		assertThat(this.sceneTagRepository.findAllBySceneId(savedScene.getId()))
+				.extracting(SceneTag::getTagId)
 				.containsExactly(savedTag.getId());
 	}
 
 	@Test
-	void attachTagToPresetReturnsConflictForDuplicateAssociation() throws Exception {
+	void attachTagToSceneReturnsConflictForDuplicateAssociation() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "duplicate-attach-tag-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -220,14 +220,14 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				email,
 				this.passwordHashingService.hash(password),
 				"Duplicate Attach Tag User"));
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Signal Bloom",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"}}
 						""")));
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
-		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), savedTag.getId()));
 
 		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -236,21 +236,21 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":%d}
 						""".formatted(savedTag.getId())))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.code").value("PRESET_TAG_ALREADY_EXISTS"))
-				.andExpect(jsonPath("$.message").value("This tag is already attached to the preset."));
+				.andExpect(jsonPath("$.code").value("SCENE_TAG_ALREADY_EXISTS"))
+				.andExpect(jsonPath("$.message").value("This tag is already attached to the scene."));
 
-		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId())).hasSize(1);
+		assertThat(this.sceneTagRepository.findAllBySceneId(savedScene.getId())).hasSize(1);
 	}
 
 	@Test
-	void attachTagToPresetReturnsNotFoundWhenTagDoesNotExist() throws Exception {
+	void attachTagToSceneReturnsNotFoundWhenTagDoesNotExist() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "missing-tag-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -259,7 +259,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				email,
 				this.passwordHashingService.hash(password),
 				"Missing Tag User"));
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Polar Echo",
 				this.objectMapper.readTree("""
@@ -273,7 +273,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/presets/" + savedPreset.getId() + "/tags")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -285,57 +285,57 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetsReturnsAllPresetsForPublicRequest() throws Exception {
+	void getScenesReturnsAllScenesForPublicRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "public-list-presets-user-" + uniqueSuffix + "@example.com";
+		String email = "public-list-scenes-user-" + uniqueSuffix + "@example.com";
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
-				"Public List Presets User"));
-		Preset firstPreset = this.presetRepository.saveAndFlush(new Preset(
+				"Public List Scenes User"));
+		Scene firstScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
-		Preset secondPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene secondScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Signal Bloom",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"}}
 						""")));
 
-		this.mockMvc.perform(get("/api/presets")
+		this.mockMvc.perform(get("/api/scenes")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].presetId", hasItems(
-						firstPreset.getId().intValue(),
-						secondPreset.getId().intValue())))
+				.andExpect(jsonPath("$[*].sceneId", hasItems(
+						firstScene.getId().intValue(),
+						secondScene.getId().intValue())))
 				.andExpect(jsonPath("$[*].creatorDisplayName", hasItems(
-						"Public List Presets User",
-						"Public List Presets User")))
+						"Public List Scenes User",
+						"Public List Scenes User")))
 				.andExpect(jsonPath("$[*].name", hasItems("Aurora Drift", "Signal Bloom")));
 	}
 
 	@Test
-	void getPresetsFiltersByTagForPublicRequest() throws Exception {
+	void getScenesFiltersByTagForPublicRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "filter-presets-user-" + uniqueSuffix + "@example.com";
+		String email = "filter-scenes-user-" + uniqueSuffix + "@example.com";
 		String ambientTagName = "ambient-" + uniqueSuffix;
 		String showcaseTagName = "showcase-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
-				"Filter Presets User"));
-		Preset ambientPreset = this.presetRepository.saveAndFlush(new Preset(
+				"Filter Scenes User"));
+		Scene ambientScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
-		Preset otherPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene otherScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Signal Bloom",
 				this.objectMapper.readTree("""
@@ -343,30 +343,30 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						""")));
 		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
 		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag(showcaseTagName));
-		this.presetTagRepository.saveAndFlush(new PresetTag(ambientPreset.getId(), ambientTag.getId()));
-		this.presetTagRepository.saveAndFlush(new PresetTag(otherPreset.getId(), showcaseTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(ambientScene.getId(), ambientTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(otherScene.getId(), showcaseTag.getId()));
 
-		this.mockMvc.perform(get("/api/presets")
+		this.mockMvc.perform(get("/api/scenes")
 				.param("tag", " " + ambientTagName.toUpperCase() + " ")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].presetId").value(ambientPreset.getId()))
-				.andExpect(jsonPath("$[0].creatorDisplayName").value("Filter Presets User"))
+				.andExpect(jsonPath("$[0].sceneId").value(ambientScene.getId()))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Filter Scenes User"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[1]").doesNotExist());
 	}
 
 	@Test
-	void getPresetsReturnsEmptyListWhenNoPresetsMatchTagFilter() throws Exception {
+	void getScenesReturnsEmptyListWhenNoScenesMatchTagFilter() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "empty-filter-presets-user-" + uniqueSuffix + "@example.com";
+		String email = "empty-filter-scenes-user-" + uniqueSuffix + "@example.com";
 
 		this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
-				"Empty Filter Presets User"));
+				"Empty Filter Scenes User"));
 
-		this.mockMvc.perform(get("/api/presets")
+		this.mockMvc.perform(get("/api/scenes")
 				.param("tag", "ambient")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -374,48 +374,48 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getPresetReturnsPresetWithAllFieldsForPublicRequest() throws Exception {
+	void getSceneReturnsSceneWithAllFieldsForPublicRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "public-get-preset-user-" + uniqueSuffix + "@example.com";
+		String email = "public-get-scene-user-" + uniqueSuffix + "@example.com";
 		String showcaseTagName = "showcase-" + uniqueSuffix;
 		String ambientTagName = "ambient-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
-				"Public Get Preset User"));
+				"Public Get Scene User"));
 
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
-				"thumbnails/preset-1.png"));
+				"thumbnails/scene-1.png"));
 		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag(showcaseTagName));
 		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
-		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), showcaseTag.getId()));
-		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), ambientTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), showcaseTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), ambientTag.getId()));
 
-		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.sceneId").value(savedScene.getId()))
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
-				.andExpect(jsonPath("$.creatorDisplayName").value("Public Get Preset User"))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Public Get Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
-				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
 				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName));
 	}
 
 	@Test
-	void getPresetReturnsPresetWithAllFieldsForAuthenticatedUser() throws Exception {
+	void getSceneReturnsSceneWithAllFieldsForAuthenticatedUser() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "get-preset-user-" + uniqueSuffix + "@example.com";
+		String email = "get-scene-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
 		String showcaseTagName = "showcase-auth-" + uniqueSuffix;
 		String ambientTagName = "ambient-auth-" + uniqueSuffix;
@@ -423,7 +423,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
-				"Get Preset User"));
+				"Get Scene User"));
 
 		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -432,46 +432,46 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
-				"thumbnails/preset-1.png"));
+				"thumbnails/scene-1.png"));
 		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag(showcaseTagName));
 		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
-		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), showcaseTag.getId()));
-		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), ambientTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), showcaseTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), ambientTag.getId()));
 
-		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.presetId").value(savedPreset.getId()))
+				.andExpect(jsonPath("$.sceneId").value(savedScene.getId()))
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
-				.andExpect(jsonPath("$.creatorDisplayName").value("Get Preset User"))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Get Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
-				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/preset-1.png"))
+				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
 				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName));
 	}
 
 	@Test
-	void getPresetReturnsNotFoundForPublicRequestWhenPresetDoesNotExist() throws Exception {
-		this.mockMvc.perform(get("/api/presets/99999")
+	void getSceneReturnsNotFoundForPublicRequestWhenSceneDoesNotExist() throws Exception {
+		this.mockMvc.perform(get("/api/scenes/99999")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
-				.andExpect(jsonPath("$.message").value("Preset not found."));
+				.andExpect(jsonPath("$.code").value("SCENE_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Scene not found."));
 	}
 
 	@Test
-	void deletePresetReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(delete("/api/presets/15")
+	void deleteSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
+		this.mockMvc.perform(delete("/api/scenes/15")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
@@ -479,24 +479,24 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void deletePresetDeletesOwnedPresetAndRemovesItFromSubsequentReads() throws Exception {
+	void deleteSceneDeletesOwnedSceneAndRemovesItFromSubsequentReads() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "delete-preset-owner-" + uniqueSuffix + "@example.com";
+		String email = "delete-scene-owner-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
 		String tagName = "delete-tag-" + uniqueSuffix;
 
 		User savedUser = this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
-				"Delete Preset Owner"));
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+				"Delete Scene Owner"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
 		Tag savedTag = this.tagRepository.saveAndFlush(new Tag(tagName));
-		this.presetTagRepository.saveAndFlush(new PresetTag(savedPreset.getId(), savedTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), savedTag.getId()));
 
 		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -505,22 +505,22 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(delete("/api/presets/" + savedPreset.getId())
+		this.mockMvc.perform(delete("/api/scenes/" + savedScene.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNoContent());
 
-		assertThat(this.presetRepository.findById(savedPreset.getId())).isEmpty();
-		assertThat(this.presetTagRepository.findAllByPresetId(savedPreset.getId())).isEmpty();
+		assertThat(this.sceneRepository.findById(savedScene.getId())).isEmpty();
+		assertThat(this.sceneTagRepository.findAllBySceneId(savedScene.getId())).isEmpty();
 
-		this.mockMvc.perform(get("/api/presets/" + savedPreset.getId())
+		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
-				.andExpect(jsonPath("$.message").value("Preset not found."));
+				.andExpect(jsonPath("$.code").value("SCENE_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Scene not found."));
 
-		this.mockMvc.perform(get("/api/users/" + savedUser.getId() + "/presets")
+		this.mockMvc.perform(get("/api/users/" + savedUser.getId() + "/scenes")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
@@ -528,7 +528,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void deletePresetReturnsForbiddenWhenAuthenticatedUserDoesNotOwnPreset() throws Exception {
+	void deleteSceneReturnsForbiddenWhenAuthenticatedUserDoesNotOwnScene() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String ownerEmail = "delete-owner-" + uniqueSuffix + "@example.com";
 		String ownerPassword = "owner-password-" + uniqueSuffix;
@@ -543,7 +543,7 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				otherEmail,
 				this.passwordHashingService.hash(otherPassword),
 				"Delete Other User"));
-		Preset savedPreset = this.presetRepository.saveAndFlush(new Preset(
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Signal Bloom",
 				this.objectMapper.readTree("""
@@ -557,26 +557,26 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(delete("/api/presets/" + savedPreset.getId())
+		this.mockMvc.perform(delete("/api/scenes/" + savedScene.getId())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isForbidden())
-				.andExpect(jsonPath("$.code").value("PRESET_FORBIDDEN"))
-				.andExpect(jsonPath("$.message").value("You do not have permission to delete this preset."));
+				.andExpect(jsonPath("$.code").value("SCENE_FORBIDDEN"))
+				.andExpect(jsonPath("$.message").value("You do not have permission to delete this scene."));
 
-		assertThat(this.presetRepository.findById(savedPreset.getId())).isPresent();
+		assertThat(this.sceneRepository.findById(savedScene.getId())).isPresent();
 	}
 
 	@Test
-	void deletePresetReturnsNotFoundForNonexistentPreset() throws Exception {
+	void deleteSceneReturnsNotFoundForNonexistentScene() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		String email = "delete-missing-preset-" + uniqueSuffix + "@example.com";
+		String email = "delete-missing-scene-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
 
 		this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
-				"Delete Missing Preset User"));
+				"Delete Missing Scene User"));
 
 		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -585,12 +585,12 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(delete("/api/presets/99999")
+		this.mockMvc.perform(delete("/api/scenes/99999")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("PRESET_NOT_FOUND"))
-				.andExpect(jsonPath("$.message").value("Preset not found."));
+				.andExpect(jsonPath("$.code").value("SCENE_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Scene not found."));
 	}
 
 	private static String loginRequestBody(String email, String password) {
@@ -604,8 +604,8 @@ class PresetControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return matcher.group(1);
 	}
 
-	private static Long presetId(MvcResult result) throws Exception {
-		Matcher matcher = Pattern.compile("\"presetId\":(\\d+)")
+	private static Long sceneId(MvcResult result) throws Exception {
+		Matcher matcher = Pattern.compile("\"sceneId\":(\\d+)")
 				.matcher(result.getResponse().getContentAsString());
 		assertThat(matcher.find()).isTrue();
 		return Long.valueOf(matcher.group(1));

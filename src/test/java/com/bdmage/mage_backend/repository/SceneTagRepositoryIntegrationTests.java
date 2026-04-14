@@ -2,8 +2,8 @@ package com.bdmage.mage_backend.repository;
 
 import java.util.List;
 
-import com.bdmage.mage_backend.model.Preset;
-import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
@@ -25,15 +25,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @Testcontainers
-class PresetTagRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
+class SceneTagRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Autowired
-	private PresetTagRepository presetTagRepository;
+	private SceneTagRepository sceneTagRepository;
 
 	@Autowired
-	private PresetRepository presetRepository;
+	private SceneRepository sceneRepository;
 
 	@Autowired
 	private TagRepository tagRepository;
@@ -45,10 +45,10 @@ class PresetTagRepositoryIntegrationTests extends PostgresIntegrationTestSupport
 	private EntityManager entityManager;
 
 	@Test
-	void savePersistsPresetTagPairAndSupportsPresetAndTagLookups() throws Exception {
+	void savePersistsSceneTagPairAndSupportsSceneAndTagLookups() throws Exception {
 		User owner = this.userRepository.saveAndFlush(
-				new User("preset-tag-owner-" + System.nanoTime() + "@example.com", "hashed-password-value", "Preset Tag Owner"));
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+				new User("scene-tag-owner-" + System.nanoTime() + "@example.com", "hashed-password-value", "Scene Tag Owner"));
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
@@ -57,31 +57,31 @@ class PresetTagRepositoryIntegrationTests extends PostgresIntegrationTestSupport
 		Tag firstTag = this.tagRepository.saveAndFlush(new Tag("Ambient"));
 		Tag secondTag = this.tagRepository.saveAndFlush(new Tag("Cinematic"));
 
-		PresetTag firstPresetTag = this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), firstTag.getId()));
-		this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), secondTag.getId()));
+		SceneTag firstSceneTag = this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), firstTag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), secondTag.getId()));
 
 		this.entityManager.clear();
 
-		List<PresetTag> presetTags = this.presetTagRepository.findAllByPresetId(preset.getId());
-		List<PresetTag> ambientTagLinks = this.presetTagRepository.findAllByTagId(firstTag.getId());
+		List<SceneTag> sceneTags = this.sceneTagRepository.findAllBySceneId(scene.getId());
+		List<SceneTag> ambientTagLinks = this.sceneTagRepository.findAllByTagId(firstTag.getId());
 
-		assertThat(firstPresetTag.getPresetId()).isEqualTo(preset.getId());
-		assertThat(firstPresetTag.getTagId()).isEqualTo(firstTag.getId());
-		assertThat(this.presetTagRepository.existsByPresetIdAndTagId(preset.getId(), firstTag.getId())).isTrue();
-		assertThat(presetTags)
-				.extracting(PresetTag::getTagId)
+		assertThat(firstSceneTag.getSceneId()).isEqualTo(scene.getId());
+		assertThat(firstSceneTag.getTagId()).isEqualTo(firstTag.getId());
+		assertThat(this.sceneTagRepository.existsBySceneIdAndTagId(scene.getId(), firstTag.getId())).isTrue();
+		assertThat(sceneTags)
+				.extracting(SceneTag::getTagId)
 				.containsExactlyInAnyOrder(firstTag.getId(), secondTag.getId());
 		assertThat(ambientTagLinks)
-				.extracting(PresetTag::getPresetId)
-				.containsExactly(preset.getId());
+				.extracting(SceneTag::getSceneId)
+				.containsExactly(scene.getId());
 	}
 
 	@Test
-	void rejectsDuplicatePresetTagPairs() throws Exception {
+	void rejectsDuplicateSceneTagPairs() throws Exception {
 		User owner = this.userRepository.saveAndFlush(
-				new User("preset-tag-duplicate-owner-" + System.nanoTime() + "@example.com", "hashed-password-value",
-						"Preset Tag Duplicate Owner"));
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+				new User("scene-tag-duplicate-owner-" + System.nanoTime() + "@example.com", "hashed-password-value",
+						"Scene Tag Duplicate Owner"));
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Glass Orbit",
 				this.objectMapper.readTree("""
@@ -89,11 +89,11 @@ class PresetTagRepositoryIntegrationTests extends PostgresIntegrationTestSupport
 						""")));
 		Tag tag = this.tagRepository.saveAndFlush(new Tag("showcase"));
 
-		this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), tag.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), tag.getId()));
 		this.entityManager.clear();
 
 		assertThatThrownBy(() -> {
-			this.entityManager.persist(new PresetTag(preset.getId(), tag.getId()));
+			this.entityManager.persist(new SceneTag(scene.getId(), tag.getId()));
 			this.entityManager.flush();
 		}).isInstanceOf(PersistenceException.class);
 	}

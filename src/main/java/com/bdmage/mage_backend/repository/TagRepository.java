@@ -15,10 +15,10 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
             FROM Tag tag
             WHERE EXISTS (
                 SELECT 1
-                FROM PresetTag presetTag
-                WHERE presetTag.tagId = tag.id
+                FROM SceneTag sceneTag
+                WHERE sceneTag.tagId = tag.id
             )
             ORDER BY tag.name ASC
             """)
-    java.util.List<Tag> findAllAttachedToPresets();
+    java.util.List<Tag> findAllAttachedToScenes();
 }

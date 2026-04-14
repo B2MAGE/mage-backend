@@ -3,24 +3,24 @@ package com.bdmage.mage_backend.model;
 import java.io.Serializable;
 import java.util.Objects;
 
-public class PresetTagId implements Serializable {
+public class SceneTagId implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private Long presetId;
+	private Long sceneId;
 
 	private Long tagId;
 
-	public PresetTagId() {
+	public SceneTagId() {
 	}
 
-	public PresetTagId(Long presetId, Long tagId) {
-		this.presetId = presetId;
+	public SceneTagId(Long sceneId, Long tagId) {
+		this.sceneId = sceneId;
 		this.tagId = tagId;
 	}
 
-	public Long getPresetId() {
-		return this.presetId;
+	public Long getSceneId() {
+		return this.sceneId;
 	}
 
 	public Long getTagId() {
@@ -32,15 +32,15 @@ public class PresetTagId implements Serializable {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof PresetTagId that)) {
+		if (!(other instanceof SceneTagId that)) {
 			return false;
 		}
-		return Objects.equals(this.presetId, that.presetId)
+		return Objects.equals(this.sceneId, that.sceneId)
 				&& Objects.equals(this.tagId, that.tagId);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.presetId, this.tagId);
+		return Objects.hash(this.sceneId, this.tagId);
 	}
 }

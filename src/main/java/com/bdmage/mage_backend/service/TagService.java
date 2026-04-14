@@ -43,8 +43,8 @@ public class TagService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Tag> getAllTagsAttachedToPresets() {
-		return this.tagRepository.findAllAttachedToPresets();
+	public List<Tag> getAllTagsAttachedToScenes() {
+		return this.tagRepository.findAllAttachedToScenes();
 	}
 
 	private static String normalizeName(String name) {

@@ -5,11 +5,11 @@ import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
-import com.bdmage.mage_backend.model.Preset;
+import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
-import com.bdmage.mage_backend.service.PresetService;
-import com.bdmage.mage_backend.service.PresetResponseFactory;
+import com.bdmage.mage_backend.service.SceneService;
+import com.bdmage.mage_backend.service.SceneResponseFactory;
 import com.bdmage.mage_backend.service.UserProfileService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,19 +28,19 @@ class UserControllerTests {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
-	private PresetService presetService;
+	private SceneService sceneService;
 	private UserProfileService userProfileService;
 	private UserRepository userRepository;
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
-		this.presetService = mock(PresetService.class);
+		this.sceneService = mock(SceneService.class);
 		this.userProfileService = mock(UserProfileService.class);
 		this.userRepository = mock(UserRepository.class);
-		PresetResponseFactory presetResponseFactory = new PresetResponseFactory(this.userRepository);
+		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(this.userRepository);
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(new UserController(this.presetService, this.userProfileService, presetResponseFactory))
+				.standaloneSetup(new UserController(this.sceneService, this.userProfileService, sceneResponseFactory))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.build();
 	}
@@ -78,35 +78,35 @@ class UserControllerTests {
 	}
 
 	@Test
-	void presetsReturnsRequestedUsersPresets() throws Exception {
-		Preset firstPreset = preset(15L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:30:00Z"));
-		Preset secondPreset = preset(16L, 77L, "Signal Bloom", Instant.parse("2026-03-26T16:45:00Z"));
+	void scenesReturnsRequestedUsersScenes() throws Exception {
+		Scene firstScene = scene(15L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:30:00Z"));
+		Scene secondScene = scene(16L, 77L, "Signal Bloom", Instant.parse("2026-03-26T16:45:00Z"));
 
-		when(this.presetService.getPresetsForUser(51L, 77L))
-				.thenReturn(List.of(firstPreset, secondPreset));
+		when(this.sceneService.getScenesForUser(51L, 77L))
+				.thenReturn(List.of(firstScene, secondScene));
 		when(this.userRepository.findAllById(java.util.Set.of(77L)))
-				.thenReturn(List.of(user(77L, "Preset Owner")));
+				.thenReturn(List.of(user(77L, "Scene Owner")));
 
-		this.mockMvc.perform(get("/api/users/77/presets")
+		this.mockMvc.perform(get("/api/users/77/scenes")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].presetId").value(15L))
+				.andExpect(jsonPath("$[0].sceneId").value(15L))
 				.andExpect(jsonPath("$[0].ownerUserId").value(77L))
-				.andExpect(jsonPath("$[0].creatorDisplayName").value("Preset Owner"))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").value("2026-03-26T15:30:00Z"))
-				.andExpect(jsonPath("$[1].presetId").value(16L))
-				.andExpect(jsonPath("$[1].creatorDisplayName").value("Preset Owner"))
+				.andExpect(jsonPath("$[1].sceneId").value(16L))
+				.andExpect(jsonPath("$[1].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
 	}
 
 	@Test
-	void presetsReturnsEmptyListWhenRequestedUserHasNoPresets() throws Exception {
-		when(this.presetService.getPresetsForUser(51L, 77L))
+	void scenesReturnsEmptyListWhenRequestedUserHasNoScenes() throws Exception {
+		when(this.sceneService.getScenesForUser(51L, 77L))
 				.thenReturn(List.of());
 
-		this.mockMvc.perform(get("/api/users/77/presets")
+		this.mockMvc.perform(get("/api/users/77/scenes")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray())
@@ -114,26 +114,26 @@ class UserControllerTests {
 	}
 
 	@Test
-	void presetsReturnsUnauthorizedWhenNoAuthenticatedRequestIdentityExists() throws Exception {
-		when(this.presetService.getPresetsForUser(null, 77L))
+	void scenesReturnsUnauthorizedWhenNoAuthenticatedRequestIdentityExists() throws Exception {
+		when(this.sceneService.getScenesForUser(null, 77L))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
-		this.mockMvc.perform(get("/api/users/77/presets"))
+		this.mockMvc.perform(get("/api/users/77/scenes"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
 	}
 
-	private Preset preset(Long presetId, Long ownerUserId, String name, Instant createdAt) throws Exception {
-		Preset preset = new Preset(
+	private Scene scene(Long sceneId, Long ownerUserId, String name, Instant createdAt) throws Exception {
+		Scene scene = new Scene(
 				ownerUserId,
 				name,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
-		ReflectionTestUtils.setField(preset, "id", presetId);
-		ReflectionTestUtils.setField(preset, "createdAt", createdAt);
-		return preset;
+		ReflectionTestUtils.setField(scene, "id", sceneId);
+		ReflectionTestUtils.setField(scene, "createdAt", createdAt);
+		return scene;
 	}
 
 	private User user(Long userId, String displayName) {

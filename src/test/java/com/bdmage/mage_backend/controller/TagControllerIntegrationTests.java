@@ -1,11 +1,11 @@
 package com.bdmage.mage_backend.controller;
 
-import com.bdmage.mage_backend.model.Preset;
-import com.bdmage.mage_backend.model.PresetTag;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
-import com.bdmage.mage_backend.repository.PresetRepository;
-import com.bdmage.mage_backend.repository.PresetTagRepository;
+import com.bdmage.mage_backend.repository.SceneRepository;
+import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
@@ -44,18 +44,18 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	private TagRepository tagRepository;
 
 	@Autowired
-	private PresetRepository presetRepository;
+	private SceneRepository sceneRepository;
 
 	@Autowired
-	private PresetTagRepository presetTagRepository;
+	private SceneTagRepository sceneTagRepository;
 
 	@Autowired
 	private UserRepository userRepository;
 
 	@BeforeEach
 	void clearTags() {
-		this.presetTagRepository.deleteAll();
-		this.presetRepository.deleteAll();
+		this.sceneTagRepository.deleteAll();
+		this.sceneRepository.deleteAll();
 		this.tagRepository.deleteAll();
 		this.userRepository.deleteAll();
 	}
@@ -115,11 +115,11 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void getAllTagsWithAttachedOnlyReturnsOnlyTagsAttachedToPresets() throws Exception {
+	void getAllTagsWithAttachedOnlyReturnsOnlyTagsAttachedToScenes() throws Exception {
 		User owner = this.userRepository.saveAndFlush(
 				new User("tag-controller-attached-owner-" + System.nanoTime() + "@example.com", "hashed-password-value",
 						"Tag Controller Owner"));
-		Preset preset = this.presetRepository.saveAndFlush(new Preset(
+		Scene scene = this.sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Aurora Drift",
 				this.objectMapper.readTree("""
@@ -129,8 +129,8 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.tagRepository.saveAndFlush(new Tag("unused"));
 		Tag showcase = this.tagRepository.saveAndFlush(new Tag("showcase"));
 
-		this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), showcase.getId()));
-		this.presetTagRepository.saveAndFlush(new PresetTag(preset.getId(), ambient.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), showcase.getId()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), ambient.getId()));
 
 		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
 				.andExpect(status().isOk())

@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: mage-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  minio:
+    image: minio/minio:latest
+    container_name: mage-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MAGE_THUMBNAIL_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MAGE_THUMBNAIL_MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: mage-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          sleep 2;
+        done &&
+        mc mb --ignore-existing local/"$$MAGE_THUMBNAIL_BUCKET" &&
+        mc anonymous set download local/"$$MAGE_THUMBNAIL_BUCKET"
+    environment:
+      MINIO_ROOT_USER: ${MAGE_THUMBNAIL_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MAGE_THUMBNAIL_MINIO_ROOT_PASSWORD}
+      MAGE_THUMBNAIL_BUCKET: ${MAGE_THUMBNAIL_MINIO_BUCKET:-mage-thumbnails}
+
+  backend:
+    build: .
+    container_name: mage-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_APPLICATION_NAME: ${SPRING_APPLICATION_NAME:-mage-backend}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-validate}
+      MAGE_AUTH_GOOGLE_CLIENT_IDS: ${MAGE_AUTH_GOOGLE_CLIENT_IDS}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      MAGE_THUMBNAIL_PROVIDER: minio
+      MAGE_THUMBNAIL_REGION: ${MAGE_THUMBNAIL_MINIO_REGION:-us-east-1}
+      MAGE_THUMBNAIL_BUCKET: ${MAGE_THUMBNAIL_MINIO_BUCKET:-mage-thumbnails}
+      MAGE_THUMBNAIL_KEY_PREFIX: ${MAGE_THUMBNAIL_KEY_PREFIX:-presets}
+      MAGE_THUMBNAIL_ENDPOINT: ${MAGE_THUMBNAIL_MINIO_ENDPOINT:-http://minio:9000}
+      MAGE_THUMBNAIL_PRESIGN_ENDPOINT: ${MAGE_THUMBNAIL_MINIO_PRESIGN_ENDPOINT}
+      MAGE_THUMBNAIL_ACCESS_KEY_ID: ${MAGE_THUMBNAIL_MINIO_ACCESS_KEY_ID}
+      MAGE_THUMBNAIL_SECRET_ACCESS_KEY: ${MAGE_THUMBNAIL_MINIO_SECRET_ACCESS_KEY}
+      MAGE_THUMBNAIL_PATH_STYLE_ACCESS: true
+      MAGE_THUMBNAIL_PUBLIC_BASE_URL: ${MAGE_THUMBNAIL_MINIO_PUBLIC_BASE_URL}
+      MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES: ${MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES:-image/jpeg,image/png,image/webp,image/gif}
+      MAGE_THUMBNAIL_MAX_BYTES: ${MAGE_THUMBNAIL_MAX_BYTES:-5242880}
+      MAGE_THUMBNAIL_PRESIGN_DURATION: ${MAGE_THUMBNAIL_PRESIGN_DURATION:-PT10M}
+
+volumes:
+  postgres_data:
+  minio_data:

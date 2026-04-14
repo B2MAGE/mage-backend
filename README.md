@@ -9,7 +9,7 @@ This repository currently provides the backend foundations for:
 - bearer-token authentication for protected routes
 - user profile lookup
 - preset creation, retrieval, deletion, and user-scoped listing
-- tag creation and preset tagging
+- tag creation, retrieval, and preset tagging
 
 ## Stack
 
@@ -149,10 +149,11 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/google` | Public | Link Google auth to an existing local account |
 | `POST /api/auth/link/local` | Public | Add local auth to an existing Google-backed account |
 | `GET /api/users/me` | Bearer token | Return the current user profile |
+| `GET /api/tags` | Public | List available tags |
 | `POST /api/tags` | Public | Create a tag |
 | `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user and optionally finalize a staged thumbnail |
 | `POST /api/presets/thumbnail/presign` | Bearer token | Presign a staged thumbnail upload before preset creation |
-| `GET /api/presets` | Bearer token | List presets, optionally filtered by tag |
+| `GET /api/presets` | Public | List presets, optionally filtered by tag |
 | `POST /api/presets/{id}/tags` | Bearer token | Attach a tag to a preset |
 | `POST /api/presets/{id}/thumbnail/presign` | Bearer token | Owner-only presigned thumbnail upload preparation |
 | `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement |

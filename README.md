@@ -3,6 +3,7 @@
 Spring Boot service for the MAGE platform.
 
 This repository currently provides the backend foundations for:
+
 - health and readiness checks
 - local account registration and login
 - Google authentication and explicit provider linking
@@ -52,10 +53,12 @@ That override reads its own `MAGE_THUMBNAIL_MINIO_*` values from `.env`, so you 
 
 `docker-compose.yml` stays deployment-friendly and does not publish host ports.
 `docker-compose.local.yml` adds the local host bindings for:
+
 - backend: `http://localhost:8080`
 - postgres: `localhost:5432`
 
 Once the stack is up:
+
 - app: `http://localhost:8080`
 - liveness: `GET /health`
 - readiness: `GET /ready`
@@ -82,18 +85,19 @@ The backend reads configuration from environment variables. The local Docker set
 
 Required values for local development:
 
-| Variable | Purpose |
-| --- | --- |
-| `SERVER_PORT` | Backend HTTP port. Defaults to `8080`. |
-| `MAGE_AUTH_GOOGLE_CLIENT_IDS` | Allowed Google OAuth client IDs for server-side ID token verification. |
-| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL. Docker Compose expects `jdbc:postgresql://postgres:5432/mage`. |
-| `SPRING_DATASOURCE_USERNAME` | Database username. |
-| `SPRING_DATASOURCE_PASSWORD` | Database password. |
-| `MAGE_THUMBNAIL_PROVIDER` | Thumbnail storage provider. Supported values are `aws-s3` and `minio`. |
-| `MAGE_THUMBNAIL_BUCKET` | Object-storage bucket used for preset thumbnails. |
-| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Public base URL used in persisted `thumbnailRef` values. |
+| Variable                         | Purpose                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| `SERVER_PORT`                    | Backend HTTP port. Defaults to `8080`.                                              |
+| `MAGE_AUTH_GOOGLE_CLIENT_IDS`    | Allowed Google OAuth client IDs for server-side ID token verification.              |
+| `SPRING_DATASOURCE_URL`          | PostgreSQL JDBC URL. Docker Compose expects `jdbc:postgresql://postgres:5432/mage`. |
+| `SPRING_DATASOURCE_USERNAME`     | Database username.                                                                  |
+| `SPRING_DATASOURCE_PASSWORD`     | Database password.                                                                  |
+| `MAGE_THUMBNAIL_PROVIDER`        | Thumbnail storage provider. Supported values are `aws-s3` and `minio`.              |
+| `MAGE_THUMBNAIL_BUCKET`          | Object-storage bucket used for preset thumbnails.                                   |
+| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Public base URL used in persisted `thumbnailRef` values.                            |
 
 Other useful defaults in `.env.example`:
+
 - `MAGE_THUMBNAIL_REGION`
 - `SPRING_APPLICATION_NAME`
 - `SPRING_PROFILES_ACTIVE`
@@ -110,11 +114,13 @@ Other useful defaults in `.env.example`:
 - `MAGE_THUMBNAIL_PRESIGN_DURATION`
 
 Optional for `aws-s3` local Docker development outside EC2:
+
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_SESSION_TOKEN`
 
 Optional for `minio` local/self-hosted mode:
+
 - `MAGE_THUMBNAIL_MINIO_ACCESS_KEY_ID`
 - `MAGE_THUMBNAIL_MINIO_SECRET_ACCESS_KEY`
 - `MAGE_THUMBNAIL_MINIO_ROOT_USER`
@@ -124,42 +130,33 @@ Optional for `minio` local/self-hosted mode:
 - `MAGE_THUMBNAIL_MINIO_PRESIGN_ENDPOINT`
 - `MAGE_THUMBNAIL_MINIO_PUBLIC_BASE_URL`
 
-The backend generates presigned object-storage uploads itself. In `aws-s3` mode, the Dockerized backend needs valid AWS credentials when it is not running on the EC2 host with the attached IAM role. In `minio` mode, the backend signs requests against the configured MinIO endpoint with static credentials.
-
 ## Deployment Strategy
-
-The supported production path is same-origin deployment behind a reverse proxy:
-
-- the frontend is served from the public app origin
-- `/api/*` is routed to this backend service
-- browser auth requests stay on the same HTTPS origin as the frontend
-- CORS is not part of the supported deployment path
 
 See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy contract and the required backend environment variables.
 
 ## Current API Surface
 
-| Route | Auth | Purpose |
-| --- | --- | --- |
-| `GET /health` | Public | Process liveness |
-| `GET /ready` | Public | Application and database readiness |
-| `POST /api/auth/register` | Public | Create a local account |
-| `POST /api/auth/login` | Public | Authenticate a local account |
-| `POST /api/auth/google` | Public | Authenticate with a Google ID token |
-| `POST /api/auth/link/google` | Public | Link Google auth to an existing local account |
-| `POST /api/auth/link/local` | Public | Add local auth to an existing Google-backed account |
-| `GET /api/users/me` | Bearer token | Return the current user profile |
-| `GET /api/tags` | Public | List available tags |
-| `POST /api/tags` | Public | Create a tag |
-| `POST /api/presets` | Bearer token | Create a preset owned by the authenticated user and optionally finalize a staged thumbnail |
-| `POST /api/presets/thumbnail/presign` | Bearer token | Presign a staged thumbnail upload before preset creation |
-| `GET /api/presets` | Public | List presets, optionally filtered by tag |
-| `POST /api/presets/{id}/tags` | Bearer token | Attach a tag to a preset |
-| `POST /api/presets/{id}/thumbnail/presign` | Bearer token | Owner-only presigned thumbnail upload preparation |
-| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement |
-| `GET /api/presets/{id}` | Public | Fetch a preset by id |
-| `DELETE /api/presets/{id}` | Bearer token | Delete a preset owned by the authenticated user |
-| `GET /api/users/{id}/presets` | Bearer token | List presets for a specific user |
+| Route                                       | Auth         | Purpose                                                                                    |
+| ------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------ |
+| `GET /health`                               | Public       | Process liveness                                                                           |
+| `GET /ready`                                | Public       | Application and database readiness                                                         |
+| `POST /api/auth/register`                   | Public       | Create a local account                                                                     |
+| `POST /api/auth/login`                      | Public       | Authenticate a local account                                                               |
+| `POST /api/auth/google`                     | Public       | Authenticate with a Google ID token                                                        |
+| `POST /api/auth/link/google`                | Public       | Link Google auth to an existing local account                                              |
+| `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
+| `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
+| `GET /api/tags`                             | Public       | List available tags                                                                        |
+| `POST /api/tags`                            | Public       | Create a tag                                                                               |
+| `POST /api/presets`                         | Bearer token | Create a preset owned by the authenticated user and optionally finalize a staged thumbnail |
+| `POST /api/presets/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before preset creation                                   |
+| `GET /api/presets`                          | Public       | List presets, optionally filtered by tag                                                   |
+| `POST /api/presets/{id}/tags`               | Bearer token | Attach a tag to a preset                                                                   |
+| `POST /api/presets/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                                          |
+| `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                                              |
+| `GET /api/presets/{id}`                     | Public       | Fetch a preset by id                                                                       |
+| `DELETE /api/presets/{id}`                  | Bearer token | Delete a preset owned by the authenticated user                                            |
+| `GET /api/users/{id}/presets`               | Bearer token | List presets for a specific user                                                           |
 
 ## Repository Layout
 
@@ -198,7 +195,3 @@ mage-backend/
 - [docs/operations.md](docs/operations.md): runbook, health checks, auth matrix, and troubleshooting
 - [docs/engineering-standards.md](docs/engineering-standards.md): coding, API, testing, and review expectations
 - [CONTRIBUTING.md](CONTRIBUTING.md): branch, PR, and review workflow
-
-## Current Scope
-
-The backend is still early-stage infrastructure. It already has a real authentication model, persistence layer, migrations, and tests, but it does not yet have a broader authorization framework, logout/token revocation, or token expiration.

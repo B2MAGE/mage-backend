@@ -5,6 +5,7 @@ This document describes the backend as it exists today, not an idealized future 
 ## Responsibilities
 
 The service currently owns five main areas:
+
 - health and readiness
 - authentication and account linking
 - user profile lookup
@@ -12,6 +13,7 @@ The service currently owns five main areas:
 - preset storage and tagging
 
 It also owns the infrastructure needed to support them:
+
 - PostgreSQL connectivity
 - Flyway migrations
 - bearer-token validation for protected routes
@@ -69,8 +71,6 @@ The current API is split across five controllers:
 - `TagController`
 - `PresetController`
 
-The route surface is intentionally small and resource-oriented.
-
 ## Service Layer
 
 The service layer owns the real behavior:
@@ -92,11 +92,13 @@ The controller should not contain those decisions.
 ## Authentication Model
 
 The backend supports three account states:
+
 - `LOCAL`
 - `GOOGLE`
 - `LOCAL_GOOGLE`
 
 Important rules:
+
 - local and Google accounts are not auto-linked just because emails match
 - linking requires proof of ownership for both sides
 - successful local login and Google auth issue bearer tokens
@@ -113,6 +115,7 @@ The current data model is centered around these tables:
 - `preset_tags`
 
 Those are backed by:
+
 - JPA entities in `model/`
 - Spring Data repositories in `repository/`
 - Flyway migrations in `src/main/resources/db/migration`
@@ -128,6 +131,7 @@ That keeps token verification logic out of controllers and makes the auth servic
 ## Error Handling
 
 `ApiExceptionHandler` centralizes HTTP error mapping for:
+
 - validation failures
 - authentication failures
 - account conflicts and link-required cases
@@ -136,11 +140,10 @@ That keeps token verification logic out of controllers and makes the auth servic
 - missing presets or tags
 - forbidden preset deletion
 
-The goal is predictable error responses instead of controller-specific ad hoc handling.
-
 ## Testing Shape
 
 The test suite mirrors the production layout:
+
 - controller tests
 - service tests
 - repository integration tests
@@ -151,11 +154,10 @@ Testcontainers provides PostgreSQL for integration coverage, which means the rep
 
 ## Current Boundaries and Gaps
 
-The backend is intentionally still narrow. It does not yet include:
+The backend is still narrow. It does not yet include:
+
 - broader role/permission modeling beyond the current owner-only delete rule
 - logout or token revocation
 - token expiration
 - background jobs
 - broader product-specific business domains beyond auth, presets, and tags
-
-That is acceptable as long as new features continue to extend the existing layers instead of bypassing them.

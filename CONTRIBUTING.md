@@ -32,9 +32,9 @@ Every PR should explain:
 - why it changed
 - how it was tested
 - whether it changes schema, configuration, or public API
-- any reviewer risk areas
 
 Keep PRs reviewable:
+
 - avoid unrelated cleanup in behavior-changing PRs
 - do not mix refactors and feature work unless they are tightly coupled
 - avoid file churn that does not materially help the change
@@ -70,6 +70,7 @@ Docker must be running because integration tests use Testcontainers.
 ## Review Mindset
 
 Prioritize:
+
 - correctness
 - architectural fit
 - migration and configuration risk

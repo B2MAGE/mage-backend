@@ -13,8 +13,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import java.util.List;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -62,6 +65,24 @@ class TagControllerTests {
 	}
 
 	@Test
+	void getAllTagsReturnsTagResponses() throws Exception {
+		Tag ambient = new Tag("ambient");
+		Tag chillwave = new Tag("chillwave");
+		ReflectionTestUtils.setField(ambient, "id", 15L);
+		ReflectionTestUtils.setField(chillwave, "id", 16L);
+
+		when(this.tagService.getAllTags()).thenReturn(List.of(ambient, chillwave));
+
+		this.mockMvc.perform(get("/api/tags"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].tagId").value(15L))
+				.andExpect(jsonPath("$[0].name").value("ambient"))
+				.andExpect(jsonPath("$[1].tagId").value(16L))
+				.andExpect(jsonPath("$[1].name").value("chillwave"));
+	}
+
+	@Test
 	void createTagRejectsInvalidRequestBody() throws Exception {
 		this.mockMvc.perform(post("/api/tags")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -88,4 +109,3 @@ class TagControllerTests {
 				.andExpect(jsonPath("$.message").value("A tag with this name already exists."));
 	}
 }
-

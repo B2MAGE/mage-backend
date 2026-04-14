@@ -1,13 +1,13 @@
 package com.bdmage.mage_backend.controller;
 
 import java.util.List;
-
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.dto.PresetResponse;
 import com.bdmage.mage_backend.dto.UserProfileResponse;
 import com.bdmage.mage_backend.model.Preset;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.PresetService;
+import com.bdmage.mage_backend.service.PresetResponseFactory;
 import com.bdmage.mage_backend.service.UserProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,12 +22,15 @@ public class UserController {
 
 	private final PresetService presetService;
 	private final UserProfileService userProfileService;
+	private final PresetResponseFactory presetResponseFactory;
 
 	public UserController(
 			PresetService presetService,
-			UserProfileService userProfileService) {
+			UserProfileService userProfileService,
+			PresetResponseFactory presetResponseFactory) {
 		this.presetService = presetService;
 		this.userProfileService = userProfileService;
+		this.presetResponseFactory = presetResponseFactory;
 	}
 
 	@GetMapping("/me")
@@ -49,8 +52,6 @@ public class UserController {
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId) {
 		List<Preset> presets = this.presetService.getPresetsForUser(authenticatedUserId, userId);
 
-		return ResponseEntity.ok(presets.stream()
-				.map(PresetResponse::from)
-				.toList());
+		return ResponseEntity.ok(this.presetResponseFactory.from(presets));
 	}
 }

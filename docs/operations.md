@@ -82,10 +82,11 @@ In the supported same-origin deployment model, these health endpoints are typica
 | `POST /api/auth/link/google` | Public | Requires valid local credentials plus a valid Google ID token |
 | `POST /api/auth/link/local` | Public | Requires a valid Google ID token |
 | `GET /api/users/me` | Bearer token | Current authenticated user |
+| `GET /api/tags` | Public | Returns all tags in name order |
 | `POST /api/tags` | Public | Tag creation is currently public |
 | `POST /api/presets` | Bearer token | Creates an owned preset and optionally finalizes a staged thumbnail |
 | `POST /api/presets/thumbnail/presign` | Bearer token | Presigns a staged thumbnail upload before preset creation |
-| `GET /api/presets` | Bearer token | Supports `?tag=<name>` |
+| `GET /api/presets` | Public | Supports `?tag=<name>` |
 | `POST /api/presets/{id}/tags` | Bearer token | Attaches an existing tag to an existing preset |
 | `POST /api/presets/{id}/thumbnail/presign` | Bearer token | Owner-only presigned thumbnail upload preparation |
 | `POST /api/presets/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement |
@@ -105,15 +106,17 @@ In the supported same-origin deployment model, these health endpoints are typica
 
 ### Presets and Tags
 
+- `GET /api/tags`: `200` on success
 - `POST /api/tags`: `201` on success, `409` for duplicates
 - `POST /api/presets`: `201` on success, `400` for invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
 - `POST /api/presets/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
-- `GET /api/presets`: `200` on success, `401` without a valid bearer token
+- `GET /api/presets`: `200` on success and public for anonymous discovery, optionally filtered with `?tag=<name>`
 - `POST /api/presets/{id}/tags`: `201` on success, `404` if the preset or tag is missing, `409` if the link already exists
 - `POST /api/presets/{id}/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `403` for non-owner requests, `404` if the preset is missing
 - `POST /api/presets/{id}/thumbnail/finalize`: `200` on success, `400` for invalid upload state, `403` for non-owner requests, `404` if the preset is missing
 - `GET /api/presets/{id}`: `200` on success, `404` if missing
 - `DELETE /api/presets/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
+- `GET /api/users/{id}/presets`: `200` on success, `401` without a valid bearer token
 
 ## Thumbnail Upload Contract
 

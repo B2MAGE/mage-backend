@@ -169,10 +169,12 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].ownerUserId").value(ownerUser.getId()))
+				.andExpect(jsonPath("$[0].creatorDisplayName").value("Preset Owner"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").isNotEmpty())
 				.andExpect(jsonPath("$[1].ownerUserId").value(ownerUser.getId()))
+				.andExpect(jsonPath("$[1].creatorDisplayName").value("Preset Owner"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"))
 				.andExpect(jsonPath("$[1].createdAt").isNotEmpty());
 	}
@@ -255,5 +257,4 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		}
 	}
 }
-
 

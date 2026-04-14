@@ -15,6 +15,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,6 +37,16 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	@BeforeEach
 	void clearTags() {
 		this.tagRepository.deleteAll();
+	}
+
+	@Test
+	void getAllTagsReturnsSortedTagsForPublicRequest() throws Exception {
+		this.tagRepository.saveAndFlush(new Tag("showcase"));
+		this.tagRepository.saveAndFlush(new Tag("ambient"));
+
+		this.mockMvc.perform(get("/api/tags"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase")));
 	}
 
 	@Test
@@ -81,4 +93,3 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.details.name").value("name must not be blank"));
 	}
 }
-

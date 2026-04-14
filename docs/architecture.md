@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the backend as it exists today, not an idealized future shape.
+This document describes the backend as it exists today.
 
 ## Responsibilities
 
@@ -151,13 +151,3 @@ The test suite mirrors the production layout:
 - migration integration tests
 
 Testcontainers provides PostgreSQL for integration coverage, which means the repo tests against real database behavior instead of mocks alone.
-
-## Current Boundaries and Gaps
-
-The backend is still narrow. It does not yet include:
-
-- broader role/permission modeling beyond the current owner-only delete rule
-- logout or token revocation
-- token expiration
-- background jobs
-- broader product-specific business domains beyond auth, presets, and tags

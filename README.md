@@ -79,57 +79,6 @@ macOS/Linux:
 
 The test suite uses Testcontainers, so Docker must be running.
 
-## Configuration
-
-The backend reads configuration from environment variables. The local Docker setup is driven by `.env`.
-
-Required values for local development:
-
-| Variable                         | Purpose                                                                             |
-| -------------------------------- | ----------------------------------------------------------------------------------- |
-| `SERVER_PORT`                    | Backend HTTP port. Defaults to `8080`.                                              |
-| `MAGE_AUTH_GOOGLE_CLIENT_IDS`    | Allowed Google OAuth client IDs for server-side ID token verification.              |
-| `SPRING_DATASOURCE_URL`          | PostgreSQL JDBC URL. Docker Compose expects `jdbc:postgresql://postgres:5432/mage`. |
-| `SPRING_DATASOURCE_USERNAME`     | Database username.                                                                  |
-| `SPRING_DATASOURCE_PASSWORD`     | Database password.                                                                  |
-| `MAGE_THUMBNAIL_PROVIDER`        | Thumbnail storage provider. Supported values are `aws-s3` and `minio`.              |
-| `MAGE_THUMBNAIL_BUCKET`          | Object-storage bucket used for preset thumbnails.                                   |
-| `MAGE_THUMBNAIL_PUBLIC_BASE_URL` | Public base URL used in persisted `thumbnailRef` values.                            |
-
-Other useful defaults in `.env.example`:
-
-- `MAGE_THUMBNAIL_REGION`
-- `SPRING_APPLICATION_NAME`
-- `SPRING_PROFILES_ACTIVE`
-- `SPRING_JPA_HIBERNATE_DDL_AUTO`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `MAGE_THUMBNAIL_KEY_PREFIX`
-- `MAGE_THUMBNAIL_ENDPOINT`
-- `MAGE_THUMBNAIL_PRESIGN_ENDPOINT`
-- `MAGE_THUMBNAIL_PATH_STYLE_ACCESS`
-- `MAGE_THUMBNAIL_ALLOWED_CONTENT_TYPES`
-- `MAGE_THUMBNAIL_MAX_BYTES`
-- `MAGE_THUMBNAIL_PRESIGN_DURATION`
-
-Optional for `aws-s3` local Docker development outside EC2:
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_SESSION_TOKEN`
-
-Optional for `minio` local/self-hosted mode:
-
-- `MAGE_THUMBNAIL_MINIO_ACCESS_KEY_ID`
-- `MAGE_THUMBNAIL_MINIO_SECRET_ACCESS_KEY`
-- `MAGE_THUMBNAIL_MINIO_ROOT_USER`
-- `MAGE_THUMBNAIL_MINIO_ROOT_PASSWORD`
-- `MAGE_THUMBNAIL_MINIO_BUCKET`
-- `MAGE_THUMBNAIL_MINIO_ENDPOINT`
-- `MAGE_THUMBNAIL_MINIO_PRESIGN_ENDPOINT`
-- `MAGE_THUMBNAIL_MINIO_PUBLIC_BASE_URL`
-
 ## Deployment Strategy
 
 See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy contract and the required backend environment variables.

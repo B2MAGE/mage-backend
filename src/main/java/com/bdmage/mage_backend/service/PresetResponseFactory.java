@@ -22,11 +22,11 @@ public class PresetResponseFactory {
 	}
 
 	public PresetResponse from(Preset preset) {
-		return PresetResponse.from(
-				preset,
-				this.userRepository.findById(preset.getOwnerUserId())
-						.map(User::getDisplayName)
-						.orElse(UNKNOWN_CREATOR_DISPLAY_NAME));
+		return PresetResponse.from(preset, resolveCreatorDisplayName(preset));
+	}
+
+	public PresetResponse from(Preset preset, List<String> tags) {
+		return PresetResponse.from(preset, resolveCreatorDisplayName(preset), tags);
 	}
 
 	public List<PresetResponse> from(List<Preset> presets) {
@@ -46,6 +46,12 @@ public class PresetResponseFactory {
 
 		return this.userRepository.findAllById(ownerUserIds).stream()
 				.collect(java.util.stream.Collectors.toMap(User::getId, User::getDisplayName));
+	}
+
+	private String resolveCreatorDisplayName(Preset preset) {
+		return this.userRepository.findById(preset.getOwnerUserId())
+				.map(User::getDisplayName)
+				.orElse(UNKNOWN_CREATOR_DISPLAY_NAME);
 	}
 
 }

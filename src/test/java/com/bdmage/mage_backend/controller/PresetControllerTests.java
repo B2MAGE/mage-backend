@@ -324,6 +324,7 @@ class PresetControllerTests {
 		ReflectionTestUtils.setField(preset, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
 
 		when(this.presetService.getPreset(15L)).thenReturn(preset);
+		when(this.presetService.getTagNamesForPreset(15L)).thenReturn(List.of("ambient", "showcase"));
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Preset Creator")));
 
 		this.mockMvc.perform(get("/api/presets/15"))
@@ -336,7 +337,9 @@ class PresetControllerTests {
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/presets/15/thumbnails/thumb.png"))
-				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
+				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"))
+				.andExpect(jsonPath("$.tags[0]").value("ambient"))
+				.andExpect(jsonPath("$.tags[1]").value("showcase"));
 	}
 
 	@Test

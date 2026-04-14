@@ -299,6 +299,23 @@ class PresetServiceTests {
 	}
 
 	@Test
+	void getTagNamesForPresetReturnsSortedAttachedTagNames() {
+		PresetRepository presetRepository = mock(PresetRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		PresetTagRepository presetTagRepository = mock(PresetTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		PresetService presetService = presetService(presetRepository, tagRepository, presetTagRepository, userRepository);
+
+		when(presetTagRepository.findAllByPresetId(15L))
+				.thenReturn(List.of(new PresetTag(15L, 7L), new PresetTag(15L, 6L)));
+		when(tagRepository.findAllById(List.of(7L, 6L)))
+				.thenReturn(List.of(new com.bdmage.mage_backend.model.Tag("showcase"), new com.bdmage.mage_backend.model.Tag("ambient")));
+
+		assertThat(presetService.getTagNamesForPreset(15L)).containsExactly("ambient", "showcase");
+		verifyNoInteractions(userRepository);
+	}
+
+	@Test
 	void attachTagToPresetSavesAssociationForAuthenticatedUser() {
 		PresetRepository presetRepository = mock(PresetRepository.class);
 		TagRepository tagRepository = mock(TagRepository.class);

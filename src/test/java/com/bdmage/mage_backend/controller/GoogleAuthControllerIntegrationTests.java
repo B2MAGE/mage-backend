@@ -53,6 +53,8 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 				.content(requestBody(token)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Google"))
+				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
 				.andExpect(jsonPath("$.created").value(true))
 				.andExpect(jsonPath("$.accessToken").isNotEmpty());
@@ -126,4 +128,3 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 		}
 	}
 }
-

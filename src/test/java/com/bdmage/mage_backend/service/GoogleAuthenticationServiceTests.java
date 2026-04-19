@@ -37,7 +37,7 @@ class GoogleAuthenticationServiceTests {
 				"user@example.com",
 				true,
 				"Google User");
-		User savedUser = User.google("user@example.com", "google-subject-1", "Google User");
+		User savedUser = User.google("user@example.com", "google-subject-1", "Google", "User", "Google User");
 		ReflectionTestUtils.setField(savedUser, "id", 42L);
 
 		when(googleTokenVerifier.verify("valid-token")).thenReturn(Optional.of(verifiedGoogleToken));
@@ -51,6 +51,8 @@ class GoogleAuthenticationServiceTests {
 		assertThat(result.created()).isTrue();
 		assertThat(result.user().getId()).isEqualTo(42L);
 		assertThat(result.user().getEmail()).isEqualTo("user@example.com");
+		assertThat(result.user().getFirstName()).isEqualTo("Google");
+		assertThat(result.user().getLastName()).isEqualTo("User");
 		assertThat(result.user().getAuthProvider()).isEqualTo(AuthProvider.GOOGLE);
 		verify(userRepository).saveAndFlush(any(User.class));
 	}
@@ -68,7 +70,7 @@ class GoogleAuthenticationServiceTests {
 				"user@example.com",
 				true,
 				"Google User");
-		User existingUser = User.google("user@example.com", "google-subject-2", "Google User");
+		User existingUser = User.google("user@example.com", "google-subject-2", "Google", "User", "Google User");
 		ReflectionTestUtils.setField(existingUser, "id", 84L);
 
 		when(googleTokenVerifier.verify("repeat-token")).thenReturn(Optional.of(verifiedGoogleToken));
@@ -134,6 +136,34 @@ class GoogleAuthenticationServiceTests {
 	}
 
 	@Test
+	void fallsBackToEmailWhenGoogleDisplayNameIsMissing() {
+		GoogleTokenVerifier googleTokenVerifier = mock(GoogleTokenVerifier.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		GoogleAuthenticationService googleAuthenticationService = new GoogleAuthenticationService(
+				googleTokenVerifier,
+				userRepository);
+
+		VerifiedGoogleToken verifiedGoogleToken = new VerifiedGoogleToken(
+				"google-subject-fallback",
+				"user@example.com",
+				true,
+				" ");
+		User savedUser = User.google("user@example.com", "google-subject-fallback", "user@example.com", "", "user@example.com");
+
+		when(googleTokenVerifier.verify("fallback-token")).thenReturn(Optional.of(verifiedGoogleToken));
+		when(userRepository.findByGoogleSubject("google-subject-fallback")).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
+		when(userRepository.saveAndFlush(any(User.class))).thenReturn(savedUser);
+
+		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate(
+				"fallback-token");
+
+		assertThat(result.user().getFirstName()).isEqualTo("user@example.com");
+		assertThat(result.user().getLastName()).isEmpty();
+		assertThat(result.user().getDisplayName()).isEqualTo("user@example.com");
+	}
+
+	@Test
 	void rejectsConflictsWithExistingGoogleAccountUsingSameEmail() {
 		GoogleTokenVerifier googleTokenVerifier = mock(GoogleTokenVerifier.class);
 		UserRepository userRepository = mock(UserRepository.class);
@@ -165,7 +195,7 @@ class GoogleAuthenticationServiceTests {
 				"user@example.com",
 				true,
 				"Google User");
-		User existingUser = User.google("user@example.com", "google-subject-5", "Google User");
+		User existingUser = User.google("user@example.com", "google-subject-5", "Google", "User", "Google User");
 		ReflectionTestUtils.setField(existingUser, "id", 128L);
 
 		when(googleTokenVerifier.verify("race-token")).thenReturn(Optional.of(verifiedGoogleToken));
@@ -181,4 +211,3 @@ class GoogleAuthenticationServiceTests {
 		assertThat(result.user().getId()).isEqualTo(128L);
 	}
 }
-

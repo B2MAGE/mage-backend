@@ -72,13 +72,15 @@ class AuthenticationTokensTableMigrationIntegrationTests extends PostgresIntegra
 
 	private long insertLocalUser(Connection connection, String email) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, password_hash, display_name)
-				VALUES (?, ?, ?)
+				INSERT INTO users (email, password_hash, display_name, first_name, last_name)
+				VALUES (?, ?, ?, ?, ?)
 				RETURNING id
 				""")) {
 			statement.setString(1, email);
 			statement.setString(2, "hashed-password-value");
 			statement.setString(3, "Token User");
+			statement.setString(4, "Token");
+			statement.setString(5, "User");
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();

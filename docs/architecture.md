@@ -122,6 +122,8 @@ Those are backed by:
 
 Schema changes are migration-driven. The repo expects PostgreSQL and keeps Hibernate schema mode at `validate` for normal development.
 
+Within `users`, the backend now stores `first_name`, `last_name`, and `display_name`. `display_name` remains the public attribution field, while auth and profile flows expose all three values.
+
 ## External Boundary
 
 Google sign-in is isolated behind the `GoogleTokenVerifier` interface. The production implementation is `GoogleApiClientTokenVerifier`.

@@ -44,13 +44,20 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 		String password = "password-" + uniqueSuffix;
 		String googleSubject = "google-subject-" + uniqueSuffix;
 
-		this.userRepository.saveAndFlush(new User(email, this.passwordHashingService.hash(password), "Local User"));
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Local",
+				"User",
+				"Local User"));
 
 		this.mockMvc.perform(post("/api/auth/link/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(googleLinkRequestBody(email, password, verifiedToken(googleSubject, email, "Google User"))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Local"))
+				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL_GOOGLE"))
 				.andExpect(jsonPath("$.linked").value(true));
 
@@ -66,13 +73,15 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 		String password = "password-" + uniqueSuffix;
 		String googleSubject = "google-subject-" + uniqueSuffix;
 
-		this.userRepository.saveAndFlush(User.google(email, googleSubject, "Google User"));
+		this.userRepository.saveAndFlush(User.google(email, googleSubject, "Google", "User", "Google User"));
 
 		this.mockMvc.perform(post("/api/auth/link/local")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(localLinkRequestBody(verifiedToken(googleSubject, email, "Google User"), password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Google"))
+				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL_GOOGLE"))
 				.andExpect(jsonPath("$.linked").value(true));
 
@@ -87,7 +96,12 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 		String email = "mismatch-link-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
 
-		this.userRepository.saveAndFlush(new User(email, this.passwordHashingService.hash(password), "Local User"));
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Local",
+				"User",
+				"Local User"));
 
 		this.mockMvc.perform(post("/api/auth/link/google")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -113,4 +127,3 @@ class AccountLinkingControllerIntegrationTests extends PostgresIntegrationTestSu
 		return "{\"idToken\":\"" + idToken + "\",\"password\":\"" + password + "\"}";
 	}
 }
-

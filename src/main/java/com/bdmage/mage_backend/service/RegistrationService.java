@@ -24,8 +24,10 @@ public class RegistrationService {
 	}
 
 	@Transactional
-	public User register(String email, String plainPassword, String displayName) {
+	public User register(String email, String plainPassword, String firstName, String lastName, String displayName) {
 		String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
+		String trimmedFirstName = firstName.trim();
+		String trimmedLastName = lastName.trim();
 		String trimmedDisplayName = displayName.trim();
 
 		Optional<User> existingUser = this.userRepository.findByEmail(normalisedEmail);
@@ -39,8 +41,12 @@ public class RegistrationService {
 		}
 
 		String passwordHash = this.passwordHashingService.hash(plainPassword);
-		User newUser = new User(normalisedEmail, passwordHash, trimmedDisplayName);
+		User newUser = new User(
+				normalisedEmail,
+				passwordHash,
+				trimmedFirstName,
+				trimmedLastName,
+				trimmedDisplayName);
 		return this.userRepository.saveAndFlush(newUser);
 	}
 }
-

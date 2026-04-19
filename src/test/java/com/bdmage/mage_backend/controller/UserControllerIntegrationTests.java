@@ -31,6 +31,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -82,6 +83,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
+				"Profile",
+				"Local",
 				"Profile Local User"));
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
@@ -97,6 +100,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Profile"))
+				.andExpect(jsonPath("$.lastName").value("Local"))
 				.andExpect(jsonPath("$.displayName").value("Profile Local User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
@@ -124,12 +129,54 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Profile"))
+				.andExpect(jsonPath("$.lastName").value("Google User"))
 				.andExpect(jsonPath("$.displayName").value("Profile Google User"))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist())
 				.andExpect(jsonPath("$.googleSubject").doesNotExist());
+	}
+
+	@Test
+	void updateMePersistsFirstAndLastNameForAuthenticatedUser() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "profile-update-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Original",
+				"Name",
+				"Profile Local User"));
+
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn();
+
+		String accessToken = accessToken(loginResult);
+
+		this.mockMvc.perform(put("/api/users/me")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"firstName":"Updated","lastName":"Profile","displayName":"Updated Profile"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Updated"))
+				.andExpect(jsonPath("$.lastName").value("Profile"))
+				.andExpect(jsonPath("$.displayName").value("Updated Profile"));
+
+		User savedUser = this.userRepository.findByEmail(email).orElseThrow();
+		assertThat(savedUser.getFirstName()).isEqualTo("Updated");
+		assertThat(savedUser.getLastName()).isEqualTo("Profile");
+		assertThat(savedUser.getDisplayName()).isEqualTo("Updated Profile");
 	}
 
 	@Test
@@ -257,4 +304,3 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		}
 	}
 }
-

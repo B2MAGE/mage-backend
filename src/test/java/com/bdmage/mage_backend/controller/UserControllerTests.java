@@ -18,9 +18,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,7 +49,7 @@ class UserControllerTests {
 
 	@Test
 	void meReturnsAuthenticatedUserProfileWithoutSensitiveFields() throws Exception {
-		User user = new User("profile-user@example.com", "hashed-password", "Profile User");
+		User user = new User("profile-user@example.com", "hashed-password", "Profile", "User", "Profile User");
 		ReflectionTestUtils.setField(user, "id", 51L);
 		ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-03-25T20:15:30Z"));
 
@@ -58,6 +60,8 @@ class UserControllerTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.userId").value(51L))
 				.andExpect(jsonPath("$.email").value("profile-user@example.com"))
+				.andExpect(jsonPath("$.firstName").value("Profile"))
+				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.displayName").value("Profile User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-25T20:15:30Z"))
@@ -75,6 +79,42 @@ class UserControllerTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
 				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void updateMeReturnsUpdatedProfile() throws Exception {
+		User user = new User("profile-user@example.com", "hashed-password", "Updated", "Name", "Profile User");
+		ReflectionTestUtils.setField(user, "id", 51L);
+		ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-03-25T20:15:30Z"));
+
+		when(this.userProfileService.updateAuthenticatedUserProfile(eq(51L), eq("Updated"), eq("Name"), eq("Updated Profile")))
+				.thenReturn(user);
+
+		this.mockMvc.perform(put("/api/users/me")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
+				.contentType("application/json")
+				.content("""
+						{"firstName":"Updated","lastName":"Name","displayName":"Updated Profile"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.firstName").value("Updated"))
+				.andExpect(jsonPath("$.lastName").value("Name"))
+				.andExpect(jsonPath("$.displayName").value("Profile User"));
+	}
+
+	@Test
+	void updateMeRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(put("/api/users/me")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
+				.contentType("application/json")
+				.content("""
+						{"firstName":" ","lastName":" ","displayName":" "}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.firstName").value("firstName must not be blank"))
+				.andExpect(jsonPath("$.details.lastName").value("lastName must not be blank"))
+				.andExpect(jsonPath("$.details.displayName").value("displayName must not be blank"));
 	}
 
 	@Test
@@ -137,7 +177,7 @@ class UserControllerTests {
 	}
 
 	private User user(Long userId, String displayName) {
-		User user = new User("user-" + userId + "@example.com", "hashed-password", displayName);
+		User user = new User("user-" + userId + "@example.com", "hashed-password", displayName, "", displayName);
 		ReflectionTestUtils.setField(user, "id", userId);
 		return user;
 	}

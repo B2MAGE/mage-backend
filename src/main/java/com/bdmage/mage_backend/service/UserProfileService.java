@@ -26,4 +26,15 @@ public class UserProfileService {
 		return this.userRepository.findById(authenticatedUserId)
 				.orElseThrow(() -> new AuthenticationRequiredException(AUTHENTICATION_REQUIRED_MESSAGE));
 	}
+
+	@Transactional
+	public User updateAuthenticatedUserProfile(
+			Long authenticatedUserId,
+			String firstName,
+			String lastName,
+			String displayName) {
+		User user = getAuthenticatedUser(authenticatedUserId);
+		user.updateProfileName(firstName.trim(), lastName.trim(), displayName.trim());
+		return this.userRepository.saveAndFlush(user);
+	}
 }

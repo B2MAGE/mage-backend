@@ -30,7 +30,12 @@ class RegistrationServiceTests {
 		when(passwordHashingService.hash("plain-password")).thenReturn("hashed-password");
 		when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0, User.class));
 
-		User registeredUser = registrationService.register(" User@Example.com ", "plain-password", " New User ");
+		User registeredUser = registrationService.register(
+				" User@Example.com ",
+				"plain-password",
+				" New ",
+				" User ",
+				" New User ");
 
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 		verify(userRepository).saveAndFlush(userCaptor.capture());
@@ -38,11 +43,15 @@ class RegistrationServiceTests {
 		User savedUser = userCaptor.getValue();
 		assertThat(savedUser.getEmail()).isEqualTo("user@example.com");
 		assertThat(savedUser.getPasswordHash()).isEqualTo("hashed-password");
+		assertThat(savedUser.getFirstName()).isEqualTo("New");
+		assertThat(savedUser.getLastName()).isEqualTo("User");
 		assertThat(savedUser.getDisplayName()).isEqualTo("New User");
 		assertThat(savedUser.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
 
 		assertThat(registeredUser.getEmail()).isEqualTo("user@example.com");
 		assertThat(registeredUser.getPasswordHash()).isEqualTo("hashed-password");
+		assertThat(registeredUser.getFirstName()).isEqualTo("New");
+		assertThat(registeredUser.getLastName()).isEqualTo("User");
 		assertThat(registeredUser.getDisplayName()).isEqualTo("New User");
 	}
 
@@ -55,7 +64,7 @@ class RegistrationServiceTests {
 		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(new User("user@example.com", "existing-hash", "Existing User")));
 
-		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New User"))
+		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New", "User", "New User"))
 				.isInstanceOf(EmailAlreadyRegisteredException.class)
 				.hasMessage("Local authentication is already configured for this email.");
 
@@ -72,7 +81,7 @@ class RegistrationServiceTests {
 		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(User.google("user@example.com", "google-subject-1", "Google User")));
 
-		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New User"))
+		assertThatThrownBy(() -> registrationService.register("user@example.com", "plain-password", "New", "User", "New User"))
 				.isInstanceOf(AccountLinkRequiredException.class)
 				.hasMessage(
 						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google.");
@@ -81,4 +90,3 @@ class RegistrationServiceTests {
 		verify(userRepository, never()).saveAndFlush(any(User.class));
 	}
 }
-

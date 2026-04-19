@@ -50,10 +50,13 @@ public class GoogleAuthenticationService {
 					"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 		}
 
+		ResolvedNames resolvedNames = resolveNames(verifiedGoogleToken);
 		User googleUser = User.google(
 				normalisedEmail,
 				verifiedGoogleToken.subject(),
-				resolveDisplayName(verifiedGoogleToken));
+				resolvedNames.firstName(),
+				resolvedNames.lastName(),
+				resolvedNames.displayName());
 
 		try {
 			User savedUser = this.userRepository.saveAndFlush(googleUser);
@@ -98,7 +101,26 @@ public class GoogleAuthenticationService {
 			return verifiedGoogleToken.displayName().trim();
 		}
 
-		return verifiedGoogleToken.email();
+		return verifiedGoogleToken.email().trim();
+	}
+
+	private static ResolvedNames resolveNames(VerifiedGoogleToken verifiedGoogleToken) {
+		String resolvedDisplayName = resolveDisplayName(verifiedGoogleToken);
+
+		if (!StringUtils.hasText(verifiedGoogleToken.displayName())) {
+			return new ResolvedNames(resolvedDisplayName, "", resolvedDisplayName);
+		}
+
+		String normalizedFullName = resolvedDisplayName.replaceAll("\\s+", " ");
+		int firstSpace = normalizedFullName.indexOf(' ');
+		if (firstSpace < 0) {
+			return new ResolvedNames(normalizedFullName, "", normalizedFullName);
+		}
+
+		return new ResolvedNames(
+				normalizedFullName.substring(0, firstSpace),
+				normalizedFullName.substring(firstSpace + 1),
+				normalizedFullName);
 	}
 
 	private static String normalizeEmail(String email) {
@@ -107,5 +129,7 @@ public class GoogleAuthenticationService {
 
 	public record GoogleAuthenticationResult(User user, boolean created) {
 	}
-}
 
+	private record ResolvedNames(String firstName, String lastName, String displayName) {
+	}
+}

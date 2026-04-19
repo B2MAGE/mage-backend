@@ -21,28 +21,25 @@ Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+docker compose down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
 macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+docker compose down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
 This starts:
 
 - `postgres`: PostgreSQL 16
 - `backend`: the Spring Boot service from this repo
+- `minio` plus its bootstrap helper for local thumbnail storage
 
-To run local self-hosted object storage instead of AWS S3, add:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
-```
-
-That override uses the `MAGE_THUMBNAIL_MINIO_*` values in `.env.example`, so you do not need to replace your normal S3 settings just to switch locally.
+The MinIO override uses the `MAGE_THUMBNAIL_MINIO_*` values in `.env.example`, so you do not need to replace your normal S3 settings just to switch locally.
 
 The split is intentional:
 
@@ -77,6 +74,8 @@ Useful follow-up checks:
 - `GET /api/scenes/{id}`
 
 For endpoint behavior and auth requirements, use [operations.md](operations.md).
+
+The registration payload now includes `firstName`, `lastName`, and `displayName`. Auth and profile responses return all three fields, while `displayName` stays the public attribution name.
 
 ## Running Tests
 
@@ -114,8 +113,8 @@ Migration rules:
 If local schema state gets messy, the quickest reset is:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml down -v
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
 ## Common Local Issues

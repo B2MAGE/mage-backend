@@ -59,6 +59,8 @@ public class AuthController {
 				.body(new GoogleAuthenticationResponse(
 						result.user().getId(),
 						result.user().getEmail(),
+						result.user().getFirstName(),
+						result.user().getLastName(),
 						result.user().getDisplayName(),
 						result.user().getAuthProvider().name(),
 						result.created(),
@@ -70,12 +72,16 @@ public class AuthController {
 		User user = this.registrationService.register(
 				request.email(),
 				request.password(),
+				request.firstName(),
+				request.lastName(),
 				request.displayName());
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(new RegistrationResponse(
 						user.getId(),
 						user.getEmail(),
+						user.getFirstName(),
+						user.getLastName(),
 						user.getDisplayName(),
 						user.getAuthProvider().name()));
 	}
@@ -88,6 +94,8 @@ public class AuthController {
 		return ResponseEntity.ok(new LoginResponse(
 				user.getId(),
 				user.getEmail(),
+				user.getFirstName(),
+				user.getLastName(),
 				user.getDisplayName(),
 				user.getAuthProvider().name(),
 				accessToken));
@@ -116,6 +124,8 @@ public class AuthController {
 		return new AccountLinkResponse(
 				result.user().getId(),
 				result.user().getEmail(),
+				result.user().getFirstName(),
+				result.user().getLastName(),
 				result.user().getDisplayName(),
 				result.user().getAuthProvider().name(),
 				result.linked());

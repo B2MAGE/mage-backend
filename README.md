@@ -33,17 +33,19 @@ Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+docker compose down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
 macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+docker compose down -v
+docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
-To run local self-hosted object storage instead of AWS S3, add the MinIO override:
+The local workflow currently expects the MinIO override because thumbnail storage configuration is required at startup:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
@@ -95,6 +97,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/google`                | Public       | Link Google auth to an existing local account                                              |
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
+| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first name, last name, and display name                    |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene owned by the authenticated user and optionally finalize a staged thumbnail |
@@ -106,6 +109,45 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `GET /api/scenes/{id}`                     | Public       | Fetch a scene by id                                                                       |
 | `DELETE /api/scenes/{id}`                  | Bearer token | Delete a scene owned by the authenticated user                                            |
 | `GET /api/users/{id}/scenes`               | Bearer token | List scenes for a specific user                                                           |
+
+## Auth And Profile Contract
+
+`POST /api/auth/register` now accepts:
+
+```json
+{
+  "email": "new-user@example.com",
+  "password": "secret-value",
+  "firstName": "New",
+  "lastName": "User",
+  "displayName": "New User"
+}
+```
+
+Successful auth and profile responses return the structured personal-name fields alongside the public attribution name:
+
+```json
+{
+  "userId": 42,
+  "email": "new-user@example.com",
+  "firstName": "New",
+  "lastName": "User",
+  "displayName": "New User",
+  "authProvider": "LOCAL"
+}
+```
+
+`displayName` remains the public-facing creator name used for scene attribution and other public surfaces.
+
+`PUT /api/users/me` accepts:
+
+```json
+{
+  "firstName": "Updated",
+  "lastName": "User",
+  "displayName": "Updated User"
+}
+```
 
 ## Repository Layout
 

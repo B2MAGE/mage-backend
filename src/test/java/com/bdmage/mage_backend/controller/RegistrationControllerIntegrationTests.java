@@ -40,19 +40,25 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "local-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
+		String firstName = "Local";
+		String lastName = "User";
 		String displayName = "Local User";
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(email, password, displayName)))
+				.content(requestBody(email, password, firstName, lastName, displayName)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value(firstName))
+				.andExpect(jsonPath("$.lastName").value(lastName))
 				.andExpect(jsonPath("$.displayName").value(displayName))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
 
 		User savedUser = this.userRepository.findByEmail(email).orElseThrow();
+		assertThat(savedUser.getFirstName()).isEqualTo(firstName);
+		assertThat(savedUser.getLastName()).isEqualTo(lastName);
 		assertThat(savedUser.getDisplayName()).isEqualTo(displayName);
 		assertThat(savedUser.getPasswordHash()).isNotEqualTo(password);
 		assertThat(this.passwordHashingService.matches(password, savedUser.getPasswordHash())).isTrue();
@@ -68,7 +74,7 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(email, password, "Local User")))
+				.content(requestBody(email, password, "Local", "User", "Local User")))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
 				.andExpect(jsonPath("$.message").value("Local authentication is already configured for this email."));
@@ -84,15 +90,24 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(email, password, "Local User")))
+				.content(requestBody(email, password, "Local", "User", "Local User")))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"))
 				.andExpect(jsonPath("$.message").value(
 						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google."));
 	}
 
-	private static String requestBody(String email, String password, String displayName) {
-		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\",\"displayName\":\"" + displayName + "\"}";
+	private static String requestBody(
+			String email,
+			String password,
+			String firstName,
+			String lastName,
+			String displayName) {
+		return "{\"email\":\"" + email
+				+ "\",\"password\":\"" + password
+				+ "\",\"firstName\":\"" + firstName
+				+ "\",\"lastName\":\"" + lastName
+				+ "\",\"displayName\":\"" + displayName
+				+ "\"}";
 	}
 }
-

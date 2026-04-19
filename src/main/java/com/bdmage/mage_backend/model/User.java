@@ -33,6 +33,12 @@ public class User {
 	@Column(name = "google_subject", length = 255)
 	private String googleSubject;
 
+	@Column(name = "first_name", nullable = false, length = 100)
+	private String firstName;
+
+	@Column(name = "last_name", nullable = false, length = 100)
+	private String lastName;
+
 	@Column(name = "display_name", nullable = false, length = 100)
 	private String displayName;
 
@@ -43,22 +49,49 @@ public class User {
 	}
 
 	public User(String email, String passwordHash, String displayName) {
-		this(email, AuthProvider.LOCAL, passwordHash, null, displayName);
+		this(email, passwordHash, displayName, "", displayName);
+	}
+
+	public User(String email, String passwordHash, String firstName, String lastName, String displayName) {
+		this(email, AuthProvider.LOCAL, passwordHash, null, firstName, lastName, displayName);
 	}
 
 	public static User google(String email, String googleSubject, String displayName) {
-		return new User(email, AuthProvider.GOOGLE, null, googleSubject, displayName);
+		return google(email, googleSubject, displayName, "", displayName);
+	}
+
+	public static User google(String email, String googleSubject, String firstName, String lastName, String displayName) {
+		return new User(email, AuthProvider.GOOGLE, null, googleSubject, firstName, lastName, displayName);
 	}
 
 	public static User localAndGoogle(String email, String passwordHash, String googleSubject, String displayName) {
-		return new User(email, AuthProvider.LOCAL_GOOGLE, passwordHash, googleSubject, displayName);
+		return localAndGoogle(email, passwordHash, googleSubject, displayName, "", displayName);
 	}
 
-	private User(String email, AuthProvider authProvider, String passwordHash, String googleSubject, String displayName) {
+	public static User localAndGoogle(
+			String email,
+			String passwordHash,
+			String googleSubject,
+			String firstName,
+			String lastName,
+			String displayName) {
+		return new User(email, AuthProvider.LOCAL_GOOGLE, passwordHash, googleSubject, firstName, lastName, displayName);
+	}
+
+	private User(
+			String email,
+			AuthProvider authProvider,
+			String passwordHash,
+			String googleSubject,
+			String firstName,
+			String lastName,
+			String displayName) {
 		this.email = Objects.requireNonNull(email, "email must not be null");
 		this.authProvider = Objects.requireNonNull(authProvider, "authProvider must not be null");
 		this.passwordHash = passwordHash;
 		this.googleSubject = googleSubject;
+		this.firstName = Objects.requireNonNull(firstName, "firstName must not be null");
+		this.lastName = Objects.requireNonNull(lastName, "lastName must not be null");
 		this.displayName = Objects.requireNonNull(displayName, "displayName must not be null");
 		validateProviderFields(authProvider, passwordHash, googleSubject);
 	}
@@ -110,6 +143,12 @@ public class User {
 		syncAuthProvider();
 	}
 
+	public void updateProfileName(String firstName, String lastName, String displayName) {
+		this.firstName = Objects.requireNonNull(firstName, "firstName must not be null");
+		this.lastName = Objects.requireNonNull(lastName, "lastName must not be null");
+		this.displayName = Objects.requireNonNull(displayName, "displayName must not be null");
+	}
+
 	private void syncAuthProvider() {
 		if (this.passwordHash != null && this.googleSubject != null) {
 			this.authProvider = AuthProvider.LOCAL_GOOGLE;
@@ -147,6 +186,14 @@ public class User {
 
 	public String getGoogleSubject() {
 		return this.googleSubject;
+	}
+
+	public String getFirstName() {
+		return this.firstName;
+	}
+
+	public String getLastName() {
+		return this.lastName;
 	}
 
 	public String getDisplayName() {

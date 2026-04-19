@@ -81,13 +81,15 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 
 	private long insertLocalUser(Connection connection, String email) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, password_hash, display_name)
-				VALUES (?, ?, ?)
+				INSERT INTO users (email, password_hash, display_name, first_name, last_name)
+				VALUES (?, ?, ?, ?, ?)
 				RETURNING id
 				""")) {
 			statement.setString(1, email);
 			statement.setString(2, "hashed-password-value");
 			statement.setString(3, "Scene Owner");
+			statement.setString(4, "Scene");
+			statement.setString(5, "Owner");
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();

@@ -33,12 +33,24 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		String linkedEmail = "linked-user-" + System.nanoTime() + "@example.com";
 		String googleSubject = "google-subject-" + System.nanoTime();
 		String linkedGoogleSubject = "linked-google-subject-" + System.nanoTime();
-		User savedLocalUser = userRepository.saveAndFlush(new User(localEmail, "hashed-password-value", "Local User"));
-		User savedGoogleUser = userRepository.saveAndFlush(User.google(googleEmail, googleSubject, "Google User"));
+		User savedLocalUser = userRepository.saveAndFlush(new User(
+				localEmail,
+				"hashed-password-value",
+				"Local",
+				"User",
+				"Local User"));
+		User savedGoogleUser = userRepository.saveAndFlush(User.google(
+				googleEmail,
+				googleSubject,
+				"Google",
+				"User",
+				"Google User"));
 		User savedLinkedUser = userRepository.saveAndFlush(User.localAndGoogle(
 				linkedEmail,
 				"linked-password-hash",
 				linkedGoogleSubject,
+				"Linked",
+				"User",
 				"Linked User"));
 
 		entityManager.clear();
@@ -58,6 +70,8 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(foundLocalUser.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
 		assertThat(foundLocalUser.getPasswordHash()).isEqualTo("hashed-password-value");
 		assertThat(foundLocalUser.getGoogleSubject()).isNull();
+		assertThat(foundLocalUser.getFirstName()).isEqualTo("Local");
+		assertThat(foundLocalUser.getLastName()).isEqualTo("User");
 		assertThat(foundLocalUser.getDisplayName()).isEqualTo("Local User");
 		assertThat(foundLocalUser.getCreatedAt()).isNotNull();
 
@@ -66,6 +80,8 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(foundGoogleUserByEmail.getAuthProvider()).isEqualTo(AuthProvider.GOOGLE);
 		assertThat(foundGoogleUserByEmail.getPasswordHash()).isNull();
 		assertThat(foundGoogleUserByEmail.getGoogleSubject()).isEqualTo(googleSubject);
+		assertThat(foundGoogleUserByEmail.getFirstName()).isEqualTo("Google");
+		assertThat(foundGoogleUserByEmail.getLastName()).isEqualTo("User");
 		assertThat(foundGoogleUserByEmail.getDisplayName()).isEqualTo("Google User");
 		assertThat(foundGoogleUserByEmail.getCreatedAt()).isNotNull();
 
@@ -75,6 +91,8 @@ class UserRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(foundLinkedUserByEmail.getAuthProvider()).isEqualTo(AuthProvider.LOCAL_GOOGLE);
 		assertThat(foundLinkedUserByEmail.getPasswordHash()).isEqualTo("linked-password-hash");
 		assertThat(foundLinkedUserByEmail.getGoogleSubject()).isEqualTo(linkedGoogleSubject);
+		assertThat(foundLinkedUserByEmail.getFirstName()).isEqualTo("Linked");
+		assertThat(foundLinkedUserByEmail.getLastName()).isEqualTo("User");
 		assertThat(foundLinkedUserByEmail.getDisplayName()).isEqualTo("Linked User");
 		assertThat(foundLinkedUserByEmail.getCreatedAt()).isNotNull();
 		assertThat(foundLinkedUserBySubject.getId()).isEqualTo(savedLinkedUser.getId());

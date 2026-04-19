@@ -55,4 +55,26 @@ class UserProfileServiceTests {
 
 		verify(userRepository).findById(99L);
 	}
+
+	@Test
+	void updateAuthenticatedUserProfileTrimsAndPersistsNames() {
+		UserRepository userRepository = mock(UserRepository.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository);
+		User user = new User("user@example.com", "hashed-password", "Profile", "User", "Profile User");
+
+		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+		when(userRepository.saveAndFlush(user)).thenReturn(user);
+
+		User updatedUser = userProfileService.updateAuthenticatedUserProfile(
+				42L,
+				" Updated ",
+				" Name ",
+				" Updated Profile ");
+
+		assertThat(updatedUser.getFirstName()).isEqualTo("Updated");
+		assertThat(updatedUser.getLastName()).isEqualTo("Name");
+		assertThat(updatedUser.getDisplayName()).isEqualTo("Updated Profile");
+		verify(userRepository).findById(42L);
+		verify(userRepository).saveAndFlush(user);
+	}
 }

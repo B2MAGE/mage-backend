@@ -43,6 +43,8 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.userRepository.saveAndFlush(new User(
 				email,
 				this.passwordHashingService.hash(password),
+				"Login",
+				"User",
 				"Login User"));
 
 		this.mockMvc.perform(post("/api/auth/login")
@@ -50,6 +52,8 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.content(requestBody(email, password)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.firstName").value("Login"))
+				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.displayName").value("Login User"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
@@ -97,4 +101,3 @@ class LoginControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
 	}
 }
-

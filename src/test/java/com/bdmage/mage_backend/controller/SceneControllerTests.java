@@ -536,7 +536,7 @@ class SceneControllerTests {
 	}
 
 	private User user(Long userId, String displayName) {
-		User user = new User("user-" + userId + "@example.com", "hashed-password", displayName);
+		User user = new User("user-" + userId + "@example.com", "hashed-password", displayName, "", displayName);
 		ReflectionTestUtils.setField(user, "id", userId);
 		return user;
 	}

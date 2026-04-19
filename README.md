@@ -97,7 +97,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/google`                | Public       | Link Google auth to an existing local account                                              |
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
-| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first and last name                                        |
+| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first name, last name, and display name                    |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene owned by the authenticated user and optionally finalize a staged thumbnail |
@@ -138,6 +138,16 @@ Successful auth and profile responses return the structured personal-name fields
 ```
 
 `displayName` remains the public-facing creator name used for scene attribution and other public surfaces.
+
+`PUT /api/users/me` accepts:
+
+```json
+{
+  "firstName": "Updated",
+  "lastName": "User",
+  "displayName": "Updated User"
+}
+```
 
 ## Repository Layout
 

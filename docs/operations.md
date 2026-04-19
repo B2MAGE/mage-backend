@@ -85,7 +85,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `POST /api/auth/link/google`                | Public       | Requires valid local credentials plus a valid Google ID token       |
 | `POST /api/auth/link/local`                 | Public       | Requires a valid Google ID token                                    |
 | `GET /api/users/me`                         | Bearer token | Current authenticated user                                          |
-| `PUT /api/users/me`                         | Bearer token | Updates the current user's first and last name                      |
+| `PUT /api/users/me`                         | Bearer token | Updates the current user's first name, last name, and display name |
 | `GET /api/tags`                             | Public       | Returns all tags in name order                                      |
 | `POST /api/tags`                            | Public       | Tag creation is currently public                                    |
 | `POST /api/scenes`                         | Bearer token | Creates an owned scene and optionally finalizes a staged thumbnail |
@@ -107,7 +107,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 - `POST /api/auth/google`: `201` or `200` on success, `401` for invalid token, `409` for collision or link-required cases
 - `POST /api/auth/link/google`: `200` on success, `401` for invalid local credentials, `409` for account conflicts
 - `POST /api/auth/link/local`: `200` on success, `401` for invalid Google token, `409` for incompatible account state
-- `PUT /api/users/me`: `200` on success, `400` for invalid first or last name, `401` without a valid bearer token
+- `PUT /api/users/me`: `200` on success, `400` for invalid first name, last name, or display name, `401` without a valid bearer token
 
 Registration requests must include `firstName`, `lastName`, and `displayName`. Auth and profile responses return all three fields, and `displayName` remains the public attribution field used outside authenticated profile surfaces.
 

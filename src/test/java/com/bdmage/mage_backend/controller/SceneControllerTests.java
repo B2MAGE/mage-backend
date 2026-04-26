@@ -74,6 +74,7 @@ class SceneControllerTests {
 		Scene scene = new Scene(
 				77L,
 				"Aurora Drift",
+				"A glassy nebula drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""));
@@ -83,6 +84,7 @@ class SceneControllerTests {
 		when(this.sceneService.createScene(
 				77L,
 				"Aurora Drift",
+				"A glassy nebula drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
@@ -96,6 +98,7 @@ class SceneControllerTests {
 				.content("""
 						{
 						  "name":"Aurora Drift",
+						  "description":"A glassy nebula drift.",
 						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						}
 						"""))
@@ -105,6 +108,7 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$.ownerUserId").value(77L))
 				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("A glassy nebula drift."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
@@ -127,6 +131,22 @@ class SceneControllerTests {
 	}
 
 	@Test
+	void createSceneRejectsOversizedDescription() throws Exception {
+		String requestBody = this.objectMapper.writeValueAsString(Map.of(
+				"name", "Aurora Drift",
+				"description", "a".repeat(1001),
+				"sceneData", Map.of("visualizer", Map.of("shader", "nebula"))));
+
+		this.mockMvc.perform(post("/api/scenes")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
+	}
+
+	@Test
 	void createSceneAcceptsOptionalThumbnailObjectKey() throws Exception {
 		Scene scene = new Scene(
 				77L,
@@ -141,6 +161,7 @@ class SceneControllerTests {
 		when(this.sceneService.createScene(
 				77L,
 				"Aurora Drift",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -169,6 +190,7 @@ class SceneControllerTests {
 		when(this.sceneService.createScene(
 				null,
 				"Aurora Drift",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -193,6 +215,7 @@ class SceneControllerTests {
 		Scene firstScene = new Scene(
 				77L,
 				"Aurora Drift",
+				"Soft teal bloom with low-end drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
@@ -217,6 +240,7 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$[0].sceneId").value(15L))
 				.andExpect(jsonPath("$[0].creatorDisplayName").value("Aurora Artist"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[0].description").value("Soft teal bloom with low-end drift."))
 				.andExpect(jsonPath("$[1].sceneId").value(16L))
 				.andExpect(jsonPath("$[1].creatorDisplayName").value("Signal Artist"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
@@ -227,6 +251,7 @@ class SceneControllerTests {
 		Scene scene = new Scene(
 				77L,
 				"Aurora Drift",
+				"Filtered ambient drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
@@ -242,7 +267,8 @@ class SceneControllerTests {
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].sceneId").value(15L))
 				.andExpect(jsonPath("$[0].creatorDisplayName").value("Aurora Artist"))
-				.andExpect(jsonPath("$[0].name").value("Aurora Drift"));
+				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[0].description").value("Filtered ambient drift."));
 	}
 
 	@Test
@@ -316,6 +342,7 @@ class SceneControllerTests {
 		Scene scene = new Scene(
 				77L,
 				"Aurora Drift",
+				"A detail-page description.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
@@ -334,6 +361,7 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$.ownerUserId").value(77L))
 				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("A detail-page description."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/scenes/15/thumbnails/thumb.png"))

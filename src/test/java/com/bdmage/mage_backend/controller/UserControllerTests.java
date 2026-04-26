@@ -119,7 +119,12 @@ class UserControllerTests {
 
 	@Test
 	void scenesReturnsRequestedUsersScenes() throws Exception {
-		Scene firstScene = scene(15L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:30:00Z"));
+		Scene firstScene = scene(
+				15L,
+				77L,
+				"Aurora Drift",
+				"Soft teal bloom with low-end drift.",
+				Instant.parse("2026-03-26T15:30:00Z"));
 		Scene secondScene = scene(16L, 77L, "Signal Bloom", Instant.parse("2026-03-26T16:45:00Z"));
 
 		when(this.sceneService.getScenesForUser(51L, 77L))
@@ -134,6 +139,7 @@ class UserControllerTests {
 				.andExpect(jsonPath("$[0].ownerUserId").value(77L))
 				.andExpect(jsonPath("$[0].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[0].description").value("Soft teal bloom with low-end drift."))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").value("2026-03-26T15:30:00Z"))
 				.andExpect(jsonPath("$[1].sceneId").value(16L))
@@ -165,9 +171,14 @@ class UserControllerTests {
 	}
 
 	private Scene scene(Long sceneId, Long ownerUserId, String name, Instant createdAt) throws Exception {
+		return scene(sceneId, ownerUserId, name, null, createdAt);
+	}
+
+	private Scene scene(Long sceneId, Long ownerUserId, String name, String description, Instant createdAt) throws Exception {
 		Scene scene = new Scene(
 				ownerUserId,
 				name,
+				description,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));

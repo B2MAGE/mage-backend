@@ -199,7 +199,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash("owner-password-" + uniqueSuffix),
 				"Scene Owner"));
 
-		saveScene(ownerUser.getId(), "Aurora Drift");
+		saveScene(ownerUser.getId(), "Aurora Drift", "Soft teal bloom with low-end drift.");
 		saveScene(ownerUser.getId(), "Signal Bloom");
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
@@ -218,6 +218,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$[0].ownerUserId").value(ownerUser.getId()))
 				.andExpect(jsonPath("$[0].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[0].description").value("Soft teal bloom with low-end drift."))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").isNotEmpty())
 				.andExpect(jsonPath("$[1].ownerUserId").value(ownerUser.getId()))
@@ -267,9 +268,14 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	private void saveScene(Long ownerUserId, String name) throws Exception {
+		saveScene(ownerUserId, name, null);
+	}
+
+	private void saveScene(Long ownerUserId, String name, String description) throws Exception {
 		Scene scene = new Scene(
 				ownerUserId,
 				name,
+				description,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));

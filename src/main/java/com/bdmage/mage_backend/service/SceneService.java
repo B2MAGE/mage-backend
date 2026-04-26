@@ -81,7 +81,12 @@ public class SceneService {
 	}
 
 	@Transactional
-	public Scene createScene(Long authenticatedUserId, String name, JsonNode sceneData, String thumbnailObjectKey) {
+	public Scene createScene(
+			Long authenticatedUserId,
+			String name,
+			String description,
+			JsonNode sceneData,
+			String thumbnailObjectKey) {
 		requireAuthenticatedUser(authenticatedUserId);
 
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
@@ -93,6 +98,7 @@ public class SceneService {
 		Scene newScene = new Scene(
 				authenticatedUserId,
 				name.trim(),
+				normalizeOptionalText(description),
 				sceneData,
 				finalizedThumbnail != null ? finalizedThumbnail.publicUrl() : null);
 
@@ -258,6 +264,10 @@ public class SceneService {
 
 	private static String normalizeTagName(String tag) {
 		return tag.trim().toLowerCase(Locale.ROOT);
+	}
+
+	private static String normalizeOptionalText(String value) {
+		return StringUtils.hasText(value) ? value.trim() : null;
 	}
 
 	private void requireSceneOwnership(Scene scene, Long authenticatedUserId) {

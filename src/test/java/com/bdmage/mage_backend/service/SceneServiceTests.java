@@ -50,6 +50,7 @@ class SceneServiceTests {
 		Scene savedScene = sceneService.createScene(
 				42L,
 				" Aurora Drift ",
+				" A glassy nebula drift. ",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -61,6 +62,7 @@ class SceneServiceTests {
 		Scene persistedScene = sceneCaptor.getValue();
 		assertThat(persistedScene.getOwnerUserId()).isEqualTo(42L);
 		assertThat(persistedScene.getName()).isEqualTo("Aurora Drift");
+		assertThat(persistedScene.getDescription()).isEqualTo("A glassy nebula drift.");
 		assertThat(persistedScene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
 				{"visualizer":{"shader":"nebula"}}
 				"""));
@@ -68,7 +70,33 @@ class SceneServiceTests {
 
 		assertThat(savedScene.getOwnerUserId()).isEqualTo(42L);
 		assertThat(savedScene.getName()).isEqualTo("Aurora Drift");
+		assertThat(savedScene.getDescription()).isEqualTo("A glassy nebula drift.");
 		assertThat(savedScene.getThumbnailRef()).isNull();
+	}
+
+	@Test
+	void createSceneStoresNullDescriptionWhenDescriptionIsBlank() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.saveAndFlush(any(Scene.class))).thenAnswer(invocation -> invocation.getArgument(0, Scene.class));
+
+		Scene savedScene = sceneService.createScene(
+				42L,
+				"Aurora Drift",
+				"   ",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				null);
+
+		ArgumentCaptor<Scene> sceneCaptor = ArgumentCaptor.forClass(Scene.class);
+		verify(sceneRepository).saveAndFlush(sceneCaptor.capture());
+
+		assertThat(sceneCaptor.getValue().getDescription()).isNull();
+		assertThat(savedScene.getDescription()).isNull();
 	}
 
 	@Test
@@ -80,6 +108,7 @@ class SceneServiceTests {
 		assertThatThrownBy(() -> sceneService.createScene(
 				null,
 				"Scene Name",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -108,6 +137,7 @@ class SceneServiceTests {
 		Scene savedScene = sceneService.createScene(
 				42L,
 				"Aurora Drift",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -119,6 +149,7 @@ class SceneServiceTests {
 
 		assertThat(sceneCaptor.getValue().getThumbnailRef())
 				.isEqualTo("https://cdn.example.com/scenes/pending/42/thumbnails/abc123.png");
+		assertThat(sceneCaptor.getValue().getDescription()).isNull();
 		assertThat(savedScene.getThumbnailRef())
 				.isEqualTo("https://cdn.example.com/scenes/pending/42/thumbnails/abc123.png");
 	}
@@ -140,6 +171,7 @@ class SceneServiceTests {
 		assertThatThrownBy(() -> sceneService.createScene(
 				42L,
 				"Aurora Drift",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -161,6 +193,7 @@ class SceneServiceTests {
 		assertThatThrownBy(() -> sceneService.createScene(
 				99L,
 				"Scene Name",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),

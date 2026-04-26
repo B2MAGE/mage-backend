@@ -100,7 +100,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first name, last name, and display name                    |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
-| `POST /api/scenes`                         | Bearer token | Create a scene owned by the authenticated user and optionally finalize a staged thumbnail |
+| `POST /api/scenes`                         | Bearer token | Create a scene with optional description and optionally finalize a staged thumbnail       |
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before scene creation                                   |
 | `GET /api/scenes`                          | Public       | List scenes, optionally filtered by tag                                                   |
 | `POST /api/scenes/{id}/tags`               | Bearer token | Attach a tag to a scene                                                                   |
@@ -109,6 +109,10 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `GET /api/scenes/{id}`                     | Public       | Fetch a scene by id                                                                       |
 | `DELETE /api/scenes/{id}`                  | Bearer token | Delete a scene owned by the authenticated user                                            |
 | `GET /api/users/{id}/scenes`               | Bearer token | List scenes for a specific user                                                           |
+
+## Scene Contract
+
+`POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value.
 
 ## Auth And Profile Contract
 

@@ -101,6 +101,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.content("""
 						{
 						  "name":" Aurora Drift ",
+						  "description":" Soft teal bloom with low-end drift. ",
 						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						}
 						"""))
@@ -108,6 +109,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
 				.andExpect(jsonPath("$.creatorDisplayName").value("Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("Soft teal bloom with low-end drift."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andReturn();
@@ -117,9 +119,43 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		assertThat(savedScene.getOwnerUserId()).isEqualTo(savedUser.getId());
 		assertThat(savedScene.getName()).isEqualTo("Aurora Drift");
+		assertThat(savedScene.getDescription()).isEqualTo("Soft teal bloom with low-end drift.");
 		assertThat(savedScene.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("nebula");
 		assertThat(savedScene.getThumbnailRef()).isNull();
 		assertThat(savedScene.getCreatedAt()).isNotNull();
+	}
+
+	@Test
+	void createSceneRejectsOversizedDescription() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "scene-description-validation-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Scene Description Validation User"));
+
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn();
+
+		String accessToken = accessToken(loginResult);
+		String requestBody = this.objectMapper.writeValueAsString(java.util.Map.of(
+				"name", "Aurora Drift",
+				"description", "a".repeat(1001),
+				"sceneData", java.util.Map.of("visualizer", java.util.Map.of("shader", "nebula"))));
+
+		this.mockMvc.perform(post("/api/scenes")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
 	}
 
 	@Test
@@ -296,6 +332,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene firstScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
+				"Soft teal bloom with low-end drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
@@ -315,7 +352,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$[*].creatorDisplayName", hasItems(
 						"Public List Scenes User",
 						"Public List Scenes User")))
-				.andExpect(jsonPath("$[*].name", hasItems("Aurora Drift", "Signal Bloom")));
+				.andExpect(jsonPath("$[*].name", hasItems("Aurora Drift", "Signal Bloom")))
+				.andExpect(jsonPath("$[*].description", hasItems("Soft teal bloom with low-end drift.")));
 	}
 
 	@Test
@@ -332,6 +370,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene ambientScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
+				"Filtered ambient drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
@@ -353,6 +392,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$[0].sceneId").value(ambientScene.getId()))
 				.andExpect(jsonPath("$[0].creatorDisplayName").value("Filter Scenes User"))
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
+				.andExpect(jsonPath("$[0].description").value("Filtered ambient drift."))
 				.andExpect(jsonPath("$[1]").doesNotExist());
 	}
 
@@ -388,6 +428,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
+				"A public scene detail description.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
@@ -404,6 +445,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
 				.andExpect(jsonPath("$.creatorDisplayName").value("Public Get Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("A public scene detail description."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
@@ -435,6 +477,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
 				savedUser.getId(),
 				"Aurora Drift",
+				"An authenticated scene detail description.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
@@ -452,6 +495,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
 				.andExpect(jsonPath("$.creatorDisplayName").value("Get Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("An authenticated scene detail description."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))

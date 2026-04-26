@@ -53,7 +53,8 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 					"name",
 					"scene_data",
 					"thumbnail_ref",
-					"created_at");
+					"created_at",
+					"description");
 		}
 	}
 
@@ -63,18 +64,19 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 			long ownerUserId = insertLocalUser(connection, "scene-owner-" + System.nanoTime() + "@example.com");
 			long sceneId = insertScene(connection, ownerUserId, """
 					{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
-					""", "thumbnails/scene-1.png");
+					""", "thumbnails/scene-1.png", "Soft teal bloom with low-end drift.");
 
 			SceneRow savedScene = loadSceneRow(connection, sceneId);
 
 			assertThat(savedScene.createdAt()).isNotNull();
 			assertThat(savedScene.thumbnailRef()).isEqualTo("thumbnails/scene-1.png");
+			assertThat(savedScene.description()).isEqualTo("Soft teal bloom with low-end drift.");
 			assertThat(savedScene.shader()).isEqualTo("nebula");
 			assertThat(savedScene.sceneDataType()).isEqualTo("jsonb");
 
 			assertThatThrownBy(() -> insertScene(connection, Long.MAX_VALUE, """
 					{"visualizer":{"shader":"invalid-owner"}}
-					""", null))
+					""", null, null))
 					.isInstanceOf(SQLException.class);
 		}
 	}
@@ -98,17 +100,18 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 		}
 	}
 
-	private long insertScene(Connection connection, long ownerUserId, String sceneData, String thumbnailRef)
+	private long insertScene(Connection connection, long ownerUserId, String sceneData, String thumbnailRef, String description)
 			throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO scenes (owner_user_id, name, scene_data, thumbnail_ref)
-				VALUES (?, ?, CAST(? AS jsonb), ?)
+				INSERT INTO scenes (owner_user_id, name, scene_data, thumbnail_ref, description)
+				VALUES (?, ?, CAST(? AS jsonb), ?, ?)
 				RETURNING id
 				""")) {
 			statement.setLong(1, ownerUserId);
 			statement.setString(2, "Aurora Drift");
 			statement.setString(3, sceneData);
 			statement.setString(4, thumbnailRef);
+			statement.setString(5, description);
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();
@@ -121,6 +124,7 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 		try (PreparedStatement statement = connection.prepareStatement("""
 				SELECT created_at,
 				       thumbnail_ref,
+				       description,
 				       scene_data -> 'visualizer' ->> 'shader' AS shader,
 				       pg_typeof(scene_data)::text AS scene_data_type
 				FROM scenes
@@ -133,6 +137,7 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 				return new SceneRow(
 						resultSet.getTimestamp("created_at"),
 						resultSet.getString("thumbnail_ref"),
+						resultSet.getString("description"),
 						resultSet.getString("shader"),
 						resultSet.getString("scene_data_type"));
 			}
@@ -142,6 +147,7 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 	private record SceneRow(
 			Timestamp createdAt,
 			String thumbnailRef,
+			String description,
 			String shader,
 			String sceneDataType) {
 	}

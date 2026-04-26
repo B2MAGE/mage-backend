@@ -124,6 +124,8 @@ Schema changes are migration-driven. The repo expects PostgreSQL and keeps Hiber
 
 Within `users`, the backend now stores `first_name`, `last_name`, and `display_name`. `display_name` remains the public attribution field, while auth and profile flows expose all three values.
 
+Within `scenes`, the backend stores the scene name, optional plain-text description, JSON scene data, optional thumbnail reference, owner, and creation timestamp.
+
 ## External Boundary
 
 Google sign-in is isolated behind the `GoogleTokenVerifier` interface. The production implementation is `GoogleApiClientTokenVerifier`.

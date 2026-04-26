@@ -27,6 +27,9 @@ public class Scene {
 	@Column(name = "name", nullable = false, length = 100)
 	private String name;
 
+	@Column(name = "description", length = 1000)
+	private String description;
+
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(name = "scene_data", nullable = false, columnDefinition = "jsonb")
 	private JsonNode sceneData;
@@ -41,12 +44,21 @@ public class Scene {
 	}
 
 	public Scene(Long ownerUserId, String name, JsonNode sceneData) {
-		this(ownerUserId, name, sceneData, null);
+		this(ownerUserId, name, null, sceneData, null);
 	}
 
 	public Scene(Long ownerUserId, String name, JsonNode sceneData, String thumbnailRef) {
+		this(ownerUserId, name, null, sceneData, thumbnailRef);
+	}
+
+	public Scene(Long ownerUserId, String name, String description, JsonNode sceneData) {
+		this(ownerUserId, name, description, sceneData, null);
+	}
+
+	public Scene(Long ownerUserId, String name, String description, JsonNode sceneData, String thumbnailRef) {
 		this.ownerUserId = Objects.requireNonNull(ownerUserId, "ownerUserId must not be null");
 		this.name = Objects.requireNonNull(name, "name must not be null");
+		this.description = description;
 		this.sceneData = Objects.requireNonNull(sceneData, "sceneData must not be null");
 		this.thumbnailRef = thumbnailRef;
 	}
@@ -61,6 +73,10 @@ public class Scene {
 
 	public String getName() {
 		return this.name;
+	}
+
+	public String getDescription() {
+		return this.description;
 	}
 
 	public JsonNode getSceneData() {

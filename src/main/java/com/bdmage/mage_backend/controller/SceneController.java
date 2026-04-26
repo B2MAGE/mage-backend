@@ -46,6 +46,7 @@ public class SceneController {
 		Scene scene = this.sceneService.createScene(
 				authenticatedUserId,
 				request.name(),
+				request.description(),
 				SceneService.sceneDataJson(request.sceneData()),
 				request.thumbnailObjectKey());
 

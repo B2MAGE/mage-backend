@@ -81,11 +81,6 @@ public class SceneService {
 	}
 
 	@Transactional
-	public Scene createScene(Long authenticatedUserId, String name, JsonNode sceneData, String thumbnailObjectKey) {
-		return createScene(authenticatedUserId, name, null, sceneData, thumbnailObjectKey);
-	}
-
-	@Transactional
 	public Scene createScene(
 			Long authenticatedUserId,
 			String name,

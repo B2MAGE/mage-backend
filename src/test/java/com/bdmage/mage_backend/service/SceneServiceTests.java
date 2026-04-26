@@ -108,6 +108,7 @@ class SceneServiceTests {
 		assertThatThrownBy(() -> sceneService.createScene(
 				null,
 				"Scene Name",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -136,6 +137,7 @@ class SceneServiceTests {
 		Scene savedScene = sceneService.createScene(
 				42L,
 				"Aurora Drift",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -169,6 +171,7 @@ class SceneServiceTests {
 		assertThatThrownBy(() -> sceneService.createScene(
 				42L,
 				"Aurora Drift",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
@@ -190,6 +193,7 @@ class SceneServiceTests {
 		assertThatThrownBy(() -> sceneService.createScene(
 				99L,
 				"Scene Name",
+				null,
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),

@@ -88,7 +88,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `PUT /api/users/me`                         | Bearer token | Updates the current user's first name, last name, and display name |
 | `GET /api/tags`                             | Public       | Returns all tags in name order                                      |
 | `POST /api/tags`                            | Public       | Tag creation is currently public                                    |
-| `POST /api/scenes`                         | Bearer token | Creates an owned scene and optionally finalizes a staged thumbnail |
+| `POST /api/scenes`                         | Bearer token | Creates an owned scene with optional description and optionally finalizes a staged thumbnail |
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presigns a staged thumbnail upload before scene creation           |
 | `GET /api/scenes`                          | Public       | Supports `?tag=<name>`                                              |
 | `POST /api/scenes/{id}/tags`               | Bearer token | Attaches an existing tag to an existing scene                      |
@@ -115,7 +115,7 @@ Registration requests must include `firstName`, `lastName`, and `displayName`. A
 
 - `GET /api/tags`: `200` on success
 - `POST /api/tags`: `201` on success, `409` for duplicates
-- `POST /api/scenes`: `201` on success, `400` for invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
+- `POST /api/scenes`: `201` on success, `400` for invalid scene data, oversized description, or invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
 - `POST /api/scenes/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
 - `GET /api/scenes`: `200` on success and public for anonymous discovery, optionally filtered with `?tag=<name>`
 - `POST /api/scenes/{id}/tags`: `201` on success, `404` if the scene or tag is missing, `409` if the link already exists
@@ -165,6 +165,7 @@ After the browser upload succeeds, create the scene with:
 ```json
 {
   "name": "Scene Name",
+  "description": "Plain-text scene description.",
   "sceneData": {
     "visualizer": {},
     "controls": {},
@@ -180,6 +181,7 @@ Success behavior:
 
 - returns `201 Created`
 - verifies the uploaded object exists in the configured object-storage provider before the scene is written
+- persists the optional plain-text `description` when supplied
 - persists `thumbnailRef` using the configured public thumbnail base URL
 - attempts to delete the staged uploaded object if scene persistence fails after thumbnail verification
 

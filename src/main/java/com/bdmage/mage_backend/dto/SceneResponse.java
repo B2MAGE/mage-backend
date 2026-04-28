@@ -15,6 +15,7 @@ public record SceneResponse(
 		String name,
 		Map<String, Object> sceneData,
 		String thumbnailRef,
+		String description,
 		Instant createdAt,
 		List<String> tags) {
 
@@ -34,6 +35,7 @@ public record SceneResponse(
 				scene.getName(),
 				JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),
 				scene.getThumbnailRef(),
+				scene.getDescription(),
 				scene.getCreatedAt(),
 				List.copyOf(tags));
 	}

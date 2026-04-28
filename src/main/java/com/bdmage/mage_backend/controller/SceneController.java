@@ -1,24 +1,13 @@
 package com.bdmage.mage_backend.controller;
 
 import java.util.List;
-import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
-import com.bdmage.mage_backend.dto.AttachTagToSceneRequest;
-import com.bdmage.mage_backend.dto.CreateSceneRequest;
-import com.bdmage.mage_backend.dto.CreateSceneThumbnailUploadRequest;
-import com.bdmage.mage_backend.dto.FinalizeSceneThumbnailUploadRequest;
-import com.bdmage.mage_backend.dto.SceneResponse;
-import com.bdmage.mage_backend.dto.SceneTagResponse;
-import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
-import com.bdmage.mage_backend.model.Scene;
-import com.bdmage.mage_backend.model.SceneTag;
-import com.bdmage.mage_backend.service.SceneService;
-import com.bdmage.mage_backend.service.SceneResponseFactory;
-import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -26,6 +15,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
+import com.bdmage.mage_backend.dto.AttachTagToSceneRequest;
+import com.bdmage.mage_backend.dto.CreateSceneRequest;
+import com.bdmage.mage_backend.dto.CreateSceneThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.FinalizeSceneThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
+import com.bdmage.mage_backend.dto.SceneResponse;
+import com.bdmage.mage_backend.dto.SceneTagResponse;
+import com.bdmage.mage_backend.dto.UpdateSceneDescriptionRequest;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
+import com.bdmage.mage_backend.service.SceneResponseFactory;
+import com.bdmage.mage_backend.service.SceneService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/scenes")
@@ -62,6 +67,15 @@ public class SceneController {
 				request.filename(),
 				request.contentType(),
 				request.sizeBytes())));
+	}
+
+	@PatchMapping("/{id}/description")
+	ResponseEntity<SceneResponse> updateSceneDescription(
+        	@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+        	@PathVariable Long id,
+        	@Valid @RequestBody UpdateSceneDescriptionRequest request) {
+    	Scene scene = this.sceneService.updateDescription(authenticatedUserId, id, request.description());
+    	return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
 	}
 
 	@PostMapping("/{id}/tags")

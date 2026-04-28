@@ -4,6 +4,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
@@ -21,13 +27,9 @@ import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 @Service
 public class SceneService {
@@ -213,7 +215,7 @@ public class SceneService {
 	@Transactional
 	public Scene finalizeThumbnailUpload(Long authenticatedUserId, Long sceneId, String objectKey) {
 		requireAuthenticatedUser(authenticatedUserId);
-
+	
 		Scene scene = this.sceneRepository.findById(sceneId)
 				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
 
@@ -232,6 +234,23 @@ public class SceneService {
 			requireThumbnailStorageService().delete(previousThumbnailRef);
 		}
 		return savedScene;
+	}
+	@Transactional
+	public Scene updateDescription(Long authenticatedUserId, Long sceneId, String description) {
+    	requireAuthenticatedUser(authenticatedUserId);
+
+    	Scene scene = this.sceneRepository.findById(sceneId)
+            .orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+
+    	requireSceneOwnership(scene, authenticatedUserId);
+
+    	scene.updateDescription(description);
+
+    	Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+    	if (this.entityManager != null) {
+        	this.entityManager.refresh(savedScene);
+    	}
+    	return savedScene;
 	}
 
 	public static JsonNode sceneDataJson(Map<String, Object> sceneData) {

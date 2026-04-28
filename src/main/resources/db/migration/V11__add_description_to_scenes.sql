@@ -1,2 +1,2 @@
 ALTER TABLE scenes
-    ADD COLUMN description VARCHAR(500);
+    ADD COLUMN description VARCHAR(1000);

@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,6 +31,7 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +61,9 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private PasswordHashingService passwordHashingService;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Test
 	void createSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
@@ -437,6 +442,19 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
 		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), showcaseTag.getId()));
 		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), ambientTag.getId()));
+		User upvoter = this.userRepository.saveAndFlush(new User(
+				"public-upvoter-" + uniqueSuffix + "@example.com",
+				this.passwordHashingService.hash("unused-upvoter-password-" + uniqueSuffix),
+				"Public Upvoter"));
+		User downvoter = this.userRepository.saveAndFlush(new User(
+				"public-downvoter-" + uniqueSuffix + "@example.com",
+				this.passwordHashingService.hash("unused-downvoter-password-" + uniqueSuffix),
+				"Public Downvoter"));
+		insertSceneView(savedScene.getId(), null);
+		insertSceneView(savedScene.getId(), upvoter.getId());
+		insertSceneVote(savedScene.getId(), upvoter.getId(), 1);
+		insertSceneVote(savedScene.getId(), downvoter.getId(), -1);
+		insertSceneSave(savedScene.getId(), upvoter.getId());
 
 		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
 				.contentType(MediaType.APPLICATION_JSON))
@@ -451,7 +469,13 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
-				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName));
+				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName))
+				.andExpect(jsonPath("$.engagement.views").value(2L))
+				.andExpect(jsonPath("$.engagement.upvotes").value(1L))
+				.andExpect(jsonPath("$.engagement.downvotes").value(1L))
+				.andExpect(jsonPath("$.engagement.saves").value(1L))
+				.andExpect(jsonPath("$.engagement.currentUserVote").doesNotExist())
+				.andExpect(jsonPath("$.engagement.currentUserSaved").value(false));
 	}
 
 	@Test
@@ -486,6 +510,17 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag(ambientTagName));
 		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), showcaseTag.getId()));
 		this.sceneTagRepository.saveAndFlush(new SceneTag(savedScene.getId(), ambientTag.getId()));
+		User otherUser = this.userRepository.saveAndFlush(new User(
+				"get-scene-other-" + uniqueSuffix + "@example.com",
+				this.passwordHashingService.hash("unused-other-password-" + uniqueSuffix),
+				"Get Scene Other User"));
+		insertSceneView(savedScene.getId(), null);
+		insertSceneView(savedScene.getId(), savedUser.getId());
+		insertSceneView(savedScene.getId(), otherUser.getId());
+		insertSceneVote(savedScene.getId(), savedUser.getId(), -1);
+		insertSceneVote(savedScene.getId(), otherUser.getId(), 1);
+		insertSceneSave(savedScene.getId(), savedUser.getId());
+		insertSceneSave(savedScene.getId(), otherUser.getId());
 
 		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
 				.header("Authorization", "Bearer " + accessToken)
@@ -501,7 +536,132 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
-				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName));
+				.andExpect(jsonPath("$.tags[1]").value(showcaseTagName))
+				.andExpect(jsonPath("$.engagement.views").value(3L))
+				.andExpect(jsonPath("$.engagement.upvotes").value(1L))
+				.andExpect(jsonPath("$.engagement.downvotes").value(1L))
+				.andExpect(jsonPath("$.engagement.saves").value(2L))
+				.andExpect(jsonPath("$.engagement.currentUserVote").value("down"))
+				.andExpect(jsonPath("$.engagement.currentUserSaved").value(true));
+	}
+
+	@Test
+	void getSceneReturnsZeroEngagementForPublicRequestWhenSceneHasNoEngagementRows() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "zero-engagement-scene-user-" + uniqueSuffix + "@example.com";
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
+				"Zero Engagement Scene User"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
+				savedUser.getId(),
+				"Silent Glow",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneId").value(savedScene.getId()))
+				.andExpect(jsonPath("$.engagement.views").value(0L))
+				.andExpect(jsonPath("$.engagement.upvotes").value(0L))
+				.andExpect(jsonPath("$.engagement.downvotes").value(0L))
+				.andExpect(jsonPath("$.engagement.saves").value(0L))
+				.andExpect(jsonPath("$.engagement.currentUserVote").doesNotExist())
+				.andExpect(jsonPath("$.engagement.currentUserSaved").value(false));
+	}
+
+	@Test
+	void recordSceneViewPersistsAnonymousViewAndReturnsUpdatedEngagement() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				"view-scene-user-" + uniqueSuffix + "@example.com",
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
+				"View Scene User"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
+				savedUser.getId(),
+				"View Count Glow",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/views")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.views").value(1L))
+				.andExpect(jsonPath("$.upvotes").value(0L))
+				.andExpect(jsonPath("$.downvotes").value(0L))
+				.andExpect(jsonPath("$.saves").value(0L))
+				.andExpect(jsonPath("$.currentUserVote").doesNotExist())
+				.andExpect(jsonPath("$.currentUserSaved").value(false));
+
+		this.mockMvc.perform(get("/api/scenes/" + savedScene.getId())
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.engagement.views").value(1L));
+	}
+
+	@Test
+	void authenticatedUserCanVoteAndSaveSceneAndClearBothStates() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "engagement-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Engagement User"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
+				savedUser.getId(),
+				"Engagement Glow",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId() + "/vote")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"vote":"up"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.upvotes").value(1L))
+				.andExpect(jsonPath("$.downvotes").value(0L))
+				.andExpect(jsonPath("$.currentUserVote").value("up"))
+				.andExpect(jsonPath("$.currentUserSaved").value(false));
+
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/save")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.saves").value(1L))
+				.andExpect(jsonPath("$.currentUserVote").value("up"))
+				.andExpect(jsonPath("$.currentUserSaved").value(true));
+
+		this.mockMvc.perform(delete("/api/scenes/" + savedScene.getId() + "/vote")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.upvotes").value(0L))
+				.andExpect(jsonPath("$.currentUserVote").doesNotExist())
+				.andExpect(jsonPath("$.currentUserSaved").value(true));
+
+		this.mockMvc.perform(delete("/api/scenes/" + savedScene.getId() + "/save")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.saves").value(0L))
+				.andExpect(jsonPath("$.currentUserVote").doesNotExist())
+				.andExpect(jsonPath("$.currentUserSaved").value(false));
 	}
 
 	@Test
@@ -653,5 +813,27 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.matcher(result.getResponse().getContentAsString());
 		assertThat(matcher.find()).isTrue();
 		return Long.valueOf(matcher.group(1));
+	}
+
+	private void insertSceneView(Long sceneId, Long userId) {
+		this.jdbcTemplate.update(
+				"INSERT INTO scene_views (scene_id, user_id) VALUES (?, ?)",
+				sceneId,
+				userId);
+	}
+
+	private void insertSceneVote(Long sceneId, Long userId, int voteValue) {
+		this.jdbcTemplate.update(
+				"INSERT INTO scene_votes (scene_id, user_id, vote_value) VALUES (?, ?, ?)",
+				sceneId,
+				userId,
+				voteValue);
+	}
+
+	private void insertSceneSave(Long sceneId, Long userId) {
+		this.jdbcTemplate.update(
+				"INSERT INTO scene_saves (scene_id, user_id) VALUES (?, ?)",
+				sceneId,
+				userId);
 	}
 }

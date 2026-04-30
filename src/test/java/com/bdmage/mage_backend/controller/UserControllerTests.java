@@ -8,6 +8,8 @@ import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.dto.SceneEngagementResponse;
+import com.bdmage.mage_backend.service.SceneEngagementService;
 import com.bdmage.mage_backend.service.SceneService;
 import com.bdmage.mage_backend.service.SceneResponseFactory;
 import com.bdmage.mage_backend.service.UserProfileService;
@@ -31,6 +33,7 @@ class UserControllerTests {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	private SceneService sceneService;
+	private SceneEngagementService sceneEngagementService;
 	private UserProfileService userProfileService;
 	private UserRepository userRepository;
 	private MockMvc mockMvc;
@@ -38,9 +41,12 @@ class UserControllerTests {
 	@BeforeEach
 	void setUp() {
 		this.sceneService = mock(SceneService.class);
+		this.sceneEngagementService = mock(SceneEngagementService.class);
 		this.userProfileService = mock(UserProfileService.class);
 		this.userRepository = mock(UserRepository.class);
-		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(this.userRepository);
+		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(
+				this.userRepository,
+				this.sceneEngagementService);
 		this.mockMvc = MockMvcBuilders
 				.standaloneSetup(new UserController(this.sceneService, this.userProfileService, sceneResponseFactory))
 				.setControllerAdvice(new ApiExceptionHandler())
@@ -131,6 +137,10 @@ class UserControllerTests {
 				.thenReturn(List.of(firstScene, secondScene));
 		when(this.userRepository.findAllById(java.util.Set.of(77L)))
 				.thenReturn(List.of(user(77L, "Scene Owner")));
+		when(this.sceneEngagementService.getSceneEngagement(15L, 51L))
+				.thenReturn(new SceneEngagementResponse(18L, 7L, 1L, 3L, null, false));
+		when(this.sceneEngagementService.getSceneEngagement(16L, 51L))
+				.thenReturn(new SceneEngagementResponse(9L, 2L, 0L, 1L, null, false));
 
 		this.mockMvc.perform(get("/api/users/77/scenes")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
@@ -142,9 +152,13 @@ class UserControllerTests {
 				.andExpect(jsonPath("$[0].description").value("Soft teal bloom with low-end drift."))
 				.andExpect(jsonPath("$[0].sceneData.visualizer.shader").value("nebula"))
 				.andExpect(jsonPath("$[0].createdAt").value("2026-03-26T15:30:00Z"))
+				.andExpect(jsonPath("$[0].engagement.views").value(18L))
+				.andExpect(jsonPath("$[0].engagement.upvotes").value(7L))
+				.andExpect(jsonPath("$[0].engagement.downvotes").value(1L))
 				.andExpect(jsonPath("$[1].sceneId").value(16L))
 				.andExpect(jsonPath("$[1].creatorDisplayName").value("Scene Owner"))
-				.andExpect(jsonPath("$[1].name").value("Signal Bloom"));
+				.andExpect(jsonPath("$[1].name").value("Signal Bloom"))
+				.andExpect(jsonPath("$[1].engagement.views").value(9L));
 	}
 
 	@Test

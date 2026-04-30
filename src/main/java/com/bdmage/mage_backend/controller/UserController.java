@@ -75,6 +75,6 @@ public class UserController {
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId) {
 		List<Scene> scenes = this.sceneService.getScenesForUser(authenticatedUserId, userId);
 
-		return ResponseEntity.ok(this.sceneResponseFactory.from(scenes));
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scenes, authenticatedUserId));
 	}
 }

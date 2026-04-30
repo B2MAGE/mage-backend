@@ -3,11 +3,14 @@ package com.bdmage.mage_backend.controller;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.bdmage.mage_backend.model.Playlist;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
+import com.bdmage.mage_backend.repository.PlaylistRepository;
 import com.bdmage.mage_backend.repository.SceneRepository;
+import com.bdmage.mage_backend.repository.ScenePlaylistRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
@@ -50,6 +53,12 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private SceneTagRepository sceneTagRepository;
+
+	@Autowired
+	private ScenePlaylistRepository scenePlaylistRepository;
+
+	@Autowired
+	private PlaylistRepository playlistRepository;
 
 	@Autowired
 	private TagRepository tagRepository;
@@ -123,6 +132,89 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(savedScene.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("nebula");
 		assertThat(savedScene.getThumbnailRef()).isNull();
 		assertThat(savedScene.getCreatedAt()).isNotNull();
+		assertThat(this.scenePlaylistRepository.findAllBySceneId(sceneId)).isEmpty();
+	}
+
+	@Test
+	void createSceneWithPlaylistIdPersistsScenePlaylistMembership() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "scene-playlist-user-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Scene Playlist User"));
+		Playlist playlist = this.playlistRepository.saveAndFlush(new Playlist(savedUser.getId(), "Favorites"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		MvcResult createResult = this.mockMvc.perform(post("/api/scenes")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":" Playlist Scene ",
+						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "playlistId":%d
+						}
+						""".formatted(playlist.getId())))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.ownerUserId").value(savedUser.getId()))
+				.andExpect(jsonPath("$.name").value("Playlist Scene"))
+				.andReturn();
+
+		Long sceneId = sceneId(createResult);
+
+		assertThat(this.scenePlaylistRepository.countBySceneIdAndPlaylistId(sceneId, playlist.getId()))
+				.isEqualTo(1L);
+	}
+
+	@Test
+	void createSceneWithAnotherUsersPlaylistIdReturnsNotFoundAndRollsBackScene() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "scene-playlist-owner-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Scene Playlist Owner"));
+		User otherUser = this.userRepository.saveAndFlush(new User(
+				"scene-playlist-other-" + uniqueSuffix + "@example.com",
+				this.passwordHashingService.hash("other-password-" + uniqueSuffix),
+				"Other Playlist Owner"));
+		Playlist otherPlaylist = this.playlistRepository.saveAndFlush(new Playlist(otherUser.getId(), "Not Yours"));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(post("/api/scenes")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":"Cross User Playlist Scene",
+						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "playlistId":%d
+						}
+						""".formatted(otherPlaylist.getId())))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("PLAYLIST_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("Playlist not found."));
+
+		assertThat(this.sceneRepository.findAllByOwnerUserId(savedUser.getId()))
+				.extracting(Scene::getName)
+				.doesNotContain("Cross User Playlist Scene");
 	}
 
 	@Test

@@ -3,6 +3,8 @@ package com.bdmage.mage_backend.service;
 import java.util.Optional;
 
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.InvalidCurrentPasswordException;
+import com.bdmage.mage_backend.exception.LocalPasswordChangeUnavailableException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -19,7 +21,8 @@ class UserProfileServiceTests {
 	@Test
 	void getAuthenticatedUserReturnsMatchingUser() {
 		UserRepository userRepository = mock(UserRepository.class);
-		UserProfileService userProfileService = new UserProfileService(userRepository);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
 		User user = new User("user@example.com", "hashed-password", "Profile User");
 
 		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
@@ -33,7 +36,8 @@ class UserProfileServiceTests {
 	@Test
 	void getAuthenticatedUserRejectsMissingRequestIdentity() {
 		UserRepository userRepository = mock(UserRepository.class);
-		UserProfileService userProfileService = new UserProfileService(userRepository);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
 
 		assertThatThrownBy(() -> userProfileService.getAuthenticatedUser(null))
 				.isInstanceOf(AuthenticationRequiredException.class)
@@ -45,7 +49,8 @@ class UserProfileServiceTests {
 	@Test
 	void getAuthenticatedUserRejectsUnknownRequestIdentity() {
 		UserRepository userRepository = mock(UserRepository.class);
-		UserProfileService userProfileService = new UserProfileService(userRepository);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
 
 		when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -59,7 +64,8 @@ class UserProfileServiceTests {
 	@Test
 	void updateAuthenticatedUserProfileTrimsAndPersistsNames() {
 		UserRepository userRepository = mock(UserRepository.class);
-		UserProfileService userProfileService = new UserProfileService(userRepository);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
 		User user = new User("user@example.com", "hashed-password", "Profile", "User", "Profile User");
 
 		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
@@ -76,5 +82,56 @@ class UserProfileServiceTests {
 		assertThat(updatedUser.getDisplayName()).isEqualTo("Updated Profile");
 		verify(userRepository).findById(42L);
 		verify(userRepository).saveAndFlush(user);
+	}
+
+	@Test
+	void changeAuthenticatedUserPasswordHashesAndPersistsNewPassword() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+		User user = new User("user@example.com", "stored-password-hash", "Profile", "User", "Profile User");
+
+		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+		when(passwordHashingService.matches("current-password", "stored-password-hash")).thenReturn(true);
+		when(passwordHashingService.hash("new-password")).thenReturn("new-password-hash");
+
+		userProfileService.changeAuthenticatedUserPassword(42L, "current-password", "new-password");
+
+		assertThat(user.getPasswordHash()).isEqualTo("new-password-hash");
+		verify(userRepository).findById(42L);
+		verify(passwordHashingService).matches("current-password", "stored-password-hash");
+		verify(passwordHashingService).hash("new-password");
+		verify(userRepository).saveAndFlush(user);
+	}
+
+	@Test
+	void changeAuthenticatedUserPasswordRejectsInvalidCurrentPassword() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+		User user = new User("user@example.com", "stored-password-hash", "Profile", "User", "Profile User");
+
+		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+		when(passwordHashingService.matches("wrong-password", "stored-password-hash")).thenReturn(false);
+
+		assertThatThrownBy(() ->
+				userProfileService.changeAuthenticatedUserPassword(42L, "wrong-password", "new-password"))
+				.isInstanceOf(InvalidCurrentPasswordException.class)
+				.hasMessage("Current password is incorrect.");
+	}
+
+	@Test
+	void changeAuthenticatedUserPasswordRejectsGoogleOnlyAccounts() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+		User user = User.google("user@example.com", "google-subject", "Profile", "User", "Profile User");
+
+		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+		assertThatThrownBy(() ->
+				userProfileService.changeAuthenticatedUserPassword(42L, "current-password", "new-password"))
+				.isInstanceOf(LocalPasswordChangeUnavailableException.class)
+				.hasMessage("Local password changes are not available for this account.");
 	}
 }

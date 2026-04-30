@@ -98,6 +98,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
 | `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first name, last name, and display name                    |
+| `PUT /api/users/me/password`                | Bearer token | Change the authenticated user's local password                                              |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene with optional description and optionally finalize a staged thumbnail       |
@@ -150,6 +151,15 @@ Successful auth and profile responses return the structured personal-name fields
   "firstName": "Updated",
   "lastName": "User",
   "displayName": "Updated User"
+}
+```
+
+`PUT /api/users/me/password` accepts:
+
+```json
+{
+  "currentPassword": "current-password",
+  "newPassword": "new-password"
 }
 ```
 

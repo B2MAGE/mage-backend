@@ -118,6 +118,31 @@ class UserControllerTests {
 	}
 
 	@Test
+	void changePasswordReturnsNoContentWhenSuccessful() throws Exception {
+		this.mockMvc.perform(put("/api/users/me/password")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
+				.contentType("application/json")
+				.content("""
+						{"currentPassword":"current-password","newPassword":"new-password"}
+						"""))
+				.andExpect(status().isNoContent());
+	}
+
+	@Test
+	void changePasswordRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(put("/api/users/me/password")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
+				.contentType("application/json")
+				.content("""
+						{"currentPassword":" ","newPassword":"short"}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.currentPassword").value("currentPassword must not be blank"))
+				.andExpect(jsonPath("$.details.newPassword").value("newPassword must be between 8 and 72 characters"));
+	}
+
+	@Test
 	void scenesReturnsRequestedUsersScenes() throws Exception {
 		Scene firstScene = scene(
 				15L,

@@ -172,6 +172,30 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(InvalidCurrentPasswordException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidCurrentPassword(
+			InvalidCurrentPasswordException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_CURRENT_PASSWORD",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(LocalPasswordChangeUnavailableException.class)
+	ResponseEntity<ApiErrorResponse> handleLocalPasswordChangeUnavailable(
+			LocalPasswordChangeUnavailableException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"LOCAL_PASSWORD_CHANGE_UNAVAILABLE",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(AuthenticationRequiredException.class)
 	ResponseEntity<ApiErrorResponse> handleAuthenticationRequired(
 			AuthenticationRequiredException ex,

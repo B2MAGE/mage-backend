@@ -98,12 +98,14 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
 | `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first name, last name, and display name                    |
+| `PUT /api/users/me/password`                | Bearer token | Change the authenticated user's local password                                              |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene with optional description and optionally finalize a staged thumbnail       |
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before scene creation                                   |
 | `GET /api/scenes`                          | Public       | List scenes, optionally filtered by tag                                                   |
 | `POST /api/scenes/{id}/tags`               | Bearer token | Attach a tag to a scene                                                                   |
+| `PATCH /api/scenes/{id}/description`       | Bearer token | Owner-only plain-text description add, edit, or clear                                     |
 | `POST /api/scenes/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                                          |
 | `POST /api/scenes/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                                              |
 | `GET /api/scenes/{id}`                     | Public       | Fetch a scene by id                                                                       |
@@ -112,7 +114,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Scene Contract
 
-`POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value.
+`POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value. Owners can add, edit, or clear the description after creation with `PATCH /api/scenes/{id}/description`.
 
 ## Auth And Profile Contract
 
@@ -150,6 +152,15 @@ Successful auth and profile responses return the structured personal-name fields
   "firstName": "Updated",
   "lastName": "User",
   "displayName": "Updated User"
+}
+```
+
+`PUT /api/users/me/password` accepts:
+
+```json
+{
+  "currentPassword": "current-password",
+  "newPassword": "new-password"
 }
 ```
 

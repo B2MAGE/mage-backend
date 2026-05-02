@@ -172,6 +172,30 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(InvalidCurrentPasswordException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidCurrentPassword(
+			InvalidCurrentPasswordException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_CURRENT_PASSWORD",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(LocalPasswordChangeUnavailableException.class)
+	ResponseEntity<ApiErrorResponse> handleLocalPasswordChangeUnavailable(
+			LocalPasswordChangeUnavailableException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"LOCAL_PASSWORD_CHANGE_UNAVAILABLE",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(AuthenticationRequiredException.class)
 	ResponseEntity<ApiErrorResponse> handleAuthenticationRequired(
 			AuthenticationRequiredException ex,
@@ -227,6 +251,30 @@ public class ApiExceptionHandler {
 		return buildResponse(
 			HttpStatus.NOT_FOUND,
 			"PLAYLIST_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(SceneCommentNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleSceneCommentNotFound(
+			SceneCommentNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"COMMENT_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidSceneCommentParentException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidSceneCommentParent(
+			InvalidSceneCommentParentException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.BAD_REQUEST,
+			"INVALID_COMMENT_PARENT",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());

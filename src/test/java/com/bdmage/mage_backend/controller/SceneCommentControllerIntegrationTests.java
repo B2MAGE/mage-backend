@@ -75,7 +75,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andReturn();
 
 		Long parentCommentId = commentId(parentResult);
-		MvcResult replyResult = this.mockMvc.perform(post("/api/presets/" + scene.getId() + "/comments")
+		MvcResult replyResult = this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/comments")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""

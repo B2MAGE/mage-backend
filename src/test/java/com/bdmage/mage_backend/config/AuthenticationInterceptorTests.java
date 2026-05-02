@@ -107,19 +107,6 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
-	void preHandleAllowsPublicApiPresetCommentsRequestWithoutAuthenticationHeader() {
-		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
-		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
-		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/presets/15/comments");
-		MockHttpServletResponse response = new MockHttpServletResponse();
-
-		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
-		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isNull();
-		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isNull();
-		verifyNoInteractions(authenticationTokenService);
-	}
-
-	@Test
 	void preHandleAllowsPublicApiSceneViewRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);

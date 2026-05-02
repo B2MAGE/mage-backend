@@ -143,6 +143,11 @@ public class User {
 		syncAuthProvider();
 	}
 
+	public void updateLocalPassword(String passwordHash) {
+		this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash must not be null");
+		syncAuthProvider();
+	}
+
 	public void updateProfileName(String firstName, String lastName, String displayName) {
 		this.firstName = Objects.requireNonNull(firstName, "firstName must not be null");
 		this.lastName = Objects.requireNonNull(lastName, "lastName must not be null");

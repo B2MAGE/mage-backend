@@ -2,6 +2,7 @@ package com.bdmage.mage_backend.controller;
 
 import java.util.List;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
+import com.bdmage.mage_backend.dto.ChangePasswordRequest;
 import com.bdmage.mage_backend.dto.SceneResponse;
 import com.bdmage.mage_backend.dto.UpdateUserProfileRequest;
 import com.bdmage.mage_backend.dto.UserProfileResponse;
@@ -56,6 +57,18 @@ public class UserController {
 				request.displayName());
 
 		return ResponseEntity.ok(toUserProfileResponse(user));
+	}
+
+	@PutMapping("/me/password")
+	ResponseEntity<Void> changePassword(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@Valid @RequestBody ChangePasswordRequest request) {
+		this.userProfileService.changeAuthenticatedUserPassword(
+				authenticatedUserId,
+				request.currentPassword(),
+				request.newPassword());
+
+		return ResponseEntity.noContent().build();
 	}
 
 	private static UserProfileResponse toUserProfileResponse(User user) {

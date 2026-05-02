@@ -180,6 +180,101 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
+	void changePasswordUpdatesTheStoredHashForAuthenticatedLocalUser() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "password-change-" + uniqueSuffix + "@example.com";
+		String currentPassword = "current-password-" + uniqueSuffix;
+		String newPassword = "new-password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(currentPassword),
+				"Profile",
+				"Local",
+				"Profile Local User"));
+
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, currentPassword)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn();
+
+		String accessToken = accessToken(loginResult);
+
+		this.mockMvc.perform(put("/api/users/me/password")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"currentPassword":"%s","newPassword":"%s"}
+						""".formatted(currentPassword, newPassword)))
+				.andExpect(status().isNoContent());
+
+		User savedUser = this.userRepository.findByEmail(email).orElseThrow();
+		assertThat(this.passwordHashingService.matches(newPassword, savedUser.getPasswordHash())).isTrue();
+		assertThat(this.passwordHashingService.matches(currentPassword, savedUser.getPasswordHash())).isFalse();
+	}
+
+	@Test
+	void changePasswordRejectsInvalidCurrentPassword() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "password-invalid-" + uniqueSuffix + "@example.com";
+		String currentPassword = "current-password-" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(currentPassword),
+				"Profile",
+				"Local",
+				"Profile Local User"));
+
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, currentPassword)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn();
+
+		String accessToken = accessToken(loginResult);
+
+		this.mockMvc.perform(put("/api/users/me/password")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"currentPassword":"wrong-password","newPassword":"new-password-value"}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_CURRENT_PASSWORD"))
+				.andExpect(jsonPath("$.message").value("Current password is incorrect."));
+	}
+
+	@Test
+	void changePasswordRejectsGoogleOnlyAccounts() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String subject = "google-password-" + uniqueSuffix;
+		String email = "google-password-" + uniqueSuffix + "@example.com";
+
+		MvcResult authenticationResult = this.mockMvc.perform(post("/api/auth/google")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(googleRequestBody(verifiedToken(subject, email, "Profile Google User"))))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn();
+
+		String accessToken = accessToken(authenticationResult);
+
+		this.mockMvc.perform(put("/api/users/me/password")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"currentPassword":"unused-password","newPassword":"new-password-value"}
+						"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("LOCAL_PASSWORD_CHANGE_UNAVAILABLE"))
+				.andExpect(jsonPath("$.message").value("Local password changes are not available for this account."));
+	}
+
+	@Test
 	void scenesReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
 		this.mockMvc.perform(get("/api/users/77/scenes"))
 				.andExpect(status().isUnauthorized())

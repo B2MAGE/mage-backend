@@ -356,9 +356,13 @@ class SceneServiceTests {
 		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
 
 		when(userRepository.existsById(42L)).thenReturn(true);
-		when(sceneRepository.existsById(15L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
 		when(tagRepository.existsById(7L)).thenReturn(true);
 		when(sceneTagRepository.existsBySceneIdAndTagId(15L, 7L)).thenReturn(false);
 		when(sceneTagRepository.saveAndFlush(any(SceneTag.class)))
@@ -377,15 +381,42 @@ class SceneServiceTests {
 		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
 
 		when(userRepository.existsById(42L)).thenReturn(true);
-		when(sceneRepository.existsById(15L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
 		when(tagRepository.existsById(7L)).thenReturn(true);
 		when(sceneTagRepository.existsBySceneIdAndTagId(15L, 7L)).thenReturn(true);
 
 		assertThatThrownBy(() -> sceneService.attachTagToScene(42L, 15L, 7L))
 				.isInstanceOf(SceneTagAlreadyExistsException.class)
 				.hasMessage("This tag is already attached to the scene.");
+	}
+
+	@Test
+	void attachTagToSceneRejectsNonOwner() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				77L,
+				"Not Yours",
+				this.objectMapper.createObjectNode());
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+
+		assertThatThrownBy(() -> sceneService.attachTagToScene(42L, 15L, 7L))
+				.isInstanceOf(SceneOwnershipRequiredException.class)
+				.hasMessage("Scene ownership is required.");
+
+		verifyNoInteractions(tagRepository);
+		verify(sceneTagRepository, never()).saveAndFlush(any(SceneTag.class));
 	}
 
 	@Test
@@ -467,6 +498,7 @@ class SceneServiceTests {
 		verify(sceneTagRepository).deleteById(sceneTagId);
 		verify(sceneTagRepository).flush();
 	}
+
 	@Test
 	void createSceneThumbnailUploadReturnsPresignedUploadForAuthenticatedUser() {
 		SceneRepository sceneRepository = mock(SceneRepository.class);

@@ -172,8 +172,7 @@ public class SceneService {
 
 	@Transactional
 	public SceneTag attachTagToScene(Long authenticatedUserId, Long sceneId, Long tagId) {
-		requireAuthenticatedUser(authenticatedUserId);
-		requireSceneExists(sceneId);
+		requireOwnedScene(authenticatedUserId, sceneId);
 		requireTagExists(tagId);
 
 		if (this.sceneTagRepository.existsBySceneIdAndTagId(sceneId, tagId)) {

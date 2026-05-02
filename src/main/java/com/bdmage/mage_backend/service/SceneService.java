@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -14,6 +15,7 @@ import com.bdmage.mage_backend.exception.SceneTagAlreadyExistsException;
 import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
+import com.bdmage.mage_backend.model.SceneTagId;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
@@ -170,8 +172,7 @@ public class SceneService {
 
 	@Transactional
 	public SceneTag attachTagToScene(Long authenticatedUserId, Long sceneId, Long tagId) {
-		requireAuthenticatedUser(authenticatedUserId);
-		requireSceneExists(sceneId);
+		requireOwnedScene(authenticatedUserId, sceneId);
 		requireTagExists(tagId);
 
 		if (this.sceneTagRepository.existsBySceneIdAndTagId(sceneId, tagId)) {
@@ -184,6 +185,42 @@ public class SceneService {
 			requireSceneExists(sceneId);
 			requireTagExists(tagId);
 			throw new SceneTagAlreadyExistsException(SCENE_TAG_ALREADY_EXISTS_MESSAGE);
+		}
+	}
+
+	@Transactional
+	public List<SceneTag> replaceSceneTags(Long authenticatedUserId, Long sceneId, List<Long> tagIds) {
+		requireOwnedScene(authenticatedUserId, sceneId);
+		List<Long> uniqueTagIds = normalizeTagIds(tagIds);
+
+		for (Long tagId : uniqueTagIds) {
+			requireTagExists(tagId);
+		}
+
+		List<SceneTag> existingSceneTags = this.sceneTagRepository.findAllBySceneId(sceneId);
+		if (!existingSceneTags.isEmpty()) {
+			this.sceneTagRepository.deleteAll(existingSceneTags);
+			this.sceneTagRepository.flush();
+		}
+
+		if (uniqueTagIds.isEmpty()) {
+			return List.of();
+		}
+
+		return this.sceneTagRepository.saveAllAndFlush(uniqueTagIds.stream()
+				.map(tagId -> new SceneTag(sceneId, tagId))
+				.toList());
+	}
+
+	@Transactional
+	public void removeTagFromScene(Long authenticatedUserId, Long sceneId, Long tagId) {
+		requireOwnedScene(authenticatedUserId, sceneId);
+		requireTagExists(tagId);
+
+		SceneTagId sceneTagId = new SceneTagId(sceneId, tagId);
+		if (this.sceneTagRepository.existsById(sceneTagId)) {
+			this.sceneTagRepository.deleteById(sceneTagId);
+			this.sceneTagRepository.flush();
 		}
 	}
 
@@ -240,6 +277,30 @@ public class SceneService {
 		return savedScene;
 	}
 
+	@Transactional
+	public Scene updateDescription(Long authenticatedUserId, Long sceneId, String description) {
+		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		scene.updateDescription(normalizeOptionalText(description));
+
+		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+		if (this.entityManager != null) {
+			this.entityManager.refresh(savedScene);
+		}
+		return savedScene;
+	}
+
+	@Transactional
+	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description, JsonNode sceneData) {
+		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		scene.updateDetails(name.trim(), normalizeOptionalText(description), sceneData);
+
+		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+		if (this.entityManager != null) {
+			this.entityManager.refresh(savedScene);
+		}
+		return savedScene;
+	}
+
 	public static JsonNode sceneDataJson(Map<String, Object> sceneData) {
 		return JSON_OBJECT_MAPPER.valueToTree(sceneData);
 	}
@@ -260,6 +321,32 @@ public class SceneService {
 		if (!this.tagRepository.existsById(tagId)) {
 			throw new TagNotFoundException(TAG_NOT_FOUND_MESSAGE);
 		}
+	}
+
+	private Scene requireOwnedScene(Long authenticatedUserId, Long sceneId) {
+		requireAuthenticatedUser(authenticatedUserId);
+
+		Scene scene = this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+
+		requireSceneOwnership(scene, authenticatedUserId);
+		return scene;
+	}
+
+	private List<Long> normalizeTagIds(List<Long> tagIds) {
+		if (tagIds == null) {
+			return List.of();
+		}
+
+		LinkedHashSet<Long> uniqueTagIds = new LinkedHashSet<>();
+		for (Long tagId : tagIds) {
+			if (tagId == null) {
+				throw new TagNotFoundException(TAG_NOT_FOUND_MESSAGE);
+			}
+			uniqueTagIds.add(tagId);
+		}
+
+		return List.copyOf(uniqueTagIds);
 	}
 
 	private static String normalizeTagName(String tag) {

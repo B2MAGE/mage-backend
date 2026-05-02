@@ -6,11 +6,14 @@ import com.bdmage.mage_backend.dto.AttachTagToSceneRequest;
 import com.bdmage.mage_backend.dto.CreateSceneRequest;
 import com.bdmage.mage_backend.dto.CreateSceneThumbnailUploadRequest;
 import com.bdmage.mage_backend.dto.FinalizeSceneThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.ReplaceSceneTagsRequest;
 import com.bdmage.mage_backend.dto.SceneDetailResponse;
 import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.dto.SceneResponse;
 import com.bdmage.mage_backend.dto.SceneTagResponse;
 import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
+import com.bdmage.mage_backend.dto.UpdateSceneDescriptionRequest;
+import com.bdmage.mage_backend.dto.UpdateSceneRequest;
 import com.bdmage.mage_backend.dto.UpdateSceneVoteRequest;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
@@ -23,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -75,6 +79,29 @@ public class SceneController {
 				request.sizeBytes())));
 	}
 
+	@PatchMapping("/{id}/description")
+	ResponseEntity<SceneResponse> updateSceneDescription(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody UpdateSceneDescriptionRequest request) {
+		Scene scene = this.sceneService.updateDescription(authenticatedUserId, id, request.description());
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
+	}
+
+	@PutMapping("/{id}")
+	ResponseEntity<SceneResponse> updateScene(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody UpdateSceneRequest request) {
+		Scene scene = this.sceneService.updateScene(
+				authenticatedUserId,
+				id,
+				request.name(),
+				request.description(),
+				SceneService.sceneDataJson(request.sceneData()));
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
+	}
+
 	@PostMapping("/{id}/tags")
 	ResponseEntity<SceneTagResponse> attachTagToScene(
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
@@ -84,6 +111,27 @@ public class SceneController {
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(SceneTagResponse.from(sceneTag));
+	}
+
+	@PutMapping("/{id}/tags")
+	ResponseEntity<List<SceneTagResponse>> replaceSceneTags(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody ReplaceSceneTagsRequest request) {
+		List<SceneTag> sceneTags = this.sceneService.replaceSceneTags(authenticatedUserId, id, request.tagIds());
+
+		return ResponseEntity.ok(sceneTags.stream()
+				.map(SceneTagResponse::from)
+				.toList());
+	}
+
+	@DeleteMapping("/{id}/tags/{tagId}")
+	ResponseEntity<Void> removeTagFromScene(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@PathVariable Long tagId) {
+		this.sceneService.removeTagFromScene(authenticatedUserId, id, tagId);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping

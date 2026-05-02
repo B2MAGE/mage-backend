@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/scenes/{sceneId}/comments", "/api/presets/{sceneId}/comments"})
+@RequestMapping("/api/scenes/{sceneId}/comments")
 public class SceneCommentController {
 
 	private final SceneCommentService sceneCommentService;

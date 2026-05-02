@@ -94,4 +94,14 @@ public class Scene {
 	public void updateThumbnailRef(String thumbnailRef) {
 		this.thumbnailRef = thumbnailRef;
 	}
+
+	public void updateDescription(String description) {
+		this.description = description;
+	}
+
+	public void updateDetails(String name, String description, JsonNode sceneData) {
+		this.name = Objects.requireNonNull(name, "name must not be null");
+		this.description = description;
+		this.sceneData = Objects.requireNonNull(sceneData, "sceneData must not be null");
+	}
 }

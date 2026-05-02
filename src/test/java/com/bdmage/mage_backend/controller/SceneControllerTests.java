@@ -38,6 +38,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -151,6 +152,167 @@ class SceneControllerTests {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
+	}
+
+	@Test
+	void updateSceneDescriptionReturnsUpdatedSceneForAuthenticatedOwner() throws Exception {
+		Scene scene = new Scene(
+				77L,
+				"Aurora Drift",
+				"Updated scene description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		ReflectionTestUtils.setField(scene, "id", 15L);
+		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.sceneService.updateDescription(77L, 15L, " Updated scene description. "))
+				.thenReturn(scene);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":" Updated scene description. "}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneId").value(15L))
+				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"))
+				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("Updated scene description."));
+	}
+
+	@Test
+	void updateSceneDescriptionRejectsOversizedDescription() throws Exception {
+		String requestBody = this.objectMapper.writeValueAsString(Map.of(
+				"description", "a".repeat(1001)));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
+	}
+
+	@Test
+	void updateSceneDescriptionReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		when(this.sceneService.updateDescription(null, 15L, "Updated scene description."))
+				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Updated scene description."}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void updateSceneDescriptionReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		when(this.sceneService.updateDescription(88L, 15L, "Updated scene description."))
+				.thenThrow(new SceneOwnershipRequiredException("Scene ownership is required."));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Updated scene description."}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
+	}
+
+	@Test
+	void updateSceneReturnsUpdatedSceneForAuthenticatedOwner() throws Exception {
+		Scene scene = new Scene(
+				77L,
+				"Updated Scene",
+				"Updated description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						"""));
+		ReflectionTestUtils.setField(scene, "id", 15L);
+		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.sceneService.updateScene(
+				77L,
+				15L,
+				" Updated Scene ",
+				" Updated description. ",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						""")))
+				.thenReturn(scene);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
+
+		this.mockMvc.perform(put("/api/scenes/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":" Updated Scene ",
+						  "description":" Updated description. ",
+						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneId").value(15L))
+				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"))
+				.andExpect(jsonPath("$.name").value("Updated Scene"))
+				.andExpect(jsonPath("$.description").value("Updated description."))
+				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("pulse"))
+				.andExpect(jsonPath("$.sceneData.state.energy").value(0.5));
+	}
+
+	@Test
+	void updateSceneRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(put("/api/scenes/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":" "
+						}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.name").value("name must not be blank"))
+				.andExpect(jsonPath("$.details.sceneData").value("sceneData must not be null"));
+	}
+
+	@Test
+	void updateSceneReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		when(this.sceneService.updateScene(
+				88L,
+				15L,
+				"Updated Scene",
+				"Updated description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")))
+				.thenThrow(new SceneOwnershipRequiredException("Scene ownership is required."));
+
+		this.mockMvc.perform(put("/api/scenes/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":"Updated Scene",
+						  "description":"Updated description.",
+						  "sceneData":{"visualizer":{"shader":"pulse"}}
+						}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
 	}
 
 	@Test
@@ -354,6 +516,74 @@ class SceneControllerTests {
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("SCENE_TAG_ALREADY_EXISTS"))
 				.andExpect(jsonPath("$.message").value("This tag is already attached to the scene."));
+	}
+
+	@Test
+	void replaceSceneTagsReturnsUpdatedAssociationsForAuthenticatedOwner() throws Exception {
+		when(this.sceneService.replaceSceneTags(77L, 15L, List.of(7L, 9L)))
+				.thenReturn(List.of(new SceneTag(15L, 7L), new SceneTag(15L, 9L)));
+
+		this.mockMvc.perform(put("/api/scenes/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagIds":[7,9]}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].sceneId").value(15L))
+				.andExpect(jsonPath("$[0].tagId").value(7L))
+				.andExpect(jsonPath("$[1].sceneId").value(15L))
+				.andExpect(jsonPath("$[1].tagId").value(9L));
+	}
+
+	@Test
+	void replaceSceneTagsAllowsEmptyTagList() throws Exception {
+		when(this.sceneService.replaceSceneTags(77L, 15L, List.of()))
+				.thenReturn(List.of());
+
+		this.mockMvc.perform(put("/api/scenes/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagIds":[]}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").doesNotExist());
+	}
+
+	@Test
+	void replaceSceneTagsRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(put("/api/scenes/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.tagIds").value("tagIds must not be null"));
+	}
+
+	@Test
+	void removeTagFromSceneReturnsNoContentForAuthenticatedOwner() throws Exception {
+		this.mockMvc.perform(delete("/api/scenes/15/tags/7")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void removeTagFromSceneReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		doThrow(new SceneOwnershipRequiredException("Scene ownership is required."))
+				.when(this.sceneService)
+				.removeTagFromScene(88L, 15L, 7L);
+
+		this.mockMvc.perform(delete("/api/scenes/15/tags/7")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
 	}
 
 	@Test

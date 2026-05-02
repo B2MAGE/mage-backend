@@ -15,6 +15,7 @@ import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.SceneTagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
+import com.bdmage.mage_backend.model.SceneTagId;
 import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
@@ -355,9 +356,13 @@ class SceneServiceTests {
 		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
 
 		when(userRepository.existsById(42L)).thenReturn(true);
-		when(sceneRepository.existsById(15L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
 		when(tagRepository.existsById(7L)).thenReturn(true);
 		when(sceneTagRepository.existsBySceneIdAndTagId(15L, 7L)).thenReturn(false);
 		when(sceneTagRepository.saveAndFlush(any(SceneTag.class)))
@@ -376,15 +381,122 @@ class SceneServiceTests {
 		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
 
 		when(userRepository.existsById(42L)).thenReturn(true);
-		when(sceneRepository.existsById(15L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
 		when(tagRepository.existsById(7L)).thenReturn(true);
 		when(sceneTagRepository.existsBySceneIdAndTagId(15L, 7L)).thenReturn(true);
 
 		assertThatThrownBy(() -> sceneService.attachTagToScene(42L, 15L, 7L))
 				.isInstanceOf(SceneTagAlreadyExistsException.class)
 				.hasMessage("This tag is already attached to the scene.");
+	}
+
+	@Test
+	void attachTagToSceneRejectsNonOwner() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				77L,
+				"Not Yours",
+				this.objectMapper.createObjectNode());
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+
+		assertThatThrownBy(() -> sceneService.attachTagToScene(42L, 15L, 7L))
+				.isInstanceOf(SceneOwnershipRequiredException.class)
+				.hasMessage("Scene ownership is required.");
+
+		verifyNoInteractions(tagRepository);
+		verify(sceneTagRepository, never()).saveAndFlush(any(SceneTag.class));
+	}
+
+	@Test
+	void replaceSceneTagsClearsExistingTagsAndPersistsUniqueRequestedTags() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
+		SceneTag existingSceneTag = new SceneTag(15L, 4L);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(tagRepository.existsById(7L)).thenReturn(true);
+		when(tagRepository.existsById(8L)).thenReturn(true);
+		when(sceneTagRepository.findAllBySceneId(15L)).thenReturn(List.of(existingSceneTag));
+		when(sceneTagRepository.saveAllAndFlush(any()))
+				.thenAnswer(invocation -> invocation.getArgument(0, List.class));
+
+		List<SceneTag> savedSceneTags = sceneService.replaceSceneTags(42L, 15L, List.of(7L, 8L, 7L));
+
+		assertThat(savedSceneTags)
+				.extracting(SceneTag::getTagId)
+				.containsExactly(7L, 8L);
+		verify(sceneTagRepository).deleteAll(List.of(existingSceneTag));
+		verify(sceneTagRepository).flush();
+	}
+
+	@Test
+	void replaceSceneTagsAllowsClearingAllTags() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
+		SceneTag existingSceneTag = new SceneTag(15L, 4L);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneTagRepository.findAllBySceneId(15L)).thenReturn(List.of(existingSceneTag));
+
+		List<SceneTag> savedSceneTags = sceneService.replaceSceneTags(42L, 15L, List.of());
+
+		assertThat(savedSceneTags).isEmpty();
+		verifyNoInteractions(tagRepository);
+		verify(sceneTagRepository).deleteAll(List.of(existingSceneTag));
+		verify(sceneTagRepository).flush();
+		verify(sceneTagRepository, never()).saveAllAndFlush(any());
+	}
+
+	@Test
+	void removeTagFromSceneDeletesExistingAssociationForOwner() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
+		SceneTagId sceneTagId = new SceneTagId(15L, 7L);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(tagRepository.existsById(7L)).thenReturn(true);
+		when(sceneTagRepository.existsById(sceneTagId)).thenReturn(true);
+
+		sceneService.removeTagFromScene(42L, 15L, 7L);
+
+		verify(sceneTagRepository).deleteById(sceneTagId);
+		verify(sceneTagRepository).flush();
 	}
 
 	@Test
@@ -578,6 +690,116 @@ class SceneServiceTests {
 				.hasMessage("Scene ownership is required.");
 
 		verifyNoInteractions(thumbnailStorageService);
+	}
+
+	@Test
+	void updateDescriptionTrimsAndPersistsForOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneRepository.saveAndFlush(scene)).thenReturn(scene);
+
+		Scene result = sceneService.updateDescription(42L, 15L, " Updated from My Scenes. ");
+
+		assertThat(result).isSameAs(scene);
+		assertThat(scene.getDescription()).isEqualTo("Updated from My Scenes.");
+		verify(sceneRepository).saveAndFlush(scene);
+	}
+
+	@Test
+	void updateDescriptionClearsBlankDescriptionForOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				"Existing description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneRepository.saveAndFlush(scene)).thenReturn(scene);
+
+		Scene result = sceneService.updateDescription(42L, 15L, "   ");
+
+		assertThat(result).isSameAs(scene);
+		assertThat(scene.getDescription()).isNull();
+		verify(sceneRepository).saveAndFlush(scene);
+	}
+
+	@Test
+	void updateDescriptionRejectsNonOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 77L, "Not Yours", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+
+		assertThatThrownBy(() -> sceneService.updateDescription(42L, 15L, "Updated from My Scenes."))
+				.isInstanceOf(SceneOwnershipRequiredException.class)
+				.hasMessage("Scene ownership is required.");
+
+		verify(sceneRepository, never()).saveAndFlush(any(Scene.class));
+	}
+
+	@Test
+	void updateSceneTrimsMetadataAndPersistsSceneDataForOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneRepository.saveAndFlush(scene)).thenReturn(scene);
+
+		Scene result = sceneService.updateScene(
+				42L,
+				15L,
+				" Updated Scene ",
+				" Updated description. ",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						"""));
+
+		assertThat(result).isSameAs(scene);
+		assertThat(scene.getName()).isEqualTo("Updated Scene");
+		assertThat(scene.getDescription()).isEqualTo("Updated description.");
+		assertThat(scene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
+				{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+				"""));
+		verify(sceneRepository).saveAndFlush(scene);
+	}
+
+	@Test
+	void updateSceneRejectsNonOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 77L, "Not Yours", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+
+		assertThatThrownBy(() -> sceneService.updateScene(
+				42L,
+				15L,
+				"Updated Scene",
+				"Updated description.",
+				this.objectMapper.createObjectNode()))
+				.isInstanceOf(SceneOwnershipRequiredException.class)
+				.hasMessage("Scene ownership is required.");
+
+		verify(sceneRepository, never()).saveAndFlush(any(Scene.class));
 	}
 
 	private SceneService sceneService(SceneRepository sceneRepository, UserRepository userRepository) {

@@ -92,6 +92,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presigns a staged thumbnail upload before scene creation           |
 | `GET /api/scenes`                          | Public       | Supports `?tag=<name>`                                              |
 | `POST /api/scenes/{id}/tags`               | Bearer token | Attaches an existing tag to an existing scene                      |
+| `PATCH /api/scenes/{id}/description`       | Bearer token | Owner-only plain-text description add, edit, or clear              |
 | `POST /api/scenes/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                   |
 | `POST /api/scenes/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                       |
 | `GET /api/scenes/{id}`                     | Public       | Scene detail is public                                             |
@@ -119,6 +120,7 @@ Registration requests must include `firstName`, `lastName`, and `displayName`. A
 - `POST /api/scenes/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
 - `GET /api/scenes`: `200` on success and public for anonymous discovery, optionally filtered with `?tag=<name>`
 - `POST /api/scenes/{id}/tags`: `201` on success, `404` if the scene or tag is missing, `409` if the link already exists
+- `PATCH /api/scenes/{id}/description`: `200` on success, `400` for oversized description, `401` without a valid bearer token, `403` for non-owner requests, `404` if missing
 - `POST /api/scenes/{id}/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `403` for non-owner requests, `404` if the scene is missing
 - `POST /api/scenes/{id}/thumbnail/finalize`: `200` on success, `400` for invalid upload state, `403` for non-owner requests, `404` if the scene is missing
 - `GET /api/scenes/{id}`: `200` on success, `404` if missing

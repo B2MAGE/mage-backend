@@ -242,13 +242,20 @@ public class SceneService {
 
 	@Transactional
 	public Scene updateDescription(Long authenticatedUserId, Long sceneId, String description) {
-		requireAuthenticatedUser(authenticatedUserId);
-
-		Scene scene = this.sceneRepository.findById(sceneId)
-				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
-
-		requireSceneOwnership(scene, authenticatedUserId);
+		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
 		scene.updateDescription(normalizeOptionalText(description));
+
+		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+		if (this.entityManager != null) {
+			this.entityManager.refresh(savedScene);
+		}
+		return savedScene;
+	}
+
+	@Transactional
+	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description, JsonNode sceneData) {
+		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		scene.updateDetails(name.trim(), normalizeOptionalText(description), sceneData);
 
 		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
 		if (this.entityManager != null) {
@@ -277,6 +284,16 @@ public class SceneService {
 		if (!this.tagRepository.existsById(tagId)) {
 			throw new TagNotFoundException(TAG_NOT_FOUND_MESSAGE);
 		}
+	}
+
+	private Scene requireOwnedScene(Long authenticatedUserId, Long sceneId) {
+		requireAuthenticatedUser(authenticatedUserId);
+
+		Scene scene = this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+
+		requireSceneOwnership(scene, authenticatedUserId);
+		return scene;
 	}
 
 	private static String normalizeTagName(String tag) {

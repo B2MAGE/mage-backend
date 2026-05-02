@@ -12,6 +12,7 @@ import com.bdmage.mage_backend.dto.SceneResponse;
 import com.bdmage.mage_backend.dto.SceneTagResponse;
 import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
 import com.bdmage.mage_backend.dto.UpdateSceneDescriptionRequest;
+import com.bdmage.mage_backend.dto.UpdateSceneRequest;
 import com.bdmage.mage_backend.dto.UpdateSceneVoteRequest;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
@@ -83,6 +84,20 @@ public class SceneController {
 			@PathVariable Long id,
 			@Valid @RequestBody UpdateSceneDescriptionRequest request) {
 		Scene scene = this.sceneService.updateDescription(authenticatedUserId, id, request.description());
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
+	}
+
+	@PutMapping("/{id}")
+	ResponseEntity<SceneResponse> updateScene(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody UpdateSceneRequest request) {
+		Scene scene = this.sceneService.updateScene(
+				authenticatedUserId,
+				id,
+				request.name(),
+				request.description(),
+				SceneService.sceneDataJson(request.sceneData()));
 		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
 	}
 

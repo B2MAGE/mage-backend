@@ -230,6 +230,92 @@ class SceneControllerTests {
 	}
 
 	@Test
+	void updateSceneReturnsUpdatedSceneForAuthenticatedOwner() throws Exception {
+		Scene scene = new Scene(
+				77L,
+				"Updated Scene",
+				"Updated description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						"""));
+		ReflectionTestUtils.setField(scene, "id", 15L);
+		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.sceneService.updateScene(
+				77L,
+				15L,
+				" Updated Scene ",
+				" Updated description. ",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						""")))
+				.thenReturn(scene);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
+
+		this.mockMvc.perform(put("/api/scenes/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":" Updated Scene ",
+						  "description":" Updated description. ",
+						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneId").value(15L))
+				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"))
+				.andExpect(jsonPath("$.name").value("Updated Scene"))
+				.andExpect(jsonPath("$.description").value("Updated description."))
+				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("pulse"))
+				.andExpect(jsonPath("$.sceneData.state.energy").value(0.5));
+	}
+
+	@Test
+	void updateSceneRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(put("/api/scenes/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":" "
+						}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.name").value("name must not be blank"))
+				.andExpect(jsonPath("$.details.sceneData").value("sceneData must not be null"));
+	}
+
+	@Test
+	void updateSceneReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		when(this.sceneService.updateScene(
+				88L,
+				15L,
+				"Updated Scene",
+				"Updated description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"}}
+						""")))
+				.thenThrow(new SceneOwnershipRequiredException("Scene ownership is required."));
+
+		this.mockMvc.perform(put("/api/scenes/15")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":"Updated Scene",
+						  "description":"Updated description.",
+						  "sceneData":{"visualizer":{"shader":"pulse"}}
+						}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
+	}
+
+	@Test
 	void createSceneAcceptsOptionalThumbnailObjectKey() throws Exception {
 		Scene scene = new Scene(
 				77L,

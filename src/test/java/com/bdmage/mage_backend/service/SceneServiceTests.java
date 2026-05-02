@@ -639,6 +639,57 @@ class SceneServiceTests {
 		verify(sceneRepository, never()).saveAndFlush(any(Scene.class));
 	}
 
+	@Test
+	void updateSceneTrimsMetadataAndPersistsSceneDataForOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneRepository.saveAndFlush(scene)).thenReturn(scene);
+
+		Scene result = sceneService.updateScene(
+				42L,
+				15L,
+				" Updated Scene ",
+				" Updated description. ",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						"""));
+
+		assertThat(result).isSameAs(scene);
+		assertThat(scene.getName()).isEqualTo("Updated Scene");
+		assertThat(scene.getDescription()).isEqualTo("Updated description.");
+		assertThat(scene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
+				{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+				"""));
+		verify(sceneRepository).saveAndFlush(scene);
+	}
+
+	@Test
+	void updateSceneRejectsNonOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 77L, "Not Yours", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+
+		assertThatThrownBy(() -> sceneService.updateScene(
+				42L,
+				15L,
+				"Updated Scene",
+				"Updated description.",
+				this.objectMapper.createObjectNode()))
+				.isInstanceOf(SceneOwnershipRequiredException.class)
+				.hasMessage("Scene ownership is required.");
+
+		verify(sceneRepository, never()).saveAndFlush(any(Scene.class));
+	}
+
 	private SceneService sceneService(SceneRepository sceneRepository, UserRepository userRepository) {
 		return sceneService(
 				sceneRepository,

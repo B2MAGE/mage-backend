@@ -3,17 +3,15 @@ package com.bdmage.mage_backend.model;
 import java.time.Instant;
 import java.util.Objects;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import com.fasterxml.jackson.databind.JsonNode;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "scenes")
@@ -29,15 +27,15 @@ public class Scene {
 	@Column(name = "name", nullable = false, length = 100)
 	private String name;
 
+	@Column(name = "description", length = 1000)
+	private String description;
+
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(name = "scene_data", nullable = false, columnDefinition = "jsonb")
 	private JsonNode sceneData;
 
 	@Column(name = "thumbnail_ref", length = 512)
 	private String thumbnailRef;
-
-	@Column(name = "description", length = 500)
-	private String description;
 
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private Instant createdAt;
@@ -46,12 +44,21 @@ public class Scene {
 	}
 
 	public Scene(Long ownerUserId, String name, JsonNode sceneData) {
-		this(ownerUserId, name, sceneData, null);
+		this(ownerUserId, name, null, sceneData, null);
 	}
 
 	public Scene(Long ownerUserId, String name, JsonNode sceneData, String thumbnailRef) {
+		this(ownerUserId, name, null, sceneData, thumbnailRef);
+	}
+
+	public Scene(Long ownerUserId, String name, String description, JsonNode sceneData) {
+		this(ownerUserId, name, description, sceneData, null);
+	}
+
+	public Scene(Long ownerUserId, String name, String description, JsonNode sceneData, String thumbnailRef) {
 		this.ownerUserId = Objects.requireNonNull(ownerUserId, "ownerUserId must not be null");
 		this.name = Objects.requireNonNull(name, "name must not be null");
+		this.description = description;
 		this.sceneData = Objects.requireNonNull(sceneData, "sceneData must not be null");
 		this.thumbnailRef = thumbnailRef;
 	}
@@ -68,6 +75,10 @@ public class Scene {
 		return this.name;
 	}
 
+	public String getDescription() {
+		return this.description;
+	}
+
 	public JsonNode getSceneData() {
 		return this.sceneData;
 	}
@@ -76,19 +87,11 @@ public class Scene {
 		return this.thumbnailRef;
 	}
 
-	public String getDescription() {
-    	return this.description;
-	}
-
 	public Instant getCreatedAt() {
 		return this.createdAt;
 	}
 
 	public void updateThumbnailRef(String thumbnailRef) {
 		this.thumbnailRef = thumbnailRef;
-	}
-
-	public void updateDescription(String description) {
-    	this.description = description;
 	}
 }

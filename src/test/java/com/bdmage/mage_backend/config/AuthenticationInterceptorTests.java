@@ -63,6 +63,24 @@ class AuthenticationInterceptorTests {
 	}
 
 	@Test
+	void preHandleAuthenticatesPublicApiSceneDetailRequestWhenBearerTokenIsPresent() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		User user = new User("user@example.com", "hashed-password", "User");
+		ReflectionTestUtils.setField(user, "id", 21L);
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/scenes/15");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		request.addHeader("Authorization", "Bearer valid-token");
+		when(authenticationTokenService.authenticate("valid-token")).thenReturn(user);
+
+		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isSameAs(user);
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isEqualTo(21L);
+		verify(authenticationTokenService).authenticate("valid-token");
+	}
+
+	@Test
 	void preHandleAllowsPublicApiSceneListRequestWithoutAuthenticationHeader() {
 		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
 		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
@@ -73,6 +91,63 @@ class AuthenticationInterceptorTests {
 		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isNull();
 		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isNull();
 		verifyNoInteractions(authenticationTokenService);
+	}
+
+	@Test
+	void preHandleAllowsPublicApiSceneCommentsRequestWithoutAuthenticationHeader() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/scenes/15/comments");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isNull();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isNull();
+		verifyNoInteractions(authenticationTokenService);
+	}
+
+	@Test
+	void preHandleAllowsPublicApiPresetCommentsRequestWithoutAuthenticationHeader() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/presets/15/comments");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isNull();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isNull();
+		verifyNoInteractions(authenticationTokenService);
+	}
+
+	@Test
+	void preHandleAllowsPublicApiSceneViewRequestWithoutAuthenticationHeader() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/scenes/15/views");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isNull();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isNull();
+		verifyNoInteractions(authenticationTokenService);
+	}
+
+	@Test
+	void preHandleAuthenticatesPublicApiSceneViewRequestWhenBearerTokenIsPresent() {
+		AuthenticationTokenService authenticationTokenService = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(authenticationTokenService);
+		User user = new User("user@example.com", "hashed-password", "User");
+		ReflectionTestUtils.setField(user, "id", 21L);
+		MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/scenes/15/views");
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		request.addHeader("Authorization", "Bearer valid-token");
+		when(authenticationTokenService.authenticate("valid-token")).thenReturn(user);
+
+		assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ATTRIBUTE)).isSameAs(user);
+		assertThat(request.getAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE)).isEqualTo(21L);
+		verify(authenticationTokenService).authenticate("valid-token");
 	}
 
 	@Test

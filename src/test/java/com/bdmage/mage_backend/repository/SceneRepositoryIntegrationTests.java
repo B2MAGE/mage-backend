@@ -49,6 +49,7 @@ class SceneRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene savedScene = sceneRepository.saveAndFlush(new Scene(
 				owner.getId(),
 				"Aurora Drift",
+				"Soft teal bloom with low-end drift.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
@@ -61,6 +62,7 @@ class SceneRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(savedScene.getId()).isNotNull();
 		assertThat(foundScene.getOwnerUserId()).isEqualTo(owner.getId());
 		assertThat(foundScene.getName()).isEqualTo("Aurora Drift");
+		assertThat(foundScene.getDescription()).isEqualTo("Soft teal bloom with low-end drift.");
 		assertThat(foundScene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
 				{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 				"""));
@@ -99,6 +101,9 @@ class SceneRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(firstOwnerScenes)
 				.extracting(Scene::getName)
 				.containsExactly("First Owner Scene");
+		assertThat(firstOwnerScenes)
+				.extracting(Scene::getDescription)
+				.containsExactly((String) null);
 		assertThat(firstOwnerScenes)
 				.extracting(Scene::getId)
 				.doesNotContain(secondOwnerScene.getId());

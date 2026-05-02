@@ -8,7 +8,7 @@ import com.bdmage.mage_backend.model.Scene;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public record SceneResponse(
+public record SceneDetailResponse(
 		Long sceneId,
 		Long ownerUserId,
 		String creatorDisplayName,
@@ -16,7 +16,6 @@ public record SceneResponse(
 		String description,
 		Map<String, Object> sceneData,
 		String thumbnailRef,
-		String description,
 		Instant createdAt,
 		List<String> tags,
 		SceneEngagementResponse engagement) {
@@ -25,20 +24,12 @@ public record SceneResponse(
 	private static final TypeReference<Map<String, Object>> SCENE_DATA_TYPE = new TypeReference<>() {
 	};
 
-	public static SceneResponse from(Scene scene, String creatorDisplayName) {
-		return from(scene, creatorDisplayName, List.of(), SceneEngagementResponse.empty());
-	}
-
-	public static SceneResponse from(Scene scene, String creatorDisplayName, List<String> tags) {
-		return from(scene, creatorDisplayName, tags, SceneEngagementResponse.empty());
-	}
-
-	public static SceneResponse from(
+	public static SceneDetailResponse from(
 			Scene scene,
 			String creatorDisplayName,
 			List<String> tags,
 			SceneEngagementResponse engagement) {
-		return new SceneResponse(
+		return new SceneDetailResponse(
 				scene.getId(),
 				scene.getOwnerUserId(),
 				creatorDisplayName,
@@ -46,7 +37,6 @@ public record SceneResponse(
 				scene.getDescription(),
 				JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),
 				scene.getThumbnailRef(),
-				scene.getDescription(),
 				scene.getCreatedAt(),
 				List.copyOf(tags),
 				engagement != null ? engagement : SceneEngagementResponse.empty());

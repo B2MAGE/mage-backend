@@ -20,7 +20,10 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 	private static final String BEARER_PREFIX = "Bearer ";
 	private static final List<String> PUBLIC_SCENE_READ_PATTERNS = List.of(
 			"/api/scenes",
-			"/api/scenes/{id}");
+			"/api/scenes/{id}",
+			"/api/scenes/{id}/comments",
+			"/api/presets/{id}/comments");
+	private static final String PUBLIC_SCENE_VIEW_PATTERN = "/api/scenes/{id}/views";
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
 	private final AuthenticationTokenService authenticationTokenService;
@@ -33,7 +36,8 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 		// Scene discovery and public scene detail pages allow anonymous GET reads
 		// without opening write or owner-sensitive scene routes.
-		if (isPublicSceneReadRequest(request)) {
+		if (isOptionalAuthenticationRequest(request)) {
+			authenticatePublicReadIfBearerTokenPresent(request);
 			return true;
 		}
 
@@ -51,6 +55,25 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 		String requestPath = pathWithinApplication(request);
 		return PUBLIC_SCENE_READ_PATTERNS.stream()
 				.anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
+	}
+
+	private static boolean isOptionalAuthenticationRequest(HttpServletRequest request) {
+		return isPublicSceneReadRequest(request) || isPublicSceneViewRequest(request);
+	}
+
+	private static boolean isPublicSceneViewRequest(HttpServletRequest request) {
+		return HttpMethod.POST.matches(request.getMethod())
+				&& PATH_MATCHER.match(PUBLIC_SCENE_VIEW_PATTERN, pathWithinApplication(request));
+	}
+
+	private void authenticatePublicReadIfBearerTokenPresent(HttpServletRequest request) {
+		String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+		if (!StringUtils.hasText(authorizationHeader)) {
+			return;
+		}
+
+		User authenticatedUser = this.authenticationTokenService.authenticate(resolveBearerToken(request));
+		AuthenticatedUserRequest.authenticate(request, authenticatedUser);
 	}
 
 	private static String pathWithinApplication(HttpServletRequest request) {

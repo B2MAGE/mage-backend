@@ -580,6 +580,65 @@ class SceneServiceTests {
 		verifyNoInteractions(thumbnailStorageService);
 	}
 
+	@Test
+	void updateDescriptionTrimsAndPersistsForOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 42L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneRepository.saveAndFlush(scene)).thenReturn(scene);
+
+		Scene result = sceneService.updateDescription(42L, 15L, " Updated from My Scenes. ");
+
+		assertThat(result).isSameAs(scene);
+		assertThat(scene.getDescription()).isEqualTo("Updated from My Scenes.");
+		verify(sceneRepository).saveAndFlush(scene);
+	}
+
+	@Test
+	void updateDescriptionClearsBlankDescriptionForOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				"Existing description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneRepository.saveAndFlush(scene)).thenReturn(scene);
+
+		Scene result = sceneService.updateDescription(42L, 15L, "   ");
+
+		assertThat(result).isSameAs(scene);
+		assertThat(scene.getDescription()).isNull();
+		verify(sceneRepository).saveAndFlush(scene);
+	}
+
+	@Test
+	void updateDescriptionRejectsNonOwner() throws Exception {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		Scene scene = scene(15L, 77L, "Not Yours", Instant.parse("2026-03-26T15:00:00Z"));
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+
+		assertThatThrownBy(() -> sceneService.updateDescription(42L, 15L, "Updated from My Scenes."))
+				.isInstanceOf(SceneOwnershipRequiredException.class)
+				.hasMessage("Scene ownership is required.");
+
+		verify(sceneRepository, never()).saveAndFlush(any(Scene.class));
+	}
+
 	private SceneService sceneService(SceneRepository sceneRepository, UserRepository userRepository) {
 		return sceneService(
 				sceneRepository,

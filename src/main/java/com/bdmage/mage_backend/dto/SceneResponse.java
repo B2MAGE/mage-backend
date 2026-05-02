@@ -16,7 +16,6 @@ public record SceneResponse(
 		String description,
 		Map<String, Object> sceneData,
 		String thumbnailRef,
-		String description,
 		Instant createdAt,
 		List<String> tags,
 		SceneEngagementResponse engagement) {
@@ -46,7 +45,6 @@ public record SceneResponse(
 				scene.getDescription(),
 				JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),
 				scene.getThumbnailRef(),
-				scene.getDescription(),
 				scene.getCreatedAt(),
 				List.copyOf(tags),
 				engagement != null ? engagement : SceneEngagementResponse.empty());

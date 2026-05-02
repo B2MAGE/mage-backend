@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -155,6 +156,159 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				"sceneData", java.util.Map.of("visualizer", java.util.Map.of("shader", "nebula"))));
 
 		this.mockMvc.perform(post("/api/scenes")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
+	}
+
+	@Test
+	void updateSceneDescriptionAddsEditsAndClearsDescriptionForOwner() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "description-owner-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Description Owner"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(patch("/api/scenes/" + savedScene.getId() + "/description")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":" Added from My Scenes. "}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneId").value(savedScene.getId()))
+				.andExpect(jsonPath("$.description").value("Added from My Scenes."));
+
+		assertThat(this.sceneRepository.findById(savedScene.getId()).orElseThrow().getDescription())
+				.isEqualTo("Added from My Scenes.");
+
+		this.mockMvc.perform(patch("/api/scenes/" + savedScene.getId() + "/description")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Edited from My Scenes."}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.description").value("Edited from My Scenes."));
+
+		assertThat(this.sceneRepository.findById(savedScene.getId()).orElseThrow().getDescription())
+				.isEqualTo("Edited from My Scenes.");
+
+		this.mockMvc.perform(patch("/api/scenes/" + savedScene.getId() + "/description")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"   "}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.description").doesNotExist());
+
+		assertThat(this.sceneRepository.findById(savedScene.getId()).orElseThrow().getDescription())
+				.isNull();
+	}
+
+	@Test
+	void updateSceneDescriptionRejectsUnauthenticatedRequest() throws Exception {
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Updated from My Scenes."}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void updateSceneDescriptionRejectsNonOwner() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String ownerEmail = "description-owner-only-" + uniqueSuffix + "@example.com";
+		String otherEmail = "description-other-" + uniqueSuffix + "@example.com";
+		String otherPassword = "password-" + uniqueSuffix;
+
+		User owner = this.userRepository.saveAndFlush(new User(
+				ownerEmail,
+				this.passwordHashingService.hash("unused-password-" + uniqueSuffix),
+				"Description Owner Only"));
+		this.userRepository.saveAndFlush(new User(
+				otherEmail,
+				this.passwordHashingService.hash(otherPassword),
+				"Description Other User"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
+				owner.getId(),
+				"Aurora Drift",
+				"Original description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(otherEmail, otherPassword)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+
+		this.mockMvc.perform(patch("/api/scenes/" + savedScene.getId() + "/description")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Unauthorized update."}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
+
+		assertThat(this.sceneRepository.findById(savedScene.getId()).orElseThrow().getDescription())
+				.isEqualTo("Original description.");
+	}
+
+	@Test
+	void updateSceneDescriptionRejectsOversizedDescription() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "description-too-long-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+
+		User savedUser = this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Description Too Long User"));
+		Scene savedScene = this.sceneRepository.saveAndFlush(new Scene(
+				savedUser.getId(),
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						""")));
+
+		String accessToken = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andReturn());
+		String requestBody = this.objectMapper.writeValueAsString(java.util.Map.of(
+				"description", "a".repeat(1001)));
+
+		this.mockMvc.perform(patch("/api/scenes/" + savedScene.getId() + "/description")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody))

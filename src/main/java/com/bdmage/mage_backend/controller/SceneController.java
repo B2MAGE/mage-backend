@@ -11,6 +11,7 @@ import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.dto.SceneResponse;
 import com.bdmage.mage_backend.dto.SceneTagResponse;
 import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
+import com.bdmage.mage_backend.dto.UpdateSceneDescriptionRequest;
 import com.bdmage.mage_backend.dto.UpdateSceneVoteRequest;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
@@ -23,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -73,6 +75,15 @@ public class SceneController {
 				request.filename(),
 				request.contentType(),
 				request.sizeBytes())));
+	}
+
+	@PatchMapping("/{id}/description")
+	ResponseEntity<SceneResponse> updateSceneDescription(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody UpdateSceneDescriptionRequest request) {
+		Scene scene = this.sceneService.updateDescription(authenticatedUserId, id, request.description());
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
 	}
 
 	@PostMapping("/{id}/tags")

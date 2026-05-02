@@ -240,6 +240,23 @@ public class SceneService {
 		return savedScene;
 	}
 
+	@Transactional
+	public Scene updateDescription(Long authenticatedUserId, Long sceneId, String description) {
+		requireAuthenticatedUser(authenticatedUserId);
+
+		Scene scene = this.sceneRepository.findById(sceneId)
+				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+
+		requireSceneOwnership(scene, authenticatedUserId);
+		scene.updateDescription(normalizeOptionalText(description));
+
+		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+		if (this.entityManager != null) {
+			this.entityManager.refresh(savedScene);
+		}
+		return savedScene;
+	}
+
 	public static JsonNode sceneDataJson(Map<String, Object> sceneData) {
 		return JSON_OBJECT_MAPPER.valueToTree(sceneData);
 	}

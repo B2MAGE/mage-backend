@@ -94,4 +94,8 @@ public class Scene {
 	public void updateThumbnailRef(String thumbnailRef) {
 		this.thumbnailRef = thumbnailRef;
 	}
+
+	public void updateDescription(String description) {
+		this.description = description;
+	}
 }

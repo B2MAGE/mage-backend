@@ -38,6 +38,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -151,6 +152,81 @@ class SceneControllerTests {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
+	}
+
+	@Test
+	void updateSceneDescriptionReturnsUpdatedSceneForAuthenticatedOwner() throws Exception {
+		Scene scene = new Scene(
+				77L,
+				"Aurora Drift",
+				"Updated scene description.",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		ReflectionTestUtils.setField(scene, "id", 15L);
+		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.sceneService.updateDescription(77L, 15L, " Updated scene description. "))
+				.thenReturn(scene);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":" Updated scene description. "}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneId").value(15L))
+				.andExpect(jsonPath("$.ownerUserId").value(77L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"))
+				.andExpect(jsonPath("$.name").value("Aurora Drift"))
+				.andExpect(jsonPath("$.description").value("Updated scene description."));
+	}
+
+	@Test
+	void updateSceneDescriptionRejectsOversizedDescription() throws Exception {
+		String requestBody = this.objectMapper.writeValueAsString(Map.of(
+				"description", "a".repeat(1001)));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.description").value("description must be at most 1000 characters"));
+	}
+
+	@Test
+	void updateSceneDescriptionReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
+		when(this.sceneService.updateDescription(null, 15L, "Updated scene description."))
+				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Updated scene description."}
+						"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Authentication is required."));
+	}
+
+	@Test
+	void updateSceneDescriptionReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		when(this.sceneService.updateDescription(88L, 15L, "Updated scene description."))
+				.thenThrow(new SceneOwnershipRequiredException("Scene ownership is required."));
+
+		this.mockMvc.perform(patch("/api/scenes/15/description")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"description":"Updated scene description."}
+						"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
 	}
 
 	@Test

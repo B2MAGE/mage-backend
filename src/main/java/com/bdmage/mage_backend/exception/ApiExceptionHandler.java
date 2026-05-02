@@ -244,6 +244,18 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(PlaylistNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handlePlaylistNotFound(
+			PlaylistNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"PLAYLIST_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
 	@ExceptionHandler(SceneCommentNotFoundException.class)
 	ResponseEntity<ApiErrorResponse> handleSceneCommentNotFound(
 			SceneCommentNotFoundException ex,

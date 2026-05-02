@@ -62,7 +62,8 @@ public class SceneController {
 				request.name(),
 				request.description(),
 				SceneService.sceneDataJson(request.sceneData()),
-				request.thumbnailObjectKey());
+				request.thumbnailObjectKey(),
+				request.playlistId());
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(this.sceneResponseFactory.from(scene));

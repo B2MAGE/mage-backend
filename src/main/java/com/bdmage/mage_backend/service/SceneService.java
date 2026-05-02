@@ -52,6 +52,7 @@ public class SceneService {
 	private final UserRepository userRepository;
 	private final ThumbnailStorageService thumbnailStorageService;
 	private final ThumbnailStorageProperties thumbnailStorageProperties;
+	private final PlaylistService playlistService;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -62,11 +63,10 @@ public class SceneService {
 			TagRepository tagRepository,
 			SceneTagRepository sceneTagRepository,
 			UserRepository userRepository) {
-		this(sceneRepository, tagRepository, sceneTagRepository, userRepository, null, null);
+		this(sceneRepository, tagRepository, sceneTagRepository, userRepository, null, null, null);
 	}
 
-	// Spring uses this constructor in production because it can satisfy all dependencies.
-	@Autowired
+	// Keep this constructor for tests that need storage.
 	public SceneService(
 			SceneRepository sceneRepository,
 			TagRepository tagRepository,
@@ -74,12 +74,27 @@ public class SceneService {
 			UserRepository userRepository,
 			ThumbnailStorageService thumbnailStorageService,
 			ThumbnailStorageProperties thumbnailStorageProperties) {
+		this(sceneRepository, tagRepository, sceneTagRepository, userRepository,
+				thumbnailStorageService, thumbnailStorageProperties, null);
+	}
+
+	// Spring uses this constructor in production.
+	@Autowired
+	public SceneService(
+			SceneRepository sceneRepository,
+			TagRepository tagRepository,
+			SceneTagRepository sceneTagRepository,
+			UserRepository userRepository,
+			ThumbnailStorageService thumbnailStorageService,
+			ThumbnailStorageProperties thumbnailStorageProperties,
+			PlaylistService playlistService) {
 		this.sceneRepository = sceneRepository;
 		this.tagRepository = tagRepository;
 		this.sceneTagRepository = sceneTagRepository;
 		this.userRepository = userRepository;
 		this.thumbnailStorageService = thumbnailStorageService;
 		this.thumbnailStorageProperties = thumbnailStorageProperties;
+		this.playlistService = playlistService;
 	}
 
 	@Transactional
@@ -89,6 +104,17 @@ public class SceneService {
 			String description,
 			JsonNode sceneData,
 			String thumbnailObjectKey) {
+		return createScene(authenticatedUserId, name, description, sceneData, thumbnailObjectKey, null);
+	}
+
+	@Transactional
+	public Scene createScene(
+			Long authenticatedUserId,
+			String name,
+			String description,
+			JsonNode sceneData,
+			String thumbnailObjectKey,
+			Long playlistId) {
 		requireAuthenticatedUser(authenticatedUserId);
 
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
@@ -108,6 +134,9 @@ public class SceneService {
 			Scene savedScene = this.sceneRepository.saveAndFlush(newScene);
 			if (this.entityManager != null) {
 				this.entityManager.refresh(savedScene);
+			}
+			if (playlistId != null) {
+				requirePlaylistService().attachSceneToPlaylist(authenticatedUserId, savedScene, playlistId);
 			}
 			return savedScene;
 		} catch (RuntimeException ex) {
@@ -369,6 +398,14 @@ public class SceneService {
 		}
 
 		return this.thumbnailStorageService;
+	}
+
+	private PlaylistService requirePlaylistService() {
+		if (this.playlistService == null) {
+			throw new IllegalStateException("Playlist service is not configured.");
+		}
+
+		return this.playlistService;
 	}
 
 	private ThumbnailStorageProperties requireThumbnailStorageProperties() {

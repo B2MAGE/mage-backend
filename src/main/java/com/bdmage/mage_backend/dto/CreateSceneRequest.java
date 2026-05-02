@@ -14,5 +14,6 @@ public record CreateSceneRequest(
 		String description,
 		@NotNull(message = "sceneData must not be null")
 		Map<String, Object> sceneData,
-		String thumbnailObjectKey) {
+		String thumbnailObjectKey,
+		Long playlistId) {
 }

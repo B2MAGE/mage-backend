@@ -96,6 +96,7 @@ class SceneControllerTests {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
 						"""),
+				null,
 				null))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
@@ -334,7 +335,8 @@ class SceneControllerTests {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				"scenes/pending/77/thumbnails/abc123.png"))
+				"scenes/pending/77/thumbnails/abc123.png",
+				null))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
@@ -355,6 +357,44 @@ class SceneControllerTests {
 	}
 
 	@Test
+	void createSceneAcceptsOptionalPlaylistId() throws Exception {
+		Scene scene = new Scene(
+				77L,
+				"Aurora Drift",
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""));
+		ReflectionTestUtils.setField(scene, "id", 15L);
+		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
+
+		when(this.sceneService.createScene(
+				77L,
+				"Aurora Drift",
+				null,
+				this.objectMapper.readTree("""
+						{"visualizer":{"shader":"nebula"}}
+						"""),
+				null,
+				99L))
+				.thenReturn(scene);
+		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
+
+		this.mockMvc.perform(post("/api/scenes")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name":"Aurora Drift",
+						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "playlistId":99
+						}
+						"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.sceneId").value(15L))
+				.andExpect(jsonPath("$.creatorDisplayName").value("Scene Creator"));
+	}
+
+	@Test
 	void createSceneReturnsUnauthorizedWhenRequestIsNotAuthenticated() throws Exception {
 		when(this.sceneService.createScene(
 				null,
@@ -363,6 +403,7 @@ class SceneControllerTests {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
+				null,
 				null))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 

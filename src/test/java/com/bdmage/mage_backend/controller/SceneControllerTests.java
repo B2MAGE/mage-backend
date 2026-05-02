@@ -519,6 +519,74 @@ class SceneControllerTests {
 	}
 
 	@Test
+	void replaceSceneTagsReturnsUpdatedAssociationsForAuthenticatedOwner() throws Exception {
+		when(this.sceneService.replaceSceneTags(77L, 15L, List.of(7L, 9L)))
+				.thenReturn(List.of(new SceneTag(15L, 7L), new SceneTag(15L, 9L)));
+
+		this.mockMvc.perform(put("/api/scenes/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagIds":[7,9]}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$[0].sceneId").value(15L))
+				.andExpect(jsonPath("$[0].tagId").value(7L))
+				.andExpect(jsonPath("$[1].sceneId").value(15L))
+				.andExpect(jsonPath("$[1].tagId").value(9L));
+	}
+
+	@Test
+	void replaceSceneTagsAllowsEmptyTagList() throws Exception {
+		when(this.sceneService.replaceSceneTags(77L, 15L, List.of()))
+				.thenReturn(List.of());
+
+		this.mockMvc.perform(put("/api/scenes/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"tagIds":[]}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").doesNotExist());
+	}
+
+	@Test
+	void replaceSceneTagsRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(put("/api/scenes/15/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.tagIds").value("tagIds must not be null"));
+	}
+
+	@Test
+	void removeTagFromSceneReturnsNoContentForAuthenticatedOwner() throws Exception {
+		this.mockMvc.perform(delete("/api/scenes/15/tags/7")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void removeTagFromSceneReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
+		doThrow(new SceneOwnershipRequiredException("Scene ownership is required."))
+				.when(this.sceneService)
+				.removeTagFromScene(88L, 15L, 7L);
+
+		this.mockMvc.perform(delete("/api/scenes/15/tags/7")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("SCENE_OWNERSHIP_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("Scene ownership is required."));
+	}
+
+	@Test
 	void getSceneReturnsSceneById() throws Exception {
 		Scene scene = new Scene(
 				77L,

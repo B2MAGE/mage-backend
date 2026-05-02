@@ -6,6 +6,7 @@ import com.bdmage.mage_backend.dto.AttachTagToSceneRequest;
 import com.bdmage.mage_backend.dto.CreateSceneRequest;
 import com.bdmage.mage_backend.dto.CreateSceneThumbnailUploadRequest;
 import com.bdmage.mage_backend.dto.FinalizeSceneThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.ReplaceSceneTagsRequest;
 import com.bdmage.mage_backend.dto.SceneDetailResponse;
 import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.dto.SceneResponse;
@@ -110,6 +111,27 @@ public class SceneController {
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(SceneTagResponse.from(sceneTag));
+	}
+
+	@PutMapping("/{id}/tags")
+	ResponseEntity<List<SceneTagResponse>> replaceSceneTags(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@Valid @RequestBody ReplaceSceneTagsRequest request) {
+		List<SceneTag> sceneTags = this.sceneService.replaceSceneTags(authenticatedUserId, id, request.tagIds());
+
+		return ResponseEntity.ok(sceneTags.stream()
+				.map(SceneTagResponse::from)
+				.toList());
+	}
+
+	@DeleteMapping("/{id}/tags/{tagId}")
+	ResponseEntity<Void> removeTagFromScene(
+			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+			@PathVariable Long id,
+			@PathVariable Long tagId) {
+		this.sceneService.removeTagFromScene(authenticatedUserId, id, tagId);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping

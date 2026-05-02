@@ -15,6 +15,7 @@ import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
 import com.bdmage.mage_backend.exception.SceneTagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
+import com.bdmage.mage_backend.model.SceneTagId;
 import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
@@ -387,6 +388,85 @@ class SceneServiceTests {
 				.hasMessage("This tag is already attached to the scene.");
 	}
 
+	@Test
+	void replaceSceneTagsClearsExistingTagsAndPersistsUniqueRequestedTags() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
+		SceneTag existingSceneTag = new SceneTag(15L, 4L);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(tagRepository.existsById(7L)).thenReturn(true);
+		when(tagRepository.existsById(8L)).thenReturn(true);
+		when(sceneTagRepository.findAllBySceneId(15L)).thenReturn(List.of(existingSceneTag));
+		when(sceneTagRepository.saveAllAndFlush(any()))
+				.thenAnswer(invocation -> invocation.getArgument(0, List.class));
+
+		List<SceneTag> savedSceneTags = sceneService.replaceSceneTags(42L, 15L, List.of(7L, 8L, 7L));
+
+		assertThat(savedSceneTags)
+				.extracting(SceneTag::getTagId)
+				.containsExactly(7L, 8L);
+		verify(sceneTagRepository).deleteAll(List.of(existingSceneTag));
+		verify(sceneTagRepository).flush();
+	}
+
+	@Test
+	void replaceSceneTagsAllowsClearingAllTags() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
+		SceneTag existingSceneTag = new SceneTag(15L, 4L);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(sceneTagRepository.findAllBySceneId(15L)).thenReturn(List.of(existingSceneTag));
+
+		List<SceneTag> savedSceneTags = sceneService.replaceSceneTags(42L, 15L, List.of());
+
+		assertThat(savedSceneTags).isEmpty();
+		verifyNoInteractions(tagRepository);
+		verify(sceneTagRepository).deleteAll(List.of(existingSceneTag));
+		verify(sceneTagRepository).flush();
+		verify(sceneTagRepository, never()).saveAllAndFlush(any());
+	}
+
+	@Test
+	void removeTagFromSceneDeletesExistingAssociationForOwner() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		TagRepository tagRepository = mock(TagRepository.class);
+		SceneTagRepository sceneTagRepository = mock(SceneTagRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, tagRepository, sceneTagRepository, userRepository);
+		Scene scene = new Scene(
+				42L,
+				"Aurora Drift",
+				this.objectMapper.createObjectNode());
+		SceneTagId sceneTagId = new SceneTagId(15L, 7L);
+
+		when(userRepository.existsById(42L)).thenReturn(true);
+		when(sceneRepository.findById(15L)).thenReturn(Optional.of(scene));
+		when(tagRepository.existsById(7L)).thenReturn(true);
+		when(sceneTagRepository.existsById(sceneTagId)).thenReturn(true);
+
+		sceneService.removeTagFromScene(42L, 15L, 7L);
+
+		verify(sceneTagRepository).deleteById(sceneTagId);
+		verify(sceneTagRepository).flush();
+	}
 	@Test
 	void createSceneThumbnailUploadReturnsPresignedUploadForAuthenticatedUser() {
 		SceneRepository sceneRepository = mock(SceneRepository.class);

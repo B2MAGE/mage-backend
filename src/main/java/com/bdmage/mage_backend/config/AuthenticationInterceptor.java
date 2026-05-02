@@ -20,7 +20,9 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 	private static final String BEARER_PREFIX = "Bearer ";
 	private static final List<String> PUBLIC_SCENE_READ_PATTERNS = List.of(
 			"/api/scenes",
-			"/api/scenes/{id}");
+			"/api/scenes/{id}",
+			"/api/scenes/{id}/comments",
+			"/api/presets/{id}/comments");
 	private static final String PUBLIC_SCENE_VIEW_PATTERN = "/api/scenes/{id}/views";
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 

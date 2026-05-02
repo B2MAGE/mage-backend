@@ -220,6 +220,30 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(SceneCommentNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleSceneCommentNotFound(
+			SceneCommentNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"COMMENT_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidSceneCommentParentException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidSceneCommentParent(
+			InvalidSceneCommentParentException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.BAD_REQUEST,
+			"INVALID_COMMENT_PARENT",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
 	@ExceptionHandler(SceneForbiddenException.class)
 	ResponseEntity<ApiErrorResponse> handleForbiddenException(
 			SceneForbiddenException ex,

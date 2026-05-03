@@ -1,26 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
 import java.util.List;
-import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
-import com.bdmage.mage_backend.dto.AttachTagToSceneRequest;
-import com.bdmage.mage_backend.dto.CreateSceneRequest;
-import com.bdmage.mage_backend.dto.CreateSceneThumbnailUploadRequest;
-import com.bdmage.mage_backend.dto.FinalizeSceneThumbnailUploadRequest;
-import com.bdmage.mage_backend.dto.ReplaceSceneTagsRequest;
-import com.bdmage.mage_backend.dto.SceneDetailResponse;
-import com.bdmage.mage_backend.dto.SceneEngagementResponse;
-import com.bdmage.mage_backend.dto.SceneResponse;
-import com.bdmage.mage_backend.dto.SceneTagResponse;
-import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
-import com.bdmage.mage_backend.dto.UpdateSceneDescriptionRequest;
-import com.bdmage.mage_backend.dto.UpdateSceneRequest;
-import com.bdmage.mage_backend.dto.UpdateSceneVoteRequest;
-import com.bdmage.mage_backend.model.Scene;
-import com.bdmage.mage_backend.model.SceneTag;
-import com.bdmage.mage_backend.service.SceneEngagementService;
-import com.bdmage.mage_backend.service.SceneService;
-import com.bdmage.mage_backend.service.SceneResponseFactory;
-import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -35,6 +16,29 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
+import com.bdmage.mage_backend.dto.AttachTagToSceneRequest;
+import com.bdmage.mage_backend.dto.CreateSceneRequest;
+import com.bdmage.mage_backend.dto.CreateSceneThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.FinalizeSceneThumbnailUploadRequest;
+import com.bdmage.mage_backend.dto.PresignedThumbnailUploadResponse;
+import com.bdmage.mage_backend.dto.ReplaceSceneTagsRequest;
+import com.bdmage.mage_backend.dto.SceneDetailResponse;
+import com.bdmage.mage_backend.dto.SceneEngagementResponse;
+import com.bdmage.mage_backend.dto.SceneResponse;
+import com.bdmage.mage_backend.dto.SceneTagResponse;
+import com.bdmage.mage_backend.dto.UpdateSceneDescriptionRequest;
+import com.bdmage.mage_backend.dto.UpdateSceneRequest;
+import com.bdmage.mage_backend.dto.UpdateSceneVisibilityRequest;
+import com.bdmage.mage_backend.dto.UpdateSceneVoteRequest;
+import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.SceneTag;
+import com.bdmage.mage_backend.service.SceneEngagementService;
+import com.bdmage.mage_backend.service.SceneResponseFactory;
+import com.bdmage.mage_backend.service.SceneService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/scenes")
@@ -87,6 +91,15 @@ public class SceneController {
 			@Valid @RequestBody UpdateSceneDescriptionRequest request) {
 		Scene scene = this.sceneService.updateDescription(authenticatedUserId, id, request.description());
 		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
+	}
+
+	@PatchMapping("/{id}/visibility")
+	ResponseEntity<SceneResponse> updateSceneVisibility(
+        	@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
+        	@PathVariable Long id,
+        	@Valid @RequestBody UpdateSceneVisibilityRequest request) {
+    	Scene scene = this.sceneService.updateVisibility(authenticatedUserId, id, request.visibility());
+    	return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
 	}
 
 	@PutMapping("/{id}")
@@ -150,7 +163,7 @@ public class SceneController {
 	ResponseEntity<SceneDetailResponse> getScene(
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
 			@PathVariable Long id) {
-		Scene scene = this.sceneService.getScene(id);
+		Scene scene = this.sceneService.getScene(id, authenticatedUserId);
 		List<String> tagNames = this.sceneService.getTagNamesForScene(id);
 
 		return ResponseEntity.ok(this.sceneResponseFactory.detailFrom(

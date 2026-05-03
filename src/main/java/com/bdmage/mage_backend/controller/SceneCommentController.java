@@ -2,12 +2,6 @@ package com.bdmage.mage_backend.controller;
 
 import java.util.List;
 
-import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
-import com.bdmage.mage_backend.dto.CreateSceneCommentRequest;
-import com.bdmage.mage_backend.dto.SceneCommentResponse;
-import com.bdmage.mage_backend.dto.UpdateCommentVoteRequest;
-import com.bdmage.mage_backend.service.SceneCommentService;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,7 +12,16 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
+import com.bdmage.mage_backend.dto.CreateSceneCommentRequest;
+import com.bdmage.mage_backend.dto.SceneCommentResponse;
+import com.bdmage.mage_backend.dto.UpdateCommentVoteRequest;
+import com.bdmage.mage_backend.service.SceneCommentService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/scenes/{sceneId}/comments")
@@ -33,8 +36,9 @@ public class SceneCommentController {
 	@GetMapping
 	ResponseEntity<List<SceneCommentResponse>> getSceneComments(
 			@RequestAttribute(name = AuthenticatedUserRequest.USER_ID_ATTRIBUTE, required = false) Long authenticatedUserId,
-			@PathVariable Long sceneId) {
-		return ResponseEntity.ok(this.sceneCommentService.getSceneComments(sceneId, authenticatedUserId));
+			@PathVariable Long sceneId,
+			@RequestParam(required = false) String sort) {
+		return ResponseEntity.ok(this.sceneCommentService.getSceneComments(sceneId, authenticatedUserId, sort));
 	}
 
 	@PostMapping

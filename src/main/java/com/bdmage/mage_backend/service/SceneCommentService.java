@@ -2,8 +2,12 @@ package com.bdmage.mage_backend.service;
 
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.bdmage.mage_backend.dto.SceneCommentResponse;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.InvalidCommentSortException;
 import com.bdmage.mage_backend.exception.InvalidSceneCommentParentException;
 import com.bdmage.mage_backend.exception.SceneCommentNotFoundException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
@@ -12,8 +16,6 @@ import com.bdmage.mage_backend.repository.SceneCommentRepository;
 import com.bdmage.mage_backend.repository.SceneCommentSummaryProjection;
 import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SceneCommentService {
@@ -38,9 +40,22 @@ public class SceneCommentService {
 
 	@Transactional(readOnly = true)
 	public List<SceneCommentResponse> getSceneComments(Long sceneId, Long currentUserId) {
+    	return getSceneComments(sceneId, currentUserId, null);
+	}
+
+	@Transactional(readOnly = true)
+	public List<SceneCommentResponse> getSceneComments(Long sceneId, Long currentUserId, String sort) {
 		requireSceneExists(sceneId);
-		return SceneCommentResponse.listFrom(
-				this.sceneCommentRepository.summarizeSceneComments(sceneId, currentUserId));
+
+		if (sort != null && !sort.equals("top") && !sort.equals("new")) {
+        	throw new InvalidCommentSortException("Invalid sort value. Supported values are: top, new.");
+    	}
+
+		List<SceneCommentSummaryProjection> comments = "top".equals(sort)
+            ? this.sceneCommentRepository.summarizeSceneCommentsByTop(sceneId, currentUserId)
+            : this.sceneCommentRepository.summarizeSceneComments(sceneId, currentUserId);
+
+		return SceneCommentResponse.listFrom(comments);
 	}
 
 	@Transactional

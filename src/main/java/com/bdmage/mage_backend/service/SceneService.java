@@ -5,6 +5,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
@@ -16,6 +22,7 @@ import com.bdmage.mage_backend.exception.TagNotFoundException;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.SceneTagId;
+import com.bdmage.mage_backend.model.SceneVisibility;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
@@ -23,13 +30,9 @@ import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 @Service
 public class SceneService {
@@ -162,8 +165,22 @@ public class SceneService {
 
 	@Transactional(readOnly = true)
 	public Scene getScene(Long sceneId) {
-		return this.sceneRepository.findById(sceneId)
-				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+    	return getScene(sceneId, null);
+	}
+
+	@Transactional(readOnly = true)
+	public Scene getScene(Long sceneId, Long authenticatedUserId) {
+    	Scene scene = this.sceneRepository.findById(sceneId)
+            .orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
+
+    	if (scene.getVisibility() == SceneVisibility.PRIVATE ||
+            	scene.getVisibility() == SceneVisibility.DRAFT) {
+        	if (!scene.getOwnerUserId().equals(authenticatedUserId)) {
+            	throw new SceneForbiddenException(SCENE_FORBIDDEN_MESSAGE);
+        	}
+    	}
+
+    	return scene;
 	}
 
 	@Transactional(readOnly = true)
@@ -316,6 +333,18 @@ public class SceneService {
 			this.entityManager.refresh(savedScene);
 		}
 		return savedScene;
+	}
+
+	@Transactional
+	public Scene updateVisibility(Long authenticatedUserId, Long sceneId, SceneVisibility visibility) {
+    	Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+    	scene.updateVisibility(visibility);
+
+    	Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+    	if (this.entityManager != null) {
+        	this.entityManager.refresh(savedScene);
+    	}
+    	return savedScene;
 	}
 
 	@Transactional

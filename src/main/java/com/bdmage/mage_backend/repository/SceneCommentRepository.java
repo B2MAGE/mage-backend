@@ -3,11 +3,12 @@ package com.bdmage.mage_backend.repository;
 import java.util.List;
 import java.util.Optional;
 
-import com.bdmage.mage_backend.model.SceneComment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.bdmage.mage_backend.model.SceneComment;
 
 public interface SceneCommentRepository extends JpaRepository<SceneComment, Long> {
 
@@ -32,6 +33,31 @@ public interface SceneCommentRepository extends JpaRepository<SceneComment, Long
 	List<SceneCommentSummaryProjection> summarizeSceneComments(
 			@Param("sceneId") Long sceneId,
 			@Param("currentUserId") Long currentUserId);
+			
+	@Query(value = """
+        	SELECT
+          	  sc.id AS "commentId",
+          	  sc.scene_id AS "sceneId",
+          	  sc.parent_comment_id AS "parentCommentId",
+          	  sc.user_id AS "authorUserId",
+          	  u.display_name AS "authorDisplayName",
+          	  sc.body AS "text",
+          	  sc.created_at AS "createdAt",
+          	  (SELECT COUNT(*) FROM scene_comments replies WHERE replies.parent_comment_id = sc.id) AS "replyCount",
+          	  (SELECT COUNT(*) FROM scene_comment_votes scv WHERE scv.comment_id = sc.id AND scv.vote_value = 1) AS upvotes,
+          	  (SELECT COUNT(*) FROM scene_comment_votes scv WHERE scv.comment_id = sc.id AND scv.vote_value = -1) AS downvotes,
+          	  (SELECT scv.vote_value FROM scene_comment_votes scv WHERE scv.comment_id = sc.id AND scv.user_id = :currentUserId) AS "currentUserVoteValue"
+        	FROM scene_comments sc
+        	JOIN users u ON u.id = sc.user_id
+        	WHERE sc.scene_id = :sceneId
+        	ORDER BY (
+          	(SELECT COUNT(*) FROM scene_comment_votes scv WHERE scv.comment_id = sc.id AND scv.vote_value = 1) -
+          	(SELECT COUNT(*) FROM scene_comment_votes scv WHERE scv.comment_id = sc.id AND scv.vote_value = -1)
+        	) DESC, sc.created_at ASC, sc.id ASC
+        	""", nativeQuery = true)
+	List<SceneCommentSummaryProjection> summarizeSceneCommentsByTop(
+        	@Param("sceneId") Long sceneId,
+        	@Param("currentUserId") Long currentUserId);
 
 	@Query(value = """
 			SELECT

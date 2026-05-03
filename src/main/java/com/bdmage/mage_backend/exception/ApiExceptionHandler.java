@@ -340,6 +340,18 @@ public class ApiExceptionHandler {
 			request.getRequestURI());
 	}
 
+	@ExceptionHandler(InvalidCommentSortException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidCommentSort(
+        	InvalidCommentSortException ex,
+        	HttpServletRequest request) {
+    	return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_COMMENT_SORT",
+            ex.getMessage(),
+            Map.of(),
+            request.getRequestURI());
+	}
+
 	private static ResponseEntity<ApiErrorResponse> buildResponse(
 			HttpStatus status,
 			String code,

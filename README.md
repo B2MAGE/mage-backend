@@ -94,6 +94,8 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/register`                   | Public       | Create a local account                                                                     |
 | `POST /api/auth/login`                      | Public       | Authenticate a local account                                                               |
 | `POST /api/auth/google`                     | Public       | Authenticate with a Google ID token                                                        |
+| `POST /api/auth/reset-password/request`     | Public       | Request a password reset link for a local or linked local account                          |
+| `POST /api/auth/reset-password/confirm`     | Public       | Reset a local password with a valid reset token                                             |
 | `POST /api/auth/link/google`                | Public       | Link Google auth to an existing local account                                              |
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
@@ -163,6 +165,37 @@ Successful auth and profile responses return the structured personal-name fields
   "newPassword": "new-password"
 }
 ```
+
+Password reset starts with:
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+sent to `POST /api/auth/reset-password/request`. The response is intentionally neutral and does not reveal whether the email exists. Local development defaults to logging the reset link in backend logs. Deployed environments can send reset emails through SMTP, including Brevo, by setting:
+
+```text
+MAGE_PASSWORD_RESET_DELIVERY=smtp
+MAGE_PASSWORD_RESET_FRONTEND_BASE_URL=https://your-frontend-origin
+MAGE_PASSWORD_RESET_FROM_EMAIL=verified-sender@example.com
+MAGE_EMAIL_SMTP_HOST=smtp-relay.brevo.com
+MAGE_EMAIL_SMTP_PORT=587
+MAGE_EMAIL_SMTP_USERNAME=<brevo-smtp-login>
+MAGE_EMAIL_SMTP_PASSWORD=<brevo-smtp-key>
+```
+
+The reset link points to `/reset-password?token=...`, which submits:
+
+```json
+{
+  "token": "raw-token-from-link",
+  "newPassword": "new-password"
+}
+```
+
+to `POST /api/auth/reset-password/confirm`.
 
 ## Repository Layout
 

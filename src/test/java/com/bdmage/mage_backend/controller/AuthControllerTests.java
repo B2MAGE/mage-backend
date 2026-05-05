@@ -6,6 +6,7 @@ import com.bdmage.mage_backend.exception.EmailAlreadyRegisteredException;
 import com.bdmage.mage_backend.exception.InvalidCredentialsException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
 import com.bdmage.mage_backend.exception.InvalidLocalCredentialsException;
+import com.bdmage.mage_backend.exception.InvalidPasswordResetTokenException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.AccountLinkingService;
 import com.bdmage.mage_backend.service.AccountLinkingService.AccountLinkingResult;
@@ -13,6 +14,7 @@ import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
 import com.bdmage.mage_backend.service.LoginService;
+import com.bdmage.mage_backend.service.PasswordResetService;
 import com.bdmage.mage_backend.service.RegistrationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +26,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -36,6 +40,7 @@ class AuthControllerTests {
 	private AuthenticationTokenService authenticationTokenService;
 	private GoogleAuthenticationService googleAuthenticationService;
 	private LoginService loginService;
+	private PasswordResetService passwordResetService;
 	private RegistrationService registrationService;
 	private MockMvc mockMvc;
 	private LocalValidatorFactoryBean validator;
@@ -46,6 +51,7 @@ class AuthControllerTests {
 		this.authenticationTokenService = mock(AuthenticationTokenService.class);
 		this.googleAuthenticationService = mock(GoogleAuthenticationService.class);
 		this.loginService = mock(LoginService.class);
+		this.passwordResetService = mock(PasswordResetService.class);
 		this.registrationService = mock(RegistrationService.class);
 		this.validator = new LocalValidatorFactoryBean();
 		this.validator.afterPropertiesSet();
@@ -55,6 +61,7 @@ class AuthControllerTests {
 						this.authenticationTokenService,
 						this.googleAuthenticationService,
 						this.loginService,
+						this.passwordResetService,
 						this.registrationService))
 				.setControllerAdvice(new ApiExceptionHandler())
 				.setValidator(this.validator)
@@ -251,6 +258,73 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.accessToken").value("issued-login-token"))
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+	}
+
+	@Test
+	void passwordResetRequestReturnsNeutralSuccessMessage() throws Exception {
+		this.mockMvc.perform(post("/api/auth/reset-password/request")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"user@example.com"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.message").value(PasswordResetService.RESET_REQUEST_MESSAGE));
+
+		verify(this.passwordResetService).requestPasswordReset("user@example.com");
+	}
+
+	@Test
+	void passwordResetRequestRejectsInvalidEmail() throws Exception {
+		this.mockMvc.perform(post("/api/auth/reset-password/request")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"not-an-email"}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.email").value("email must be a well-formed email address"));
+	}
+
+	@Test
+	void passwordResetConfirmReturnsSuccessMessage() throws Exception {
+		this.mockMvc.perform(post("/api/auth/reset-password/confirm")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"token":"reset-token","newPassword":"new-password"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.message").value(PasswordResetService.RESET_CONFIRM_MESSAGE));
+
+		verify(this.passwordResetService).resetPassword("reset-token", "new-password");
+	}
+
+	@Test
+	void passwordResetConfirmRejectsInvalidRequestBody() throws Exception {
+		this.mockMvc.perform(post("/api/auth/reset-password/confirm")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"token":" ","newPassword":"short"}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.token").value("token must not be blank"))
+				.andExpect(jsonPath("$.details.newPassword").value("newPassword must be between 8 and 72 characters"));
+	}
+
+	@Test
+	void passwordResetConfirmReturnsBadRequestForInvalidToken() throws Exception {
+		doThrow(new InvalidPasswordResetTokenException("Password reset link is invalid or expired."))
+				.when(this.passwordResetService)
+				.resetPassword("expired-token", "new-password");
+
+		this.mockMvc.perform(post("/api/auth/reset-password/confirm")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"token":"expired-token","newPassword":"new-password"}
+						"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_PASSWORD_RESET_TOKEN"))
+				.andExpect(jsonPath("$.message").value("Password reset link is invalid or expired."));
 	}
 
 	@Test

@@ -7,6 +7,9 @@ import com.bdmage.mage_backend.dto.GoogleAccountLinkRequest;
 import com.bdmage.mage_backend.dto.LoginRequest;
 import com.bdmage.mage_backend.dto.LoginResponse;
 import com.bdmage.mage_backend.dto.LocalAccountLinkRequest;
+import com.bdmage.mage_backend.dto.PasswordResetConfirmRequest;
+import com.bdmage.mage_backend.dto.PasswordResetRequest;
+import com.bdmage.mage_backend.dto.PasswordResetResponse;
 import com.bdmage.mage_backend.dto.RegistrationRequest;
 import com.bdmage.mage_backend.dto.RegistrationResponse;
 import com.bdmage.mage_backend.model.User;
@@ -16,6 +19,7 @@ import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService;
 import com.bdmage.mage_backend.service.GoogleAuthenticationService.GoogleAuthenticationResult;
 import com.bdmage.mage_backend.service.LoginService;
+import com.bdmage.mage_backend.service.PasswordResetService;
 import com.bdmage.mage_backend.service.RegistrationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -33,6 +37,7 @@ public class AuthController {
 	private final AuthenticationTokenService authenticationTokenService;
 	private final GoogleAuthenticationService googleAuthenticationService;
 	private final LoginService loginService;
+	private final PasswordResetService passwordResetService;
 	private final RegistrationService registrationService;
 
 	public AuthController(
@@ -40,11 +45,13 @@ public class AuthController {
 			AuthenticationTokenService authenticationTokenService,
 			GoogleAuthenticationService googleAuthenticationService,
 			LoginService loginService,
+			PasswordResetService passwordResetService,
 			RegistrationService registrationService) {
 		this.accountLinkingService = accountLinkingService;
 		this.authenticationTokenService = authenticationTokenService;
 		this.googleAuthenticationService = googleAuthenticationService;
 		this.loginService = loginService;
+		this.passwordResetService = passwordResetService;
 		this.registrationService = registrationService;
 	}
 
@@ -99,6 +106,19 @@ public class AuthController {
 				user.getDisplayName(),
 				user.getAuthProvider().name(),
 				accessToken));
+	}
+
+	@PostMapping("/reset-password/request")
+	ResponseEntity<PasswordResetResponse> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+		this.passwordResetService.requestPasswordReset(request.email());
+		return ResponseEntity.ok(new PasswordResetResponse(PasswordResetService.RESET_REQUEST_MESSAGE));
+	}
+
+	@PostMapping("/reset-password/confirm")
+	ResponseEntity<PasswordResetResponse> confirmPasswordReset(
+			@Valid @RequestBody PasswordResetConfirmRequest request) {
+		this.passwordResetService.resetPassword(request.token(), request.newPassword());
+		return ResponseEntity.ok(new PasswordResetResponse(PasswordResetService.RESET_CONFIRM_MESSAGE));
 	}
 
 	@PostMapping("/link/google")

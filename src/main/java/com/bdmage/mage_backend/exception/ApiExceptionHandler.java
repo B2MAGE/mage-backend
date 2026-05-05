@@ -196,6 +196,30 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(InvalidPasswordResetTokenException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidPasswordResetToken(
+			InvalidPasswordResetTokenException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.BAD_REQUEST,
+				"INVALID_PASSWORD_RESET_TOKEN",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(PasswordResetDeliveryException.class)
+	ResponseEntity<ApiErrorResponse> handlePasswordResetDelivery(
+			PasswordResetDeliveryException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.SERVICE_UNAVAILABLE,
+				"PASSWORD_RESET_DELIVERY_UNAVAILABLE",
+				ex.getMessage(),
+				Map.of(),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(AuthenticationRequiredException.class)
 	ResponseEntity<ApiErrorResponse> handleAuthenticationRequired(
 			AuthenticationRequiredException ex,

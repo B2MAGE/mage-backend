@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AuthenticationTokenRepository extends JpaRepository<AuthenticationToken, Long> {
 
 	Optional<AuthenticationToken> findByTokenHash(String tokenHash);
+
+	void deleteByUserId(Long userId);
 }

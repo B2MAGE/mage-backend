@@ -68,7 +68,10 @@ function sceneData(index) {
       'color(0.74, 0.3, 0.75); torus(size * 0.48, 0.012);',
       'color(0.65, 0.52, 1.0); sphere(size * 0.11);',
     ].join('\n');
-    data.fx.bloom.strength=0.8;
+    data.visualizer.scale=2;
+    data.fx.bloom.strength=0.35;
+    data.fx.bloom.threshold=0.5;
+    data.fx.toneMapping.exposure=0.8;
   }
   return sanitizeSceneData(data);
 }

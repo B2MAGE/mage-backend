@@ -58,7 +58,9 @@ function sceneData(index) {
   if (index===0) {
     data.intent.autoRotate = false;
     data.visualizer.shader = [
-      'let size = 0.9 + input() * 0.15;',
+      'let size = input();',
+      'let pointerDown = input();',
+      'size = 0.9 + size * 0.15;',
       'setMaxIterations(100); setStepSize(0.7);',
       'rotateX(PI / 2 + sin(time * 0.12) * 0.12); rotateZ(time * 0.025);',
       'color(0.66, 0.52, 1.0); shine(0.65); metal(0.35); torus(size * 1.25, 0.013);',

@@ -4,7 +4,6 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deflateSync } from 'node:zlib';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const frontend = path.resolve(repo, '../mage-frontend');
@@ -26,7 +25,6 @@ const tagSets = [
   ['Ambient','Reactive','Neon'], ['Geometry','Minimal','Loop'], ['Experimental','Reactive','Glitch'],
   ['Ambient','Cinematic','Generative'], ['Abstract','Geometry','Neon'], ['Minimal','Generative','Loop'],
 ];
-const palettes = [[171,141,255],[75,216,199],[255,169,95],[106,174,250],[242,113,158],[190,220,132]];
 async function api(route, {method='GET', token, body, allowConflict=false} = {}) {
   const response = await fetch(new URL(route, base), {
     method, headers: {...(body ? {'Content-Type':'application/json'} : {}), ...(token ? {Authorization:'Bearer '+token} : {})},
@@ -75,30 +73,9 @@ function sceneData(index) {
   }
   return sanitizeSceneData(data);
 }
-// Deterministic PNG fixture artwork, generated without image libraries or remote image services.
-const crcTable=Uint32Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;return c>>>0;});
-function chunk(type,data) {
-  const contents=Buffer.concat([Buffer.from(type),data]); let crc=0xffffffff;
-  for(const value of contents)crc=crcTable[(crc^value)&255]^(crc>>>8);
-  const output=Buffer.alloc(data.length+12);output.writeUInt32BE(data.length);contents.copy(output,4);
-  output.writeUInt32BE((crc^0xffffffff)>>>0,output.length-4);return output;
-}
-function thumbnail(index) {
-  const width=800,height=450,pixels=Buffer.alloc((width*3+1)*height),palette=palettes[index%palettes.length];
-  for(let y=0;y<height;y++)for(let x=0;x<width;x++) {
-    const nx=(x-width/2)/height,ny=(y-height/2)/height,angle=Math.atan2(ny,nx),r=Math.hypot(nx,ny);
-    let light=0;
-    for(let ring=0;ring<3;ring++){
-      const radius=0.1+ring*0.11+Math.sin(angle*(3+index%5)+index)*(index===0?0.008:0.028);
-      const d=Math.abs(r-radius);light+=Math.exp(-d*d/0.000015)*0.9+Math.exp(-d*d/0.0012)*0.12;
-    }
-    light+=Math.exp(-r*r/0.0012)*0.75;
-    const offset=y*(width*3+1)+1+x*3;
-    for(let channel=0;channel<3;channel++)pixels[offset+channel]=Math.min(255,(channel===2?13:8)+palette[channel]*(light+Math.exp(-r*r/0.2)*0.04));
-  }
-  const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=2;
-  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(pixels)),chunk('IEND',Buffer.alloc(0))]);
-}
+// Use the exact mockup artwork, including its five colored backgrounds.
+const thumbnails=await Promise.all(Array.from({length:5},(_,index)=>
+  readFile(path.join(repo,'scripts/assets/pulse-thumbnails',String(index+1)+'.png'))));
 const existing=await api('scenes');
 if(existing.some(scene=>!titles.includes(scene.name)))throw new Error('Non-demo scenes exist. Start with a fresh Pulse review volume; nothing was changed.');
 const users=[];
@@ -124,7 +101,7 @@ for(let index=0;index<titles.length;index++){
   const owner=users[index<14?0:1+(index-14)%11];
   let scene=existing.find(s=>s.name===titles[index]&&s.ownerUserId===owner.userId);
   if(!scene) {
-    const bytes=thumbnail(index);
+    const bytes=thumbnails[index%thumbnails.length];
     const upload=await api('scenes/thumbnail/presign',{method:'POST',token:owner.accessToken,body:{filename:'pulse-'+(index+1)+'.png',contentType:'image/png',sizeBytes:bytes.length}});
     const put=await fetch(upload.uploadUrl,{method:upload.method,headers:upload.headers,body:bytes});
     assert.equal(put.ok,true,'MinIO PUT failed: '+put.status);

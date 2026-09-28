@@ -32,7 +32,7 @@ The seed reuses demo accounts and scenes, avoids duplicate comments/replies, and
 
 - 12 local accounts, 30 renderable scenes, tags, votes, saves, and 92 comments/replies.
 - Ari Rivera owns 14 scenes, enough for reviewing My Scenes pagination.
-- Every scene has an actual PNG in MinIO, uploaded using the signed upload API and verified by a public GET. Thumbnails are deterministic fixture artwork; playback uses real engine shaders.
+- Every scene has an actual PNG in MinIO, uploaded using the signed upload API and verified by a public GET. Thumbnails reuse the mockup's ring artwork and five colored backgrounds; playback uses real engine shaders.
 - Featured: **Neon Bloom**, by **Ari Rivera**, ID **1** on a fresh database. Its description and tags follow the home mockup.
 - Set `VITE_HOME_FEATURED_SCENE_ID=1` in the frontend's local environment. The manifest records the actual ID if resuming.
 
@@ -40,3 +40,24 @@ Sign in with `ari@pulse.local` and `PulseDemo2026!`. Every demo account shares t
 
 The seed exercises registration, login, scene creation, thumbnail upload/finalization, tags, comments/replies, scene/comment voting, saves, views, and anonymous thumbnail reads. No fixtures are added to production migrations.
 
+## Refresh existing demo thumbnails
+
+The five PNGs in `scripts/assets/pulse-thumbnails/` are rendered from the discovery mockup's own ring artwork and colored backgrounds. Fresh seeds cycle through those assets; scene playback still uses the real shaders.
+
+To preview replacing only the old generated demo images in the current review database:
+
+```powershell
+node scripts/update-pulse-thumbnails.mjs
+```
+
+To apply that preview:
+
+```powershell
+node scripts/update-pulse-thumbnails.mjs --apply
+```
+
+The updater requires the original `.local/pulse-seed-manifest.json` and its loopback API target. It checks the recorded scene ID, owner ID, original thumbnail URL, and an exact SHA-256 match against the original generated PNG before replacing anything. Newly created scenes and changed/custom thumbnails are skipped, including images replaced at the same URL. It changes only thumbnail references through each recorded owner's normal upload/finalization APIs; accounts, scene settings, names, descriptions, tags, comments, votes, saves, and views are not rewritten.
+
+Dry run performs only reads and prints a report. Before applying, every eligible original PNG and the original seed manifest are backed up under `.local/pulse-thumbnail-backups/<timestamp>/`; `report.json` records original/replacement references, hashes, object keys, and each scene's progress. The backend deletes the old storage object when it finalizes a replacement, so retain those local backups if rollback may be needed. To recover a thumbnail, sign in as its recorded demo owner and upload the backed-up `<sceneId>-original.png` through that scene's thumbnail presign/PUT/finalize flow; the backup report identifies the scene and owner. Do not rerun the full seed to restore an image.
+
+The original manifest is left unchanged. Rerunning the updater skips references already replaced and can safely finish remaining originals after an interrupted run. A failed run stops immediately and prints its recovery report path; inspect any `uploading` or `finalizing` entries before resuming. Avoid editing demo thumbnails while an update is in progress.

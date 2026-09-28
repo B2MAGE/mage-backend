@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Original Pulse mockup thumbnail artwork</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; }
+.scene-thumb { position: relative; width: 320px; height: 200px; overflow: hidden; }
+.scene-art { position: absolute; inset: 0; }
+    /* DISCOVERY ORGANIC BREATHING RINGS — based on the supplied v2 reference */
+    .scene-thumb { background: #090a0d; }
+
+    .scene-art {
+      background: #090a0d !important;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .scene-art::after { display: none; }
+
+    .breathing-ring-mark {
+      position: relative;
+      width: 58%;
+      max-width: 150px;
+      aspect-ratio: 1;
+      z-index: 0;
+    }
+
+    .breathing-ring {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      pointer-events: none;
+      will-change: transform, border-radius, opacity;
+    }
+
+    .breathing-ring.outer {
+      width: 79%;
+      height: 77%;
+      border: 2px solid var(--ring-outer);
+      border-radius: var(--outer-radius-a);
+      box-shadow: 0 0 10px var(--ring-outer-glow), 0 0 24px var(--ring-outer-glow-soft);
+      transform: var(--outer-transform-a);
+    }
+
+    .breathing-ring.middle {
+      width: 54%;
+      height: 52%;
+      border: 1.5px solid var(--ring-middle);
+      border-radius: var(--middle-radius-a);
+      box-shadow: 0 0 9px var(--ring-middle-glow), 0 0 16px color-mix(in srgb, var(--ring-middle-glow) 55%, transparent);
+      transform: var(--middle-transform-a);
+    }
+
+    .breathing-ring.inner {
+      width: 33%;
+      height: 31%;
+      border: 1.4px solid var(--ring-inner);
+      border-radius: var(--inner-radius-a);
+      box-shadow: 0 0 8px var(--ring-inner-glow);
+      transform: var(--inner-transform-a);
+    }
+
+    .breathing-ring.core {
+      width: var(--core-width);
+      height: var(--core-height);
+      border: 1.5px solid var(--ring-core-border);
+      border-radius: var(--core-radius-a);
+      background: var(--ring-core-fill);
+      box-shadow: 0 0 8px var(--ring-core-glow), inset 0 0 7px var(--ring-core-fill);
+      transform: var(--core-transform-a);
+    }
+
+    .scene-art.art-1,
+    .scene-art.art-6 {
+      --ring-outer: rgba(194,185,255,.95); --ring-outer-glow: rgba(124,108,255,.55); --ring-outer-glow-soft: rgba(124,108,255,.24);
+      --ring-middle: rgba(71,226,210,.76); --ring-middle-glow: rgba(71,226,210,.22);
+      --ring-inner: rgba(226,107,188,.68); --ring-inner-glow: rgba(226,107,188,.18);
+      --ring-core-border: rgba(207,199,255,.95); --ring-core-fill: rgba(124,108,255,.22); --ring-core-glow: rgba(124,108,255,.68);
+      --outer-radius-a: 48% 52% 46% 54% / 52% 47% 53% 48%; --outer-radius-b: 54% 46% 51% 49% / 45% 55% 47% 53%; --outer-transform-a: translate(-50%,-50%) rotate(-2deg) scale(1); --outer-transform-b: translate(-50%,-50%) rotate(2deg) scale(1.035); --outer-duration: 7.4s; --outer-delay: 0s;
+      --middle-radius-a: 52% 48% 55% 45% / 48% 53% 47% 52%; --middle-radius-b: 46% 54% 48% 52% / 55% 45% 54% 46%; --middle-transform-a: translate(-50%,-50%) rotate(3deg) scale(.99); --middle-transform-b: translate(-50%,-50%) rotate(-4deg) scale(1.035); --middle-duration: 6.8s; --middle-delay: .4s;
+      --inner-radius-a: 45% 55% 52% 48% / 51% 46% 54% 49%; --inner-radius-b: 56% 44% 47% 53% / 45% 55% 48% 52%; --inner-transform-a: translate(-50%,-50%) rotate(-5deg) scale(.98); --inner-transform-b: translate(-50%,-50%) rotate(5deg) scale(1.06); --inner-duration: 6.2s; --inner-delay: .8s;
+      --core-width: 11%; --core-height: 11%; --core-radius-a: 50%; --core-radius-b: 50%; --core-transform-a: translate(-50%,-50%) scale(.92); --core-transform-b: translate(-50%,-50%) scale(1.09); --core-duration: 3.1s; --core-delay: 0s;
+    }
+
+    .scene-art.art-2,
+    .scene-art.art-7 {
+      --ring-outer: rgba(160,221,255,.94); --ring-outer-glow: rgba(60,178,255,.48); --ring-outer-glow-soft: rgba(60,178,255,.20);
+      --ring-middle: rgba(111,255,230,.76); --ring-middle-glow: rgba(111,255,230,.20);
+      --ring-inner: rgba(183,198,255,.68); --ring-inner-glow: rgba(183,198,255,.16);
+      --ring-core-border: rgba(225,242,255,.97); --ring-core-fill: rgba(76,159,255,.22); --ring-core-glow: rgba(76,159,255,.64);
+      --outer-radius-a: 50% 50% 43% 57% / 54% 47% 53% 46%; --outer-radius-b: 55% 45% 52% 48% / 47% 56% 44% 53%; --outer-transform-a: translate(-50%,-50%) rotate(1deg) scale(.99); --outer-transform-b: translate(-50%,-50%) rotate(-3deg) scale(1.04); --outer-duration: 8.4s; --outer-delay: 0s;
+      --middle-radius-a: 44% 56% 50% 50% / 49% 54% 46% 51%; --middle-radius-b: 53% 47% 56% 44% / 55% 45% 52% 48%; --middle-transform-a: translate(-50%,-50%) rotate(-4deg) scale(1.03); --middle-transform-b: translate(-50%,-50%) rotate(4deg) scale(.97); --middle-duration: 7.2s; --middle-delay: .7s;
+      --inner-radius-a: 55% 45% 48% 52% / 46% 53% 47% 54%; --inner-radius-b: 47% 53% 54% 46% / 53% 47% 55% 45%; --inner-transform-a: translate(-50%,-50%) scale(1); --inner-transform-b: translate(-50%,-50%) scale(1.055); --inner-duration: 6.6s; --inner-delay: 1.2s;
+      --core-width: 11.8%; --core-height: 10%; --core-radius-a: 58% 42% 55% 45% / 46% 54% 48% 52%; --core-radius-b: 45% 55% 48% 52% / 56% 44% 53% 47%; --core-transform-a: translate(-50%,-50%) rotate(-3deg) scale(.94); --core-transform-b: translate(-50%,-50%) rotate(4deg) scale(1.08); --core-duration: 4.2s; --core-delay: 0s;
+    }
+
+    .scene-art.art-3,
+    .scene-art.art-8 {
+      --ring-outer: rgba(255,194,139,.95); --ring-outer-glow: rgba(255,131,75,.46); --ring-outer-glow-soft: rgba(255,131,75,.20);
+      --ring-middle: rgba(255,121,182,.76); --ring-middle-glow: rgba(255,121,182,.22);
+      --ring-inner: rgba(255,218,143,.68); --ring-inner-glow: rgba(255,218,143,.18);
+      --ring-core-border: rgba(255,235,204,.96); --ring-core-fill: rgba(255,114,104,.20); --ring-core-glow: rgba(255,114,104,.62);
+      --outer-radius-a: 55% 45% 49% 51% / 46% 54% 51% 49%; --outer-radius-b: 47% 53% 56% 44% / 55% 45% 48% 52%; --outer-transform-a: translate(-50%,-50%) rotate(-3deg) scale(1.01); --outer-transform-b: translate(-50%,-50%) rotate(3deg) scale(.985); --outer-duration: 7.2s; --outer-delay: 0s;
+      --middle-radius-a: 46% 54% 53% 47% / 52% 45% 55% 48%; --middle-radius-b: 54% 46% 45% 55% / 47% 56% 44% 53%; --middle-transform-a: translate(-50%,-50%) rotate(5deg) scale(.97); --middle-transform-b: translate(-50%,-50%) rotate(-5deg) scale(1.055); --middle-duration: 6.4s; --middle-delay: .35s;
+      --inner-radius-a: 49% 51% 57% 43% / 44% 55% 45% 56%; --inner-radius-b: 56% 44% 46% 54% / 55% 45% 53% 47%; --inner-transform-a: translate(-50%,-50%) scale(1.04); --inner-transform-b: translate(-50%,-50%) scale(.95); --inner-duration: 5.8s; --inner-delay: .75s;
+      --core-width: 10.5%; --core-height: 12.3%; --core-radius-a: 44% 56% 48% 52% / 58% 42% 56% 44%; --core-radius-b: 56% 44% 54% 46% / 43% 57% 47% 53%; --core-transform-a: translate(-50%,-50%) rotate(4deg) scale(.93); --core-transform-b: translate(-50%,-50%) rotate(-5deg) scale(1.10); --core-duration: 3.8s; --core-delay: 0s;
+    }
+
+    .scene-art.art-4 {
+      --ring-outer: rgba(132,255,199,.94); --ring-outer-glow: rgba(65,223,159,.46); --ring-outer-glow-soft: rgba(65,223,159,.20);
+      --ring-middle: rgba(92,222,245,.74); --ring-middle-glow: rgba(92,222,245,.20);
+      --ring-inner: rgba(185,255,220,.64); --ring-inner-glow: rgba(185,255,220,.16);
+      --ring-core-border: rgba(215,255,236,.95); --ring-core-fill: rgba(67,220,161,.20); --ring-core-glow: rgba(67,220,161,.58);
+      --outer-radius-a: 51% 49% 45% 55% / 56% 44% 52% 48%; --outer-radius-b: 45% 55% 53% 47% / 48% 54% 46% 52%; --outer-transform-a: translate(-50%,-50%) rotate(0deg) scale(1); --outer-transform-b: translate(-50%,-50%) rotate(2deg) scale(1.028); --outer-duration: 9.2s; --outer-delay: 0s;
+      --middle-radius-a: 56% 44% 52% 48% / 46% 53% 47% 54%; --middle-radius-b: 48% 52% 44% 56% / 54% 46% 55% 45%; --middle-transform-a: translate(-50%,-50%) rotate(-3deg) scale(.985); --middle-transform-b: translate(-50%,-50%) rotate(4deg) scale(1.04); --middle-duration: 8s; --middle-delay: .9s;
+      --inner-radius-a: 47% 53% 55% 45% / 53% 47% 50% 50%; --inner-radius-b: 55% 45% 48% 52% / 46% 54% 44% 56%; --inner-transform-a: translate(-50%,-50%) rotate(4deg) scale(1.02); --inner-transform-b: translate(-50%,-50%) rotate(-4deg) scale(.97); --inner-duration: 7s; --inner-delay: 1.5s;
+      --core-width: 12.3%; --core-height: 11%; --core-radius-a: 52% 48% 61% 39% / 43% 57% 46% 54%; --core-radius-b: 43% 57% 47% 53% / 56% 44% 52% 48%; --core-transform-a: translate(-50%,-50%) rotate(-2deg) scale(.95); --core-transform-b: translate(-50%,-50%) rotate(3deg) scale(1.07); --core-duration: 4.8s; --core-delay: 0s;
+    }
+
+    .scene-art.art-5 {
+      --ring-outer: rgba(220,211,255,.95); --ring-outer-glow: rgba(158,139,255,.50); --ring-outer-glow-soft: rgba(158,139,255,.22);
+      --ring-middle: rgba(168,190,255,.72); --ring-middle-glow: rgba(168,190,255,.18);
+      --ring-inner: rgba(239,194,255,.64); --ring-inner-glow: rgba(239,194,255,.18);
+      --ring-core-border: rgba(241,235,255,.96); --ring-core-fill: rgba(157,137,255,.21); --ring-core-glow: rgba(157,137,255,.62);
+      --outer-radius-a: 46% 54% 52% 48% / 54% 45% 55% 46%; --outer-radius-b: 55% 45% 47% 53% / 46% 56% 44% 54%; --outer-transform-a: translate(-50%,-50%) rotate(-2deg) scale(.99); --outer-transform-b: translate(-50%,-50%) rotate(3deg) scale(1.04); --outer-duration: 8.6s; --outer-delay: 0s;
+      --middle-radius-a: 53% 47% 46% 54% / 48% 55% 45% 52%; --middle-radius-b: 45% 55% 55% 45% / 56% 44% 53% 47%; --middle-transform-a: translate(-50%,-50%) rotate(3deg) scale(1.03); --middle-transform-b: translate(-50%,-50%) rotate(-4deg) scale(.965); --middle-duration: 7.4s; --middle-delay: .45s;
+      --inner-radius-a: 55% 45% 51% 49% / 45% 54% 46% 55%; --inner-radius-b: 47% 53% 44% 56% / 53% 47% 56% 44%; --inner-transform-a: translate(-50%,-50%) rotate(-5deg) scale(.98); --inner-transform-b: translate(-50%,-50%) rotate(5deg) scale(1.06); --inner-duration: 6.2s; --inner-delay: .9s;
+      --core-width: 11.4%; --core-height: 11.4%; --core-radius-a: 48% 52% 42% 58% / 55% 45% 57% 43%; --core-radius-b: 57% 43% 54% 46% / 44% 56% 47% 53%; --core-transform-a: translate(-50%,-50%) rotate(3deg) scale(.92); --core-transform-b: translate(-50%,-50%) rotate(-4deg) scale(1.09); --core-duration: 4.1s; --core-delay: 0s;
+    }
+
+    /* DISCOVERY THUMBNAIL PALETTE AND HOVER ALIGNMENT */
+    .scene-art.art-1,
+    .scene-art.art-6 {
+      background: linear-gradient(145deg, #201a46, #182136 55%, #21333b) !important;
+    }
+
+    .scene-art.art-2,
+    .scene-art.art-7 {
+      background: linear-gradient(155deg, #17314a, #1c3440 52%, #24374a) !important;
+    }
+
+    .scene-art.art-3,
+    .scene-art.art-8 {
+      background: linear-gradient(145deg, #4a2635, #4c2b37 50%, #493528) !important;
+    }
+
+    .scene-art.art-4 {
+      background: linear-gradient(150deg, #214539, #25473f 52%, #28464a) !important;
+    }
+
+    .scene-art.art-5 {
+      background: linear-gradient(150deg, #3a3159, #343752 52%, #3a4057) !important;
+    }
+
+</style>
+</head>
+<body>
+<div class="scene-thumb"><div class="scene-art art-1"><div class="breathing-ring-mark"><span class="breathing-ring outer"></span><span class="breathing-ring middle"></span><span class="breathing-ring inner"></span><span class="breathing-ring core"></span></div></div></div>
+<div class="scene-thumb"><div class="scene-art art-2"><div class="breathing-ring-mark"><span class="breathing-ring outer"></span><span class="breathing-ring middle"></span><span class="breathing-ring inner"></span><span class="breathing-ring core"></span></div></div></div>
+<div class="scene-thumb"><div class="scene-art art-3"><div class="breathing-ring-mark"><span class="breathing-ring outer"></span><span class="breathing-ring middle"></span><span class="breathing-ring inner"></span><span class="breathing-ring core"></span></div></div></div>
+<div class="scene-thumb"><div class="scene-art art-4"><div class="breathing-ring-mark"><span class="breathing-ring outer"></span><span class="breathing-ring middle"></span><span class="breathing-ring inner"></span><span class="breathing-ring core"></span></div></div></div>
+<div class="scene-thumb"><div class="scene-art art-5"><div class="breathing-ring-mark"><span class="breathing-ring outer"></span><span class="breathing-ring middle"></span><span class="breathing-ring inner"></span><span class="breathing-ring core"></span></div></div></div>
+</body>
+</html>

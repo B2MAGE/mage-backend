@@ -10,7 +10,7 @@ From this repository in PowerShell:
 ./scripts/start-pulse-local.ps1
 ```
 
-This includes the base, local, MinIO, and Pulse Compose files in that order, starts the services, waits for the API, and seeds through the real API. The first community MinIO image build takes several minutes if it is not already present. The frontend remains the normal Vite development server at http://127.0.0.1:5173.
+This includes the base, local, MinIO, and Pulse Compose files in that order, starts the services, waits for the API, and seeds through the real API only when the database has no scenes. Normal restarts preserve all existing review data, including newly created scenes and comments. The first community MinIO image build takes several minutes if it is not already present. The frontend remains the normal Vite development server at http://127.0.0.1:5173.
 
 To create another fresh database while preserving every previous volume:
 

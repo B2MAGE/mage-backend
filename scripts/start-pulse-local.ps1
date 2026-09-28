@@ -19,8 +19,13 @@ try {
         Start-Sleep -Seconds 2
     }
     if (-not $ready) { throw 'The backend did not become ready. Check docker compose logs backend.' }
-    node scripts/seed-pulse-local.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'The local demo seed did not complete.' }
+    $reviewScenes = @($response.Content | ConvertFrom-Json)
+    if ($reviewScenes.Count -eq 0) {
+        node scripts/seed-pulse-local.mjs
+        if ($LASTEXITCODE -ne 0) { throw 'The local demo seed did not complete.' }
+    } else {
+        Write-Host ('Ready: preserving {0} existing review scenes; no seed changes were made.' -f $reviewScenes.Count)
+    }
 } finally {
     $env:MAGE_PULSE_DATABASE_VOLUME = $previousVolume
     Pop-Location

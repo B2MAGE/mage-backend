@@ -158,7 +158,8 @@ for(let index=0;index<titles.length;index++){
   console.log('['+(index+1)+'/'+titles.length+'] '+scene.name);
 }
 const comments=await api('scenes/'+scenes[0].sceneId+'/comments');
-assert.equal(comments.length,4);assert.ok(comments.some(comment=>comment.replies.length>0));
+assert.ok(commentTexts.every(text=>comments.some(comment=>comment.text===text)),'Featured seed comments are missing');
+assert.ok(comments.some(comment=>comment.replies.length>0));
 const manifestPath=path.join(repo,'.local/pulse-seed-manifest.json');await mkdir(path.dirname(manifestPath),{recursive:true});
 await writeFile(manifestPath,JSON.stringify({
   version:1,generatedAt:new Date().toISOString(),apiBase:base.href,featuredSceneId:scenes[0].sceneId,

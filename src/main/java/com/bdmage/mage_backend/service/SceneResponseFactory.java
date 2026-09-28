@@ -3,6 +3,7 @@ package com.bdmage.mage_backend.service;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.bdmage.mage_backend.dto.SceneDetailResponse;
 import com.bdmage.mage_backend.dto.SceneEngagementResponse;
@@ -10,6 +11,8 @@ import com.bdmage.mage_backend.dto.SceneResponse;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.repository.SceneTagRepository;
+import com.bdmage.mage_backend.repository.SceneTagNameProjection;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,10 +21,13 @@ public class SceneResponseFactory {
 	private static final String UNKNOWN_CREATOR_DISPLAY_NAME = "Unknown creator";
 
 	private final UserRepository userRepository;
+	private final SceneTagRepository sceneTagRepository;
 	private final SceneEngagementService sceneEngagementService;
 
-	public SceneResponseFactory(UserRepository userRepository, SceneEngagementService sceneEngagementService) {
+	public SceneResponseFactory(UserRepository userRepository, SceneEngagementService sceneEngagementService,
+			SceneTagRepository sceneTagRepository) {
 		this.userRepository = userRepository;
+		this.sceneTagRepository = sceneTagRepository;
 		this.sceneEngagementService = sceneEngagementService;
 	}
 
@@ -45,13 +51,20 @@ public class SceneResponseFactory {
 	}
 
 	public List<SceneResponse> from(List<Scene> scenes, Long currentUserId) {
+		if (scenes.isEmpty()) {
+			return List.of();
+		}
 		Map<Long, String> creatorDisplayNames = resolveCreatorDisplayNames(scenes);
+		List<Long> sceneIds = scenes.stream().map(Scene::getId).toList();
+		Map<Long, List<String>> tagsBySceneId = this.sceneTagRepository.findTagNamesBySceneIds(sceneIds).stream()
+				.collect(Collectors.groupingBy(SceneTagNameProjection::getSceneId,
+						Collectors.mapping(SceneTagNameProjection::getTagName, Collectors.toList())));
 
 		return scenes.stream()
 				.map(scene -> SceneResponse.from(
 						scene,
 						creatorDisplayNames.getOrDefault(scene.getOwnerUserId(), UNKNOWN_CREATOR_DISPLAY_NAME),
-						List.of(),
+						tagsBySceneId.getOrDefault(scene.getId(), List.of()),
 						resolveEngagement(scene, currentUserId)))
 				.toList();
 	}

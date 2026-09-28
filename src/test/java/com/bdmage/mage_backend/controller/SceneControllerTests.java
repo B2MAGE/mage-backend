@@ -19,6 +19,7 @@ import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.service.SceneEngagementService;
 import com.bdmage.mage_backend.service.SceneResponseFactory;
 import com.bdmage.mage_backend.service.SceneService;
@@ -64,7 +65,8 @@ class SceneControllerTests {
 		this.validator.afterPropertiesSet();
 		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(
 				this.userRepository,
-				this.sceneEngagementService);
+				this.sceneEngagementService,
+				mock(SceneTagRepository.class));
 		this.mockMvc = MockMvcBuilders
 				.standaloneSetup(new SceneController(this.sceneService, sceneResponseFactory, this.sceneEngagementService))
 				.setControllerAdvice(new ApiExceptionHandler())

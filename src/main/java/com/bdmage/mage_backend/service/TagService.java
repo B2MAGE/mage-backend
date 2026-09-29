@@ -3,11 +3,11 @@ package com.bdmage.mage_backend.service;
 import java.util.List;
 import java.util.Locale;
 
+import com.bdmage.mage_backend.dto.TagResponse;
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.TagRepository;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,13 +38,10 @@ public class TagService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Tag> getAllTags() {
-		return this.tagRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
-	}
-
-	@Transactional(readOnly = true)
-	public List<Tag> getAllTagsAttachedToScenes() {
-		return this.tagRepository.findAllAttachedToScenes();
+	public List<TagResponse> getTags(boolean attachedOnly) {
+		return this.tagRepository.findAllWithSceneCounts(attachedOnly).stream()
+				.map(tag -> new TagResponse(tag.getTagId(), tag.getName(), tag.getSceneCount()))
+				.toList();
 	}
 
 	private static String normalizeName(String name) {

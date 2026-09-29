@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.controller;
 
+import com.bdmage.mage_backend.dto.TagResponse;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Tag;
@@ -61,39 +62,36 @@ class TagControllerTests {
 				.andExpect(status().isCreated())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.tagId").value(15L))
-				.andExpect(jsonPath("$.name").value("ambient"));
+				.andExpect(jsonPath("$.name").value("ambient"))
+				.andExpect(jsonPath("$.sceneCount").value(0));
 	}
 
 	@Test
 	void getAllTagsReturnsTagResponses() throws Exception {
-		Tag ambient = new Tag("ambient");
-		Tag chillwave = new Tag("chillwave");
-		ReflectionTestUtils.setField(ambient, "id", 15L);
-		ReflectionTestUtils.setField(chillwave, "id", 16L);
-
-		when(this.tagService.getAllTags()).thenReturn(List.of(ambient, chillwave));
+		when(this.tagService.getTags(false)).thenReturn(List.of(
+				new TagResponse(15L, "ambient", 12), new TagResponse(16L, "chillwave", 0)));
 
 		this.mockMvc.perform(get("/api/tags"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].tagId").value(15L))
 				.andExpect(jsonPath("$[0].name").value("ambient"))
+				.andExpect(jsonPath("$[0].sceneCount").value(12))
 				.andExpect(jsonPath("$[1].tagId").value(16L))
-				.andExpect(jsonPath("$[1].name").value("chillwave"));
+				.andExpect(jsonPath("$[1].name").value("chillwave"))
+				.andExpect(jsonPath("$[1].sceneCount").value(0));
 	}
 
 	@Test
 	void getAllTagsWithAttachedOnlyReturnsAttachedTagResponses() throws Exception {
-		Tag ambient = new Tag("ambient");
-		ReflectionTestUtils.setField(ambient, "id", 15L);
-
-		when(this.tagService.getAllTagsAttachedToScenes()).thenReturn(List.of(ambient));
+		when(this.tagService.getTags(true)).thenReturn(List.of(new TagResponse(15L, "ambient", 12)));
 
 		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$[0].tagId").value(15L))
-				.andExpect(jsonPath("$[0].name").value("ambient"));
+				.andExpect(jsonPath("$[0].name").value("ambient"))
+				.andExpect(jsonPath("$[0].sceneCount").value(12));
 	}
 
 	@Test

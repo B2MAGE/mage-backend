@@ -2,9 +2,11 @@ package com.bdmage.mage_backend.service;
 
 import java.util.Optional;
 
+import com.bdmage.mage_backend.dto.TagResponse;
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.TagRepository;
+import com.bdmage.mage_backend.repository.TagUsageProjection;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,14 +68,36 @@ class TagServiceTests {
 	}
 
 	@Test
-	void getAllTagsAttachedToScenesDelegatesToRepositoryQuery() {
+	void getTagsMapsSceneCountsWithoutChangingRepositoryOrder() {
 		TagRepository tagRepository = mock(TagRepository.class);
 		TagService tagService = new TagService(tagRepository);
-		Tag ambient = new Tag("ambient");
+		TagUsageProjection ambient = usage(15L, "ambient", 8);
+		TagUsageProjection unused = usage(16L, "unused", 0);
 
-		when(tagRepository.findAllAttachedToScenes()).thenReturn(java.util.List.of(ambient));
+		when(tagRepository.findAllWithSceneCounts(false)).thenReturn(java.util.List.of(ambient, unused));
 
-		assertThat(tagService.getAllTagsAttachedToScenes()).containsExactly(ambient);
-		verify(tagRepository).findAllAttachedToScenes();
+		assertThat(tagService.getTags(false)).containsExactly(
+				new TagResponse(15L, "ambient", 8), new TagResponse(16L, "unused", 0));
+		verify(tagRepository).findAllWithSceneCounts(false);
+	}
+
+	@Test
+	void getAttachedTagsUsesFilteredAggregateQuery() {
+		TagRepository tagRepository = mock(TagRepository.class);
+		TagService tagService = new TagService(tagRepository);
+		TagUsageProjection ambient = usage(15L, "ambient", 8);
+
+		when(tagRepository.findAllWithSceneCounts(true)).thenReturn(java.util.List.of(ambient));
+
+		assertThat(tagService.getTags(true)).containsExactly(new TagResponse(15L, "ambient", 8));
+		verify(tagRepository).findAllWithSceneCounts(true);
+	}
+
+	private static TagUsageProjection usage(Long id, String name, long sceneCount) {
+		TagUsageProjection usage = mock(TagUsageProjection.class);
+		when(usage.getTagId()).thenReturn(id);
+		when(usage.getName()).thenReturn(name);
+		when(usage.getSceneCount()).thenReturn(sceneCount);
+		return usage;
 	}
 }

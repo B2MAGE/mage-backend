@@ -1,5 +1,7 @@
 # Backend Deployment
 
+For full frontend plus backend deployment instructions, including plain Docker and Coolify, see [../../DEPLOYMENT.md](../../DEPLOYMENT.md).
+
 This backend is intended to be deployed behind a same-origin reverse proxy.
 
 ## Supported Production Contract

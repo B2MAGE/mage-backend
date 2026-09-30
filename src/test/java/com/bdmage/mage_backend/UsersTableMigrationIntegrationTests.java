@@ -58,7 +58,9 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 					"first_name",
 					"last_name",
 					"handle",
-					"description");
+					"description",
+					"avatar_gradient_start",
+					"avatar_gradient_end");
 		}
 	}
 

@@ -37,6 +37,8 @@ public class SceneResponseFactory {
 				scene,
 				creator.displayName(),
 				creator.handle(),
+				creator.avatarGradientStart(),
+				creator.avatarGradientEnd(),
 				List.of(),
 				resolveEngagement(scene, null));
 	}
@@ -47,6 +49,8 @@ public class SceneResponseFactory {
 				scene,
 				creator.displayName(),
 				creator.handle(),
+				creator.avatarGradientStart(),
+				creator.avatarGradientEnd(),
 				tags,
 				resolveEngagement(scene, null));
 	}
@@ -56,7 +60,8 @@ public class SceneResponseFactory {
 			List<String> tags,
 			SceneEngagementResponse engagement) {
 		CreatorIdentity creator = resolveCreatorIdentity(scene);
-		return SceneDetailResponse.from(scene, creator.displayName(), creator.handle(), tags, engagement);
+		return SceneDetailResponse.from(scene, creator.displayName(), creator.handle(),
+				creator.avatarGradientStart(), creator.avatarGradientEnd(), tags, engagement);
 	}
 
 	public List<SceneResponse> from(List<Scene> scenes) {
@@ -77,11 +82,13 @@ public class SceneResponseFactory {
 				.map(scene -> {
 					CreatorIdentity creator = creators.getOrDefault(
 							scene.getOwnerUserId(),
-							new CreatorIdentity(UNKNOWN_CREATOR_DISPLAY_NAME, null));
+							unknownCreator());
 					return SceneResponse.from(
 							scene,
 							creator.displayName(),
 							creator.handle(),
+							creator.avatarGradientStart(),
+							creator.avatarGradientEnd(),
 							tagsBySceneId.getOrDefault(scene.getId(), List.of()),
 							resolveEngagement(scene, currentUserId));
 				})
@@ -105,16 +112,26 @@ public class SceneResponseFactory {
 		return this.userRepository.findAllById(ownerUserIds).stream()
 				.collect(java.util.stream.Collectors.toMap(
 						User::getId,
-						user -> new CreatorIdentity(user.getDisplayName(), user.getHandle())));
+						SceneResponseFactory::creatorIdentity));
 	}
 
 	private CreatorIdentity resolveCreatorIdentity(Scene scene) {
 		return this.userRepository.findById(scene.getOwnerUserId())
-				.map(user -> new CreatorIdentity(user.getDisplayName(), user.getHandle()))
-				.orElse(new CreatorIdentity(UNKNOWN_CREATOR_DISPLAY_NAME, null));
+				.map(SceneResponseFactory::creatorIdentity)
+				.orElse(unknownCreator());
 	}
 
-	private record CreatorIdentity(String displayName, String handle) {
+	private static CreatorIdentity creatorIdentity(User user) {
+		return new CreatorIdentity(user.getDisplayName(), user.getHandle(),
+				user.getAvatarGradientStart(), user.getAvatarGradientEnd());
+	}
+
+	private static CreatorIdentity unknownCreator() {
+		return new CreatorIdentity(UNKNOWN_CREATOR_DISPLAY_NAME, null,
+				User.DEFAULT_AVATAR_GRADIENT_START, User.DEFAULT_AVATAR_GRADIENT_END);
+	}
+
+	private record CreatorIdentity(String displayName, String handle, String avatarGradientStart, String avatarGradientEnd) {
 	}
 
 }

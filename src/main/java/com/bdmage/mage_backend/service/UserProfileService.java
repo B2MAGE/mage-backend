@@ -59,9 +59,24 @@ public class UserProfileService {
 			String displayName,
 			String handle,
 			String description) {
+		return updateAuthenticatedUserProfile(
+				authenticatedUserId, firstName, lastName, displayName, handle, description, null, null);
+	}
+
+	@Transactional
+	public User updateAuthenticatedUserProfile(
+			Long authenticatedUserId,
+			String firstName,
+			String lastName,
+			String displayName,
+			String handle,
+			String description,
+			String avatarGradientStart,
+			String avatarGradientEnd) {
 		User user = getAuthenticatedUser(authenticatedUserId);
 		String normalizedHandle = this.userHandleService.normalizeInput(handle);
 		this.userHandleService.requireAvailable(normalizedHandle, user.getId());
+		user.updateAvatarGradient(avatarGradientStart, avatarGradientEnd);
 		user.updateProfile(
 				firstName.trim(),
 				lastName.trim(),

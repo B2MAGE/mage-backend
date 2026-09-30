@@ -85,7 +85,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `POST /api/auth/link/google`                | Public       | Requires valid local credentials plus a valid Google ID token       |
 | `POST /api/auth/link/local`                 | Public       | Requires a valid Google ID token                                    |
 | `GET /api/users/me`                         | Bearer token | Current authenticated user                                          |
-| `PUT /api/users/me`                         | Bearer token | Updates names, unique handle, and optional description             |
+| `PUT /api/users/me`                         | Bearer token | Updates names, unique handle, description, and avatar gradient      |
 | `PUT /api/users/me/password`                | Bearer token | Changes the current user's local password                          |
 | `GET /api/profiles/{handle}`                | Public       | Public profile and scenes for the requested handle                 |
 | `GET /api/tags`                             | Public       | Returns all tags in name order                                      |
@@ -110,13 +110,15 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 - `POST /api/auth/google`: `201` or `200` on success, `401` for invalid token, `409` for collision or link-required cases
 - `POST /api/auth/link/google`: `200` on success, `401` for invalid local credentials, `409` for account conflicts
 - `POST /api/auth/link/local`: `200` on success, `401` for invalid Google token, `409` for incompatible account state
-- `PUT /api/users/me`: `200` on success, `400` for invalid names, handle, or description, `401` without a valid bearer token, `409` when the handle is already in use
+- `PUT /api/users/me`: `200` on success, `400` for invalid names, handle, description, or avatar colors, `401` without a valid bearer token, `409` when the handle is already in use
 - `PUT /api/users/me/password`: `204` on success, `400` for an invalid current password or invalid new password, `401` without a valid bearer token, `409` when the account does not support local authentication
 - `GET /api/profiles/{handle}`: `200` on success, `404` when the handle does not identify a user
 
 Registration requests must include `firstName`, `lastName`, `displayName`, and a globally unique `handle`. Handle input starts with `@`; the name after it is 3 to 30 characters, begins with a letter, and uses only letters, numbers, or underscores. Handles are normalized to lowercase and returned without `@` in API responses. Authenticated profile updates require the same fields and accept an optional `description` of up to 300 characters.
 
-`GET /api/profiles/{handle}` is anonymous-readable and returns `userId`, `displayName`, `handle`, `description`, `createdAt`, and the user's public scenes. It does not return email, personal-name fields, or authentication-provider details.
+Profile updates also accept optional `avatarGradientStart` and `avatarGradientEnd` colors in strict `#RRGGBB` format. They are normalized to lowercase; omitted or `null` fields leave the stored color unchanged. Defaults for existing and new accounts are `#5c51ba` and `#264a48`. Auth/profile responses expose both fields, scenes expose `creatorAvatarGradientStart`/`creatorAvatarGradientEnd`, and comments/replies expose `authorAvatarGradientStart`/`authorAvatarGradientEnd`.
+
+`GET /api/profiles/{handle}` is anonymous-readable and returns `userId`, `displayName`, `handle`, `description`, `avatarGradientStart`, `avatarGradientEnd`, `createdAt`, and the user's public scenes. It does not return email, personal-name fields, or authentication-provider details.
 
 ### Scenes and Tags
 

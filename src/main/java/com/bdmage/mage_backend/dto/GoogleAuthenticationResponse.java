@@ -8,6 +8,8 @@ public record GoogleAuthenticationResponse(
 		String displayName,
 		String handle,
 		String description,
+		String avatarGradientStart,
+		String avatarGradientEnd,
 		String authProvider,
 		boolean created,
 		String accessToken) {

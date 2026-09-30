@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.model.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -13,6 +14,8 @@ public record SceneDetailResponse(
 		Long ownerUserId,
 		String creatorDisplayName,
 		String creatorHandle,
+		String creatorAvatarGradientStart,
+		String creatorAvatarGradientEnd,
 		String name,
 		String description,
 		Map<String, Object> sceneData,
@@ -39,11 +42,25 @@ public record SceneDetailResponse(
 			String creatorHandle,
 			List<String> tags,
 			SceneEngagementResponse engagement) {
+		return from(scene, creatorDisplayName, creatorHandle,
+				User.DEFAULT_AVATAR_GRADIENT_START, User.DEFAULT_AVATAR_GRADIENT_END, tags, engagement);
+	}
+
+	public static SceneDetailResponse from(
+			Scene scene,
+			String creatorDisplayName,
+			String creatorHandle,
+			String creatorAvatarGradientStart,
+			String creatorAvatarGradientEnd,
+			List<String> tags,
+			SceneEngagementResponse engagement) {
 		return new SceneDetailResponse(
 				scene.getId(),
 				scene.getOwnerUserId(),
 				creatorDisplayName,
 				creatorHandle,
+				creatorAvatarGradientStart,
+				creatorAvatarGradientEnd,
 				scene.getName(),
 				scene.getDescription(),
 				JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),

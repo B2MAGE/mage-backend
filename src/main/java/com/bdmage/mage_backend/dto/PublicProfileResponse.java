@@ -8,6 +8,8 @@ public record PublicProfileResponse(
 		String displayName,
 		String handle,
 		String description,
+		String avatarGradientStart,
+		String avatarGradientEnd,
 		Instant createdAt,
 		List<SceneResponse> scenes) {
 }

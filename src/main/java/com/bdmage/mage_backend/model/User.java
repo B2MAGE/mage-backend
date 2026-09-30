@@ -16,6 +16,9 @@ import jakarta.persistence.Table;
 @Table(name = "users")
 public class User {
 
+	public static final String DEFAULT_AVATAR_GRADIENT_START = "#5c51ba";
+	public static final String DEFAULT_AVATAR_GRADIENT_END = "#264a48";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -47,6 +50,12 @@ public class User {
 
 	@Column(name = "description", length = 300)
 	private String description;
+
+	@Column(name = "avatar_gradient_start", nullable = false, length = 7)
+	private String avatarGradientStart = DEFAULT_AVATAR_GRADIENT_START;
+
+	@Column(name = "avatar_gradient_end", nullable = false, length = 7)
+	private String avatarGradientEnd = DEFAULT_AVATAR_GRADIENT_END;
 
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private Instant createdAt;
@@ -215,6 +224,24 @@ public class User {
 		this.description = description;
 	}
 
+	public void updateAvatarGradient(String start, String end) {
+		// Missing values preserve preferences saved by clients before this setting existed.
+		String normalizedStart = normalizeAvatarColor(start, this.avatarGradientStart);
+		String normalizedEnd = normalizeAvatarColor(end, this.avatarGradientEnd);
+		this.avatarGradientStart = normalizedStart;
+		this.avatarGradientEnd = normalizedEnd;
+	}
+
+	private static String normalizeAvatarColor(String value, String currentValue) {
+		if (value == null) {
+			return currentValue;
+		}
+		if (!value.matches("#[a-fA-F0-9]{6}")) {
+			throw new IllegalArgumentException("Avatar colors must use the #RRGGBB format.");
+		}
+		return value.toLowerCase(java.util.Locale.ROOT);
+	}
+
 	private void syncAuthProvider() {
 		if (this.passwordHash != null && this.googleSubject != null) {
 			this.authProvider = AuthProvider.LOCAL_GOOGLE;
@@ -276,5 +303,13 @@ public class User {
 
 	public Instant getCreatedAt() {
 		return this.createdAt;
+	}
+
+	public String getAvatarGradientStart() {
+		return this.avatarGradientStart;
+	}
+
+	public String getAvatarGradientEnd() {
+		return this.avatarGradientEnd;
 	}
 }

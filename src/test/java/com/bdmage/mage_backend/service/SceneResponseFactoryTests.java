@@ -29,6 +29,7 @@ class SceneResponseFactoryTests {
 	@Test
 	void sceneListsIncludeOnlyTheirOwnTagsFromOneBatchLookup() {
 		User owner = new User("ari@example.com", "hash", "Ari Rivera");
+		owner.updateAvatarGradient("#aabbcc", "#112233");
 		ReflectionTestUtils.setField(owner, "id", 7L);
 		when(users.findAllById(Set.of(7L))).thenReturn(List.of(owner));
 		when(tags.findTagNamesBySceneIds(List.of(11L, 12L, 13L))).thenReturn(List.of(
@@ -40,6 +41,8 @@ class SceneResponseFactoryTests {
 		assertThat(response.get(1).tags()).containsExactly("geometry");
 		assertThat(response.get(2).tags()).isEmpty();
 		assertThat(response).extracting(SceneResponse::creatorDisplayName).containsOnly("Ari Rivera");
+		assertThat(response).extracting(SceneResponse::creatorAvatarGradientStart).containsOnly("#aabbcc");
+		assertThat(response).extracting(SceneResponse::creatorAvatarGradientEnd).containsOnly("#112233");
 		verify(tags).findTagNamesBySceneIds(List.of(11L, 12L, 13L));
 	}
 

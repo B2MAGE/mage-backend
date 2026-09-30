@@ -16,6 +16,10 @@ public interface SceneCommentSummaryProjection {
 
 	String getAuthorHandle();
 
+	String getAuthorAvatarGradientStart();
+
+	String getAuthorAvatarGradientEnd();
+
 	String getText();
 
 	Instant getCreatedAt();

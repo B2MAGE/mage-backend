@@ -23,6 +23,7 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 			"/api/scenes/{id}",
 			"/api/scenes/{id}/comments");
 	private static final String PUBLIC_SCENE_VIEW_PATTERN = "/api/scenes/{id}/views";
+	private static final String PUBLIC_PROFILE_READ_PATTERN = "/api/profiles/{handle}";
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
 	private final AuthenticationTokenService authenticationTokenService;
@@ -57,7 +58,14 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 	}
 
 	private static boolean isOptionalAuthenticationRequest(HttpServletRequest request) {
-		return isPublicSceneReadRequest(request) || isPublicSceneViewRequest(request);
+		return isPublicSceneReadRequest(request)
+				|| isPublicProfileReadRequest(request)
+				|| isPublicSceneViewRequest(request);
+	}
+
+	private static boolean isPublicProfileReadRequest(HttpServletRequest request) {
+		return HttpMethod.GET.matches(request.getMethod())
+				&& PATH_MATCHER.match(PUBLIC_PROFILE_READ_PATTERN, pathWithinApplication(request));
 	}
 
 	private static boolean isPublicSceneViewRequest(HttpServletRequest request) {

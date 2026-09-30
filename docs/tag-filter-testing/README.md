@@ -53,7 +53,7 @@ Use the second terminal for the API requests below.
 $register = Invoke-RestMethod -Method Post `
   -Uri "http://localhost:8080/api/auth/register" `
   -ContentType "application/json" `
-  -Body '{"email":"filter-test@example.com","password":"test-password","firstName":"Filter","lastName":"Tester","displayName":"Filter Test User"}'
+  -Body '{"email":"filter-test@example.com","password":"test-password","firstName":"Filter","lastName":"Tester","displayName":"Filter Test User","handle":"@filtertester"}'
 ```
 
 ## 7. Log In and Save the Access Token

@@ -8,7 +8,7 @@ This repository currently provides the backend foundations for:
 - local account registration and login
 - Google authentication and explicit provider linking
 - bearer-token authentication for protected routes
-- user profile lookup
+- authenticated profile management and public handle-based profiles
 - scene creation, retrieval, deletion, and user-scoped listing
 - tag creation, retrieval, and scene tagging
 
@@ -99,8 +99,9 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/google`                | Public       | Link Google auth to an existing local account                                              |
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
-| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's first name, last name, and display name                    |
+| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's names, unique handle, and description                      |
 | `PUT /api/users/me/password`                | Bearer token | Change the authenticated user's local password                                              |
+| `GET /api/profiles/{handle}`                | Public       | Return a public profile and its scenes by handle                                            |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
 | `POST /api/tags`                            | Public       | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene with optional description and optionally finalize a staged thumbnail       |
@@ -128,11 +129,14 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
   "password": "secret-value",
   "firstName": "New",
   "lastName": "User",
-  "displayName": "New User"
+  "displayName": "New User",
+  "handle": "@newuser"
 }
 ```
 
-Successful auth and profile responses return the structured personal-name fields alongside the public attribution name:
+The handle is required, globally unique, and case-insensitive. It must start with `@`; the name after `@` must be 3 to 30 characters, start with a letter, and contain only letters, numbers, or underscores.
+
+Successful auth and authenticated profile responses include the normalized handle without `@` and the optional profile description:
 
 ```json
 {
@@ -141,6 +145,8 @@ Successful auth and profile responses return the structured personal-name fields
   "firstName": "New",
   "lastName": "User",
   "displayName": "New User",
+  "handle": "newuser",
+  "description": null,
   "authProvider": "LOCAL"
 }
 ```
@@ -153,9 +159,15 @@ Successful auth and profile responses return the structured personal-name fields
 {
   "firstName": "Updated",
   "lastName": "User",
-  "displayName": "Updated User"
+  "displayName": "Updated User",
+  "handle": "@updateduser",
+  "description": "I build quiet, reactive scenes."
 }
 ```
+
+`description` is optional, may be cleared with `null` or blank text, and is limited to 300 characters. Changing a handle immediately changes the public profile URL.
+
+`GET /api/profiles/updateduser` is public and returns only public profile fields (`userId`, `displayName`, `handle`, `description`, `createdAt`) plus the user's public scenes. It does not expose email, personal-name fields, or authentication-provider details.
 
 `PUT /api/users/me/password` accepts:
 

@@ -6,6 +6,8 @@ public record AccountLinkResponse(
 		String firstName,
 		String lastName,
 		String displayName,
+		String handle,
+		String description,
 		String authProvider,
 		boolean linked) {
 }

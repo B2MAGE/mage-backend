@@ -87,8 +87,8 @@ class PlaylistsMigrationIntegrationTests extends PostgresIntegrationTestSupport 
 
 	private long insertLocalUser(Connection connection, String email) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, password_hash, display_name, first_name, last_name)
-				VALUES (?, ?, ?, ?, ?)
+				INSERT INTO users (email, password_hash, display_name, first_name, last_name, handle)
+				VALUES (?, ?, ?, ?, ?, ?)
 				RETURNING id
 				""")) {
 			statement.setString(1, email);
@@ -96,6 +96,7 @@ class PlaylistsMigrationIntegrationTests extends PostgresIntegrationTestSupport 
 			statement.setString(3, "Playlist Owner");
 			statement.setString(4, "Playlist");
 			statement.setString(5, "Owner");
+			statement.setString(6, "u_" + Integer.toUnsignedString(email.hashCode(), 36));
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();

@@ -32,18 +32,31 @@ public class SceneResponseFactory {
 	}
 
 	public SceneResponse from(Scene scene) {
-		return SceneResponse.from(scene, resolveCreatorDisplayName(scene), List.of(), resolveEngagement(scene, null));
+		CreatorIdentity creator = resolveCreatorIdentity(scene);
+		return SceneResponse.from(
+				scene,
+				creator.displayName(),
+				creator.handle(),
+				List.of(),
+				resolveEngagement(scene, null));
 	}
 
 	public SceneResponse from(Scene scene, List<String> tags) {
-		return SceneResponse.from(scene, resolveCreatorDisplayName(scene), tags, resolveEngagement(scene, null));
+		CreatorIdentity creator = resolveCreatorIdentity(scene);
+		return SceneResponse.from(
+				scene,
+				creator.displayName(),
+				creator.handle(),
+				tags,
+				resolveEngagement(scene, null));
 	}
 
 	public SceneDetailResponse detailFrom(
 			Scene scene,
 			List<String> tags,
 			SceneEngagementResponse engagement) {
-		return SceneDetailResponse.from(scene, resolveCreatorDisplayName(scene), tags, engagement);
+		CreatorIdentity creator = resolveCreatorIdentity(scene);
+		return SceneDetailResponse.from(scene, creator.displayName(), creator.handle(), tags, engagement);
 	}
 
 	public List<SceneResponse> from(List<Scene> scenes) {
@@ -54,18 +67,24 @@ public class SceneResponseFactory {
 		if (scenes.isEmpty()) {
 			return List.of();
 		}
-		Map<Long, String> creatorDisplayNames = resolveCreatorDisplayNames(scenes);
+		Map<Long, CreatorIdentity> creators = resolveCreatorIdentities(scenes);
 		List<Long> sceneIds = scenes.stream().map(Scene::getId).toList();
 		Map<Long, List<String>> tagsBySceneId = this.sceneTagRepository.findTagNamesBySceneIds(sceneIds).stream()
 				.collect(Collectors.groupingBy(SceneTagNameProjection::getSceneId,
 						Collectors.mapping(SceneTagNameProjection::getTagName, Collectors.toList())));
 
 		return scenes.stream()
-				.map(scene -> SceneResponse.from(
-						scene,
-						creatorDisplayNames.getOrDefault(scene.getOwnerUserId(), UNKNOWN_CREATOR_DISPLAY_NAME),
-						tagsBySceneId.getOrDefault(scene.getId(), List.of()),
-						resolveEngagement(scene, currentUserId)))
+				.map(scene -> {
+					CreatorIdentity creator = creators.getOrDefault(
+							scene.getOwnerUserId(),
+							new CreatorIdentity(UNKNOWN_CREATOR_DISPLAY_NAME, null));
+					return SceneResponse.from(
+							scene,
+							creator.displayName(),
+							creator.handle(),
+							tagsBySceneId.getOrDefault(scene.getId(), List.of()),
+							resolveEngagement(scene, currentUserId));
+				})
 				.toList();
 	}
 
@@ -78,19 +97,24 @@ public class SceneResponseFactory {
 		return engagement != null ? engagement : SceneEngagementResponse.empty();
 	}
 
-	private Map<Long, String> resolveCreatorDisplayNames(List<Scene> scenes) {
+	private Map<Long, CreatorIdentity> resolveCreatorIdentities(List<Scene> scenes) {
 		Set<Long> ownerUserIds = scenes.stream()
 				.map(Scene::getOwnerUserId)
 				.collect(java.util.stream.Collectors.toSet());
 
 		return this.userRepository.findAllById(ownerUserIds).stream()
-				.collect(java.util.stream.Collectors.toMap(User::getId, User::getDisplayName));
+				.collect(java.util.stream.Collectors.toMap(
+						User::getId,
+						user -> new CreatorIdentity(user.getDisplayName(), user.getHandle())));
 	}
 
-	private String resolveCreatorDisplayName(Scene scene) {
+	private CreatorIdentity resolveCreatorIdentity(Scene scene) {
 		return this.userRepository.findById(scene.getOwnerUserId())
-				.map(User::getDisplayName)
-				.orElse(UNKNOWN_CREATOR_DISPLAY_NAME);
+				.map(user -> new CreatorIdentity(user.getDisplayName(), user.getHandle()))
+				.orElse(new CreatorIdentity(UNKNOWN_CREATOR_DISPLAY_NAME, null));
+	}
+
+	private record CreatorIdentity(String displayName, String handle) {
 	}
 
 }

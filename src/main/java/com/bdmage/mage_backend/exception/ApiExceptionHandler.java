@@ -136,6 +136,30 @@ public class ApiExceptionHandler {
 				request.getRequestURI());
 	}
 
+	@ExceptionHandler(HandleAlreadyInUseException.class)
+	ResponseEntity<ApiErrorResponse> handleHandleAlreadyInUse(
+			HandleAlreadyInUseException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"HANDLE_ALREADY_IN_USE",
+				ex.getMessage(),
+				Map.of("handle", ex.getMessage()),
+				request.getRequestURI());
+	}
+
+	@ExceptionHandler(HandleRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handleHandleRequired(
+			HandleRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+				HttpStatus.CONFLICT,
+				"HANDLE_REQUIRED",
+				ex.getMessage(),
+				Map.of("handle", ex.getMessage()),
+				request.getRequestURI());
+	}
+
 	@ExceptionHandler(TagAlreadyExistsException.class)
 	ResponseEntity<ApiErrorResponse> handleTagAlreadyExists(
 			TagAlreadyExistsException ex,
@@ -263,6 +287,18 @@ public class ApiExceptionHandler {
 		return buildResponse(
 			HttpStatus.NOT_FOUND,
 			"SCENE_NOT_FOUND",
+			ex.getMessage(),
+			Map.of(),
+			request.getRequestURI());
+	}
+
+	@ExceptionHandler(ProfileNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleProfileNotFound(
+			ProfileNotFoundException ex,
+			HttpServletRequest request) {
+		return buildResponse(
+			HttpStatus.NOT_FOUND,
+			"PROFILE_NOT_FOUND",
 			ex.getMessage(),
 			Map.of(),
 			request.getRequestURI());

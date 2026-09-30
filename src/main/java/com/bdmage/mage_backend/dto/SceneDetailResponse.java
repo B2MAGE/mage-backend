@@ -12,6 +12,7 @@ public record SceneDetailResponse(
 		Long sceneId,
 		Long ownerUserId,
 		String creatorDisplayName,
+		String creatorHandle,
 		String name,
 		String description,
 		Map<String, Object> sceneData,
@@ -29,10 +30,20 @@ public record SceneDetailResponse(
 			String creatorDisplayName,
 			List<String> tags,
 			SceneEngagementResponse engagement) {
+		return from(scene, creatorDisplayName, null, tags, engagement);
+	}
+
+	public static SceneDetailResponse from(
+			Scene scene,
+			String creatorDisplayName,
+			String creatorHandle,
+			List<String> tags,
+			SceneEngagementResponse engagement) {
 		return new SceneDetailResponse(
 				scene.getId(),
 				scene.getOwnerUserId(),
 				creatorDisplayName,
+				creatorHandle,
 				scene.getName(),
 				scene.getDescription(),
 				JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),

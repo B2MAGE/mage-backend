@@ -7,6 +7,7 @@ import com.bdmage.mage_backend.client.GoogleTokenVerifier.VerifiedGoogleToken;
 import com.bdmage.mage_backend.exception.AccountConflictException;
 import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
+import com.bdmage.mage_backend.exception.HandleRequiredException;
 import com.bdmage.mage_backend.model.AuthProvider;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
@@ -37,7 +38,8 @@ class GoogleAuthenticationServiceTests {
 				"user@example.com",
 				true,
 				"Google User");
-		User savedUser = User.google("user@example.com", "google-subject-1", "Google", "User", "Google User");
+		User savedUser = User.google(
+				"user@example.com", "google-subject-1", "Google", "User", "Google User", "google_user");
 		ReflectionTestUtils.setField(savedUser, "id", 42L);
 
 		when(googleTokenVerifier.verify("valid-token")).thenReturn(Optional.of(verifiedGoogleToken));
@@ -46,13 +48,15 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.saveAndFlush(any(User.class))).thenReturn(savedUser);
 
 		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate(
-				"valid-token");
+				"valid-token",
+				"@Google_User");
 
 		assertThat(result.created()).isTrue();
 		assertThat(result.user().getId()).isEqualTo(42L);
 		assertThat(result.user().getEmail()).isEqualTo("user@example.com");
 		assertThat(result.user().getFirstName()).isEqualTo("Google");
 		assertThat(result.user().getLastName()).isEqualTo("User");
+		assertThat(result.user().getHandle()).isEqualTo("google_user");
 		assertThat(result.user().getAuthProvider()).isEqualTo(AuthProvider.GOOGLE);
 		verify(userRepository).saveAndFlush(any(User.class));
 	}
@@ -77,7 +81,8 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.findByGoogleSubject("google-subject-2")).thenReturn(Optional.of(existingUser));
 
 		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate(
-				"repeat-token");
+				"repeat-token",
+				null);
 
 		assertThat(result.created()).isFalse();
 		assertThat(result.user().getId()).isEqualTo(84L);
@@ -94,7 +99,7 @@ class GoogleAuthenticationServiceTests {
 
 		when(googleTokenVerifier.verify("invalid-token")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> googleAuthenticationService.authenticate("invalid-token"))
+		assertThatThrownBy(() -> googleAuthenticationService.authenticate("invalid-token", null))
 				.isInstanceOf(InvalidGoogleTokenException.class)
 				.hasMessage("Google ID token is invalid or expired.");
 	}
@@ -110,7 +115,7 @@ class GoogleAuthenticationServiceTests {
 		when(googleTokenVerifier.verify("unverified-token")).thenReturn(Optional.of(
 				new VerifiedGoogleToken("google-subject-3", "user@example.com", false, "Google User")));
 
-		assertThatThrownBy(() -> googleAuthenticationService.authenticate("unverified-token"))
+		assertThatThrownBy(() -> googleAuthenticationService.authenticate("unverified-token", null))
 				.isInstanceOf(InvalidGoogleTokenException.class)
 				.hasMessage("Google account email is not verified.");
 	}
@@ -129,7 +134,7 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(new User("user@example.com", "password-hash", "Local User")));
 
-		assertThatThrownBy(() -> googleAuthenticationService.authenticate("conflict-token"))
+		assertThatThrownBy(() -> googleAuthenticationService.authenticate("conflict-token", null))
 				.isInstanceOf(AccountLinkRequiredException.class)
 				.hasMessage(
 						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
@@ -148,7 +153,13 @@ class GoogleAuthenticationServiceTests {
 				"user@example.com",
 				true,
 				" ");
-		User savedUser = User.google("user@example.com", "google-subject-fallback", "user@example.com", "", "user@example.com");
+		User savedUser = User.google(
+				"user@example.com",
+				"google-subject-fallback",
+				"user@example.com",
+				"",
+				"user@example.com",
+				"fallback_user");
 
 		when(googleTokenVerifier.verify("fallback-token")).thenReturn(Optional.of(verifiedGoogleToken));
 		when(userRepository.findByGoogleSubject("google-subject-fallback")).thenReturn(Optional.empty());
@@ -156,7 +167,8 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.saveAndFlush(any(User.class))).thenReturn(savedUser);
 
 		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate(
-				"fallback-token");
+				"fallback-token",
+				"@fallback_user");
 
 		assertThat(result.user().getFirstName()).isEqualTo("user@example.com");
 		assertThat(result.user().getLastName()).isEmpty();
@@ -177,7 +189,7 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.findByEmail("user@example.com"))
 				.thenReturn(Optional.of(User.google("user@example.com", "google-subject-existing", "Existing Google User")));
 
-		assertThatThrownBy(() -> googleAuthenticationService.authenticate("same-email-conflict-token"))
+		assertThatThrownBy(() -> googleAuthenticationService.authenticate("same-email-conflict-token", null))
 				.isInstanceOf(AccountConflictException.class)
 				.hasMessage("A Google-backed account already exists for this email under a different Google identity.");
 	}
@@ -205,9 +217,30 @@ class GoogleAuthenticationServiceTests {
 		when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
 		when(userRepository.saveAndFlush(any(User.class))).thenThrow(new DataIntegrityViolationException("duplicate"));
 
-		GoogleAuthenticationService.GoogleAuthenticationResult result = googleAuthenticationService.authenticate("race-token");
+		GoogleAuthenticationService.GoogleAuthenticationResult result =
+				googleAuthenticationService.authenticate("race-token", "@race_user");
 
 		assertThat(result.created()).isFalse();
 		assertThat(result.user().getId()).isEqualTo(128L);
+	}
+
+	@Test
+	void requiresHandleWhenGoogleAuthenticationWouldCreateAnAccount() {
+		GoogleTokenVerifier googleTokenVerifier = mock(GoogleTokenVerifier.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		GoogleAuthenticationService googleAuthenticationService = new GoogleAuthenticationService(
+				googleTokenVerifier,
+				userRepository);
+
+		when(googleTokenVerifier.verify("new-account-token")).thenReturn(Optional.of(
+				new VerifiedGoogleToken("google-subject-new", "new@example.com", true, "New User")));
+		when(userRepository.findByGoogleSubject("google-subject-new")).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> googleAuthenticationService.authenticate("new-account-token", null))
+				.isInstanceOf(HandleRequiredException.class)
+				.hasMessage("Choose a handle to finish creating your account.");
+
+		verify(userRepository, never()).saveAndFlush(any(User.class));
 	}
 }

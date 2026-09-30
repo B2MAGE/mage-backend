@@ -12,6 +12,7 @@ public record SceneResponse(
 		Long sceneId,
 		Long ownerUserId,
 		String creatorDisplayName,
+		String creatorHandle,
 		String name,
 		String description,
 		Map<String, Object> sceneData,
@@ -25,11 +26,11 @@ public record SceneResponse(
 	};
 
 	public static SceneResponse from(Scene scene, String creatorDisplayName) {
-		return from(scene, creatorDisplayName, List.of(), SceneEngagementResponse.empty());
+		return from(scene, creatorDisplayName, null, List.of(), SceneEngagementResponse.empty());
 	}
 
 	public static SceneResponse from(Scene scene, String creatorDisplayName, List<String> tags) {
-		return from(scene, creatorDisplayName, tags, SceneEngagementResponse.empty());
+		return from(scene, creatorDisplayName, null, tags, SceneEngagementResponse.empty());
 	}
 
 	public static SceneResponse from(
@@ -37,10 +38,20 @@ public record SceneResponse(
 			String creatorDisplayName,
 			List<String> tags,
 			SceneEngagementResponse engagement) {
+		return from(scene, creatorDisplayName, null, tags, engagement);
+	}
+
+	public static SceneResponse from(
+			Scene scene,
+			String creatorDisplayName,
+			String creatorHandle,
+			List<String> tags,
+			SceneEngagementResponse engagement) {
 		return new SceneResponse(
 				scene.getId(),
 				scene.getOwnerUserId(),
 				creatorDisplayName,
+				creatorHandle,
 				scene.getName(),
 				scene.getDescription(),
 				JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),

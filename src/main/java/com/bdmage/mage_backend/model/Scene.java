@@ -3,15 +3,19 @@ package com.bdmage.mage_backend.model;
 import java.time.Instant;
 import java.util.Objects;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.databind.JsonNode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "scenes")
@@ -37,6 +41,10 @@ public class Scene {
 	@Column(name = "thumbnail_ref", length = 512)
 	private String thumbnailRef;
 
+	@Column(name = "visibility", nullable = false, length = 20)
+	@Enumerated(EnumType.STRING)
+	private SceneVisibility visibility;
+
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private Instant createdAt;
 
@@ -61,6 +69,7 @@ public class Scene {
 		this.description = description;
 		this.sceneData = Objects.requireNonNull(sceneData, "sceneData must not be null");
 		this.thumbnailRef = thumbnailRef;
+		this.visibility = SceneVisibility.PUBLIC;
 	}
 
 	public Long getId() {
@@ -87,6 +96,10 @@ public class Scene {
 		return this.thumbnailRef;
 	}
 
+	public SceneVisibility getVisibility() {
+    	return this.visibility;
+	}
+
 	public Instant getCreatedAt() {
 		return this.createdAt;
 	}
@@ -97,6 +110,10 @@ public class Scene {
 
 	public void updateDescription(String description) {
 		this.description = description;
+	}
+
+	public void updateVisibility(SceneVisibility visibility) {
+    	this.visibility = Objects.requireNonNull(visibility, "visibility must not be null");
 	}
 
 	public void updateDetails(String name, String description, JsonNode sceneData) {

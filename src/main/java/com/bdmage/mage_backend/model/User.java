@@ -42,6 +42,12 @@ public class User {
 	@Column(name = "display_name", nullable = false, length = 100)
 	private String displayName;
 
+	@Column(name = "handle", nullable = false, length = 30)
+	private String handle;
+
+	@Column(name = "description", length = 300)
+	private String description;
+
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private Instant createdAt;
 
@@ -53,7 +59,17 @@ public class User {
 	}
 
 	public User(String email, String passwordHash, String firstName, String lastName, String displayName) {
-		this(email, AuthProvider.LOCAL, passwordHash, null, firstName, lastName, displayName);
+		this(email, passwordHash, firstName, lastName, displayName, fallbackHandle(email));
+	}
+
+	public User(
+			String email,
+			String passwordHash,
+			String firstName,
+			String lastName,
+			String displayName,
+			String handle) {
+		this(email, AuthProvider.LOCAL, passwordHash, null, firstName, lastName, displayName, handle, null);
 	}
 
 	public static User google(String email, String googleSubject, String displayName) {
@@ -61,7 +77,17 @@ public class User {
 	}
 
 	public static User google(String email, String googleSubject, String firstName, String lastName, String displayName) {
-		return new User(email, AuthProvider.GOOGLE, null, googleSubject, firstName, lastName, displayName);
+		return google(email, googleSubject, firstName, lastName, displayName, fallbackHandle(email));
+	}
+
+	public static User google(
+			String email,
+			String googleSubject,
+			String firstName,
+			String lastName,
+			String displayName,
+			String handle) {
+		return new User(email, AuthProvider.GOOGLE, null, googleSubject, firstName, lastName, displayName, handle, null);
 	}
 
 	public static User localAndGoogle(String email, String passwordHash, String googleSubject, String displayName) {
@@ -75,7 +101,16 @@ public class User {
 			String firstName,
 			String lastName,
 			String displayName) {
-		return new User(email, AuthProvider.LOCAL_GOOGLE, passwordHash, googleSubject, firstName, lastName, displayName);
+		return new User(
+				email,
+				AuthProvider.LOCAL_GOOGLE,
+				passwordHash,
+				googleSubject,
+				firstName,
+				lastName,
+				displayName,
+				fallbackHandle(email),
+				null);
 	}
 
 	private User(
@@ -85,7 +120,9 @@ public class User {
 			String googleSubject,
 			String firstName,
 			String lastName,
-			String displayName) {
+			String displayName,
+			String handle,
+			String description) {
 		this.email = Objects.requireNonNull(email, "email must not be null");
 		this.authProvider = Objects.requireNonNull(authProvider, "authProvider must not be null");
 		this.passwordHash = passwordHash;
@@ -93,7 +130,24 @@ public class User {
 		this.firstName = Objects.requireNonNull(firstName, "firstName must not be null");
 		this.lastName = Objects.requireNonNull(lastName, "lastName must not be null");
 		this.displayName = Objects.requireNonNull(displayName, "displayName must not be null");
+		this.handle = Objects.requireNonNull(handle, "handle must not be null");
+		this.description = description;
 		validateProviderFields(authProvider, passwordHash, googleSubject);
+	}
+
+	private static String fallbackHandle(String email) {
+		String normalizedEmail = Objects.requireNonNull(email, "email must not be null")
+				.trim()
+				.toLowerCase(java.util.Locale.ROOT);
+		String localPart = normalizedEmail.split("@", 2)[0].replaceAll("[^a-z0-9_]+", "_");
+		localPart = localPart.replaceAll("^_+|_+$", "");
+		if (localPart.length() < 3 || !Character.isLetter(localPart.charAt(0))) {
+			localPart = "user";
+		}
+
+		String suffix = "_" + Integer.toUnsignedString(normalizedEmail.hashCode(), 36);
+		int baseLength = Math.min(localPart.length(), 30 - suffix.length());
+		return localPart.substring(0, baseLength) + suffix;
 	}
 
 	private static void validateProviderFields(AuthProvider authProvider, String passwordHash, String googleSubject) {
@@ -148,10 +202,17 @@ public class User {
 		syncAuthProvider();
 	}
 
-	public void updateProfileName(String firstName, String lastName, String displayName) {
+	public void updateProfile(
+			String firstName,
+			String lastName,
+			String displayName,
+			String handle,
+			String description) {
 		this.firstName = Objects.requireNonNull(firstName, "firstName must not be null");
 		this.lastName = Objects.requireNonNull(lastName, "lastName must not be null");
 		this.displayName = Objects.requireNonNull(displayName, "displayName must not be null");
+		this.handle = Objects.requireNonNull(handle, "handle must not be null");
+		this.description = description;
 	}
 
 	private void syncAuthProvider() {
@@ -203,6 +264,14 @@ public class User {
 
 	public String getDisplayName() {
 		return this.displayName;
+	}
+
+	public String getHandle() {
+		return this.handle;
+	}
+
+	public String getDescription() {
+		return this.description;
 	}
 
 	public Instant getCreatedAt() {

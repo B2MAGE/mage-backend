@@ -14,6 +14,8 @@ public interface SceneCommentSummaryProjection {
 
 	String getAuthorDisplayName();
 
+	String getAuthorHandle();
+
 	String getText();
 
 	Instant getCreatedAt();

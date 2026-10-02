@@ -75,17 +75,18 @@ class AuthControllerTests {
 
 	@Test
 	void googleAuthenticationReturnsCreatedUserWhenServiceCreatesAccount() throws Exception {
-		User googleUser = User.google("user@example.com", "google-subject-1", "Google", "User", "Google User");
+		User googleUser = User.google(
+				"user@example.com", "google-subject-1", "Google", "User", "Google User", "google_user");
 		ReflectionTestUtils.setField(googleUser, "id", 21L);
 
-		when(this.googleAuthenticationService.authenticate("valid-token"))
+		when(this.googleAuthenticationService.authenticate("valid-token", "@google_user"))
 				.thenReturn(new GoogleAuthenticationResult(googleUser, true));
 		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("issued-google-token");
 
 		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"idToken":"valid-token"}
+						{"idToken":"valid-token","handle":"@google_user"}
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -94,6 +95,7 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.firstName").value("Google"))
 				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.displayName").value("Google User"))
+				.andExpect(jsonPath("$.handle").value("google_user"))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
 				.andExpect(jsonPath("$.created").value(true))
 				.andExpect(jsonPath("$.accessToken").value("issued-google-token"));
@@ -104,7 +106,7 @@ class AuthControllerTests {
 		User googleUser = User.google("user@example.com", "google-subject-2", "Google", "User", "Google User");
 		ReflectionTestUtils.setField(googleUser, "id", 22L);
 
-		when(this.googleAuthenticationService.authenticate("repeat-token"))
+		when(this.googleAuthenticationService.authenticate("repeat-token", null))
 				.thenReturn(new GoogleAuthenticationResult(googleUser, false));
 		when(this.authenticationTokenService.issueToken(googleUser)).thenReturn("reissued-google-token");
 
@@ -133,7 +135,7 @@ class AuthControllerTests {
 
 	@Test
 	void googleAuthenticationReturnsUnauthorizedWhenTokenIsInvalid() throws Exception {
-		when(this.googleAuthenticationService.authenticate("invalid-token"))
+		when(this.googleAuthenticationService.authenticate("invalid-token", null))
 				.thenThrow(new InvalidGoogleTokenException("Google ID token is invalid or expired."));
 
 		this.mockMvc.perform(post("/api/auth/google")
@@ -148,7 +150,7 @@ class AuthControllerTests {
 
 	@Test
 	void googleAuthenticationReturnsConflictWhenAccountRulesConflict() throws Exception {
-		when(this.googleAuthenticationService.authenticate("conflict-token"))
+		when(this.googleAuthenticationService.authenticate("conflict-token", null))
 				.thenThrow(new AccountLinkRequiredException(
 						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account."));
 
@@ -163,16 +165,18 @@ class AuthControllerTests {
 
 	@Test
 	void registrationReturnsCreatedLocalUser() throws Exception {
-		User localUser = new User("new-user@example.com", "hashed-password", "New", "User", "New User");
+		User localUser = new User(
+				"new-user@example.com", "hashed-password", "New", "User", "New User", "new_user");
 		ReflectionTestUtils.setField(localUser, "id", 31L);
 
-		when(this.registrationService.register("new-user@example.com", "secret-value", "New", "User", "New User"))
+		when(this.registrationService.register(
+				"new-user@example.com", "secret-value", "New", "User", "New User", "@new_user"))
 				.thenReturn(localUser);
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"email":"new-user@example.com","password":"secret-value","firstName":"New","lastName":"User","displayName":"New User"}
+						{"email":"new-user@example.com","password":"secret-value","firstName":"New","lastName":"User","displayName":"New User","handle":"@new_user"}
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -181,6 +185,7 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.firstName").value("New"))
 				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.displayName").value("New User"))
+				.andExpect(jsonPath("$.handle").value("new_user"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
@@ -191,7 +196,7 @@ class AuthControllerTests {
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"email":" ","password":" ","firstName":" ","lastName":" ","displayName":" "}
+						{"email":" ","password":" ","firstName":" ","lastName":" ","displayName":" ","handle":" "}
 						"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
@@ -199,19 +204,21 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.details.password").value("password must not be blank"))
 				.andExpect(jsonPath("$.details.firstName").value("firstName must not be blank"))
 				.andExpect(jsonPath("$.details.lastName").value("lastName must not be blank"))
-				.andExpect(jsonPath("$.details.displayName").value("displayName must not be blank"));
+				.andExpect(jsonPath("$.details.displayName").value("displayName must not be blank"))
+				.andExpect(jsonPath("$.details.handle").value("handle must not be blank"));
 	}
 
 	@Test
 	void registrationReturnsConflictWhenEmailAlreadyExists() throws Exception {
-		when(this.registrationService.register("existing@example.com", "secret-value", "Existing", "User", "Existing User"))
+		when(this.registrationService.register(
+				"existing@example.com", "secret-value", "Existing", "User", "Existing User", "@existing_user"))
 				.thenThrow(new EmailAlreadyRegisteredException(
 						"Local authentication is already configured for this email."));
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"email":"existing@example.com","password":"secret-value","firstName":"Existing","lastName":"User","displayName":"Existing User"}
+						{"email":"existing@example.com","password":"secret-value","firstName":"Existing","lastName":"User","displayName":"Existing User","handle":"@existing_user"}
 						"""))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
@@ -220,14 +227,15 @@ class AuthControllerTests {
 
 	@Test
 	void registrationReturnsConflictWhenExplicitLinkIsRequired() throws Exception {
-		when(this.registrationService.register("existing@example.com", "secret-value", "Existing", "User", "Existing User"))
+		when(this.registrationService.register(
+				"existing@example.com", "secret-value", "Existing", "User", "Existing User", "@existing_user"))
 				.thenThrow(new AccountLinkRequiredException(
 						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google."));
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"email":"existing@example.com","password":"secret-value","firstName":"Existing","lastName":"User","displayName":"Existing User"}
+						{"email":"existing@example.com","password":"secret-value","firstName":"Existing","lastName":"User","displayName":"Existing User","handle":"@existing_user"}
 						"""))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"));

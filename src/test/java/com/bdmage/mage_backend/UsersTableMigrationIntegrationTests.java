@@ -56,7 +56,9 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 					"auth_provider",
 					"google_subject",
 					"first_name",
-					"last_name");
+					"last_name",
+					"handle",
+					"description");
 		}
 	}
 
@@ -107,8 +109,8 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 
 	private Timestamp insertLocalUserAndReturnCreatedAt(Connection connection, String email) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, password_hash, display_name, first_name, last_name)
-				VALUES (?, ?, ?, ?, ?)
+				INSERT INTO users (email, password_hash, display_name, first_name, last_name, handle)
+				VALUES (?, ?, ?, ?, ?, ?)
 				RETURNING created_at
 				""")) {
 			statement.setString(1, email);
@@ -116,6 +118,7 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 			statement.setString(3, "Test User");
 			statement.setString(4, "Test");
 			statement.setString(5, "User");
+			statement.setString(6, testHandle(email));
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();
@@ -127,8 +130,8 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 	private Timestamp insertGoogleUserAndReturnCreatedAt(Connection connection, String email, String googleSubject)
 			throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name, first_name, last_name)
-				VALUES (?, 'GOOGLE', NULL, ?, ?, ?, ?)
+				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name, first_name, last_name, handle)
+				VALUES (?, 'GOOGLE', NULL, ?, ?, ?, ?, ?)
 				RETURNING created_at
 				""")) {
 			statement.setString(1, email);
@@ -136,6 +139,7 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 			statement.setString(3, "Google User");
 			statement.setString(4, "Google");
 			statement.setString(5, "User");
+			statement.setString(6, testHandle(email));
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();
@@ -147,8 +151,8 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 	private Timestamp insertLinkedUserAndReturnCreatedAt(Connection connection, String email, String googleSubject)
 			throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name, first_name, last_name)
-				VALUES (?, 'LOCAL_GOOGLE', ?, ?, ?, ?, ?)
+				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name, first_name, last_name, handle)
+				VALUES (?, 'LOCAL_GOOGLE', ?, ?, ?, ?, ?, ?)
 				RETURNING created_at
 				""")) {
 			statement.setString(1, email);
@@ -157,6 +161,7 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 			statement.setString(4, "Linked User");
 			statement.setString(5, "Linked");
 			statement.setString(6, "User");
+			statement.setString(7, testHandle(email));
 
 			try (ResultSet resultSet = statement.executeQuery()) {
 				assertThat(resultSet.next()).isTrue();
@@ -167,55 +172,67 @@ class UsersTableMigrationIntegrationTests extends PostgresIntegrationTestSupport
 
 	private void insertGoogleUserWithoutSubject(Connection connection) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, auth_provider, password_hash, display_name, first_name, last_name)
-				VALUES (?, 'GOOGLE', NULL, ?, ?, ?)
+				INSERT INTO users (email, auth_provider, password_hash, display_name, first_name, last_name, handle)
+				VALUES (?, 'GOOGLE', NULL, ?, ?, ?, ?)
 				""")) {
-			statement.setString(1, "google-missing-subject-" + System.nanoTime() + "@example.com");
+			String email = "google-missing-subject-" + System.nanoTime() + "@example.com";
+			statement.setString(1, email);
 			statement.setString(2, "Google User");
 			statement.setString(3, "Google");
 			statement.setString(4, "User");
+			statement.setString(5, testHandle(email));
 			statement.executeUpdate();
 		}
 	}
 
 	private void insertLocalUserWithoutPasswordHash(Connection connection) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, auth_provider, password_hash, display_name, first_name, last_name)
-				VALUES (?, 'LOCAL', NULL, ?, ?, ?)
+				INSERT INTO users (email, auth_provider, password_hash, display_name, first_name, last_name, handle)
+				VALUES (?, 'LOCAL', NULL, ?, ?, ?, ?)
 				""")) {
-			statement.setString(1, "local-missing-password-" + System.nanoTime() + "@example.com");
+			String email = "local-missing-password-" + System.nanoTime() + "@example.com";
+			statement.setString(1, email);
 			statement.setString(2, "Local User");
 			statement.setString(3, "Local");
 			statement.setString(4, "User");
+			statement.setString(5, testHandle(email));
 			statement.executeUpdate();
 		}
 	}
 
 	private void insertLinkedUserWithoutGoogleSubject(Connection connection) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, auth_provider, password_hash, display_name, first_name, last_name)
-				VALUES (?, 'LOCAL_GOOGLE', ?, ?, ?, ?)
+				INSERT INTO users (email, auth_provider, password_hash, display_name, first_name, last_name, handle)
+				VALUES (?, 'LOCAL_GOOGLE', ?, ?, ?, ?, ?)
 				""")) {
-			statement.setString(1, "linked-missing-subject-" + System.nanoTime() + "@example.com");
+			String email = "linked-missing-subject-" + System.nanoTime() + "@example.com";
+			statement.setString(1, email);
 			statement.setString(2, "hashed-password-value");
 			statement.setString(3, "Linked User");
 			statement.setString(4, "Linked");
 			statement.setString(5, "User");
+			statement.setString(6, testHandle(email));
 			statement.executeUpdate();
 		}
 	}
 
 	private void insertLinkedUserWithoutPasswordHash(Connection connection) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("""
-				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name, first_name, last_name)
-				VALUES (?, 'LOCAL_GOOGLE', NULL, ?, ?, ?, ?)
+				INSERT INTO users (email, auth_provider, password_hash, google_subject, display_name, first_name, last_name, handle)
+				VALUES (?, 'LOCAL_GOOGLE', NULL, ?, ?, ?, ?, ?)
 				""")) {
-			statement.setString(1, "linked-missing-password-" + System.nanoTime() + "@example.com");
+			String email = "linked-missing-password-" + System.nanoTime() + "@example.com";
+			statement.setString(1, email);
 			statement.setString(2, "linked-google-subject-" + System.nanoTime());
 			statement.setString(3, "Linked User");
 			statement.setString(4, "Linked");
 			statement.setString(5, "User");
+			statement.setString(6, testHandle(email));
 			statement.executeUpdate();
 		}
+	}
+
+	private static String testHandle(String email) {
+		return "u_" + Integer.toUnsignedString(email.hashCode(), 36);
 	}
 }

@@ -67,6 +67,7 @@ Useful follow-up checks:
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/users/me` with a bearer token
+- `GET /api/profiles/{handle}` without a bearer token
 - `POST /api/scenes`
 - `POST /api/scenes/thumbnail/presign`
 - `POST /api/scenes/{id}/thumbnail/presign`
@@ -75,7 +76,7 @@ Useful follow-up checks:
 
 For endpoint behavior and auth requirements, use [operations.md](operations.md).
 
-The registration payload now includes `firstName`, `lastName`, and `displayName`. Auth and profile responses return all three fields, while `displayName` stays the public attribution name.
+The registration payload includes `firstName`, `lastName`, `displayName`, and a required globally unique `handle` such as `@newuser`. Handle input must start with `@`; the name after it is 3 to 30 letters, numbers, or underscores and must begin with a letter. Auth and authenticated profile responses return the normalized handle without `@` and an optional description. Public profiles are available at `GET /api/profiles/{handle}` without authentication.
 
 ## Running Tests
 

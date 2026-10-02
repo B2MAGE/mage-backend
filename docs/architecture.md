@@ -8,7 +8,7 @@ The service currently owns five main areas:
 
 - health and readiness
 - authentication and account linking
-- user profile lookup
+- authenticated profile management and public handle-based lookup
 - tag management
 - scene storage and tagging
 
@@ -63,11 +63,12 @@ Protected routes add one more step first:
 
 ## Controllers
 
-The current API is split across five controllers:
+The current API is split across six controllers:
 
 - `HealthController`
 - `AuthController`
 - `UserController`
+- `ProfileController`
 - `TagController`
 - `SceneController`
 
@@ -81,7 +82,8 @@ The service layer owns the real behavior:
 - `GoogleAuthenticationService`: Google token verification and account provisioning
 - `AccountLinkingService`: explicit local/Google linking flows
 - `AuthenticationTokenService`: token creation and validation
-- `UserProfileService`: current-user lookups
+- `UserProfileService`: current-user profile changes and public handle lookup
+- `UserHandleService`: handle normalization and uniqueness checks
 - `TagService`: tag normalization and duplicate checks
 - `SceneService`: scene creation, lookup, deletion, filtering, tagging, and presigned thumbnail upload orchestration
 - `ObjectStorageThumbnailStorageService`: S3-compatible presign, object verification, public URL generation, and replacement cleanup for AWS S3 or MinIO
@@ -122,7 +124,7 @@ Those are backed by:
 
 Schema changes are migration-driven. The repo expects PostgreSQL and keeps Hibernate schema mode at `validate` for normal development.
 
-Within `users`, the backend now stores `first_name`, `last_name`, and `display_name`. `display_name` remains the public attribution field, while auth and profile flows expose all three values.
+Within `users`, the backend stores `first_name`, `last_name`, `display_name`, a required unique lowercase `handle`, and an optional 300-character `description`. `display_name` remains the public attribution name. Public profile reads expose only the public identity fields and scenes; authenticated profile responses also include the personal-name and account fields.
 
 Within `scenes`, the backend stores the scene name, optional plain-text description, JSON scene data, optional thumbnail reference, owner, and creation timestamp.
 
@@ -139,6 +141,7 @@ That keeps token verification logic out of controllers and makes the auth servic
 - validation failures
 - authentication failures
 - account conflicts and link-required cases
+- duplicate handles and missing public profiles
 - duplicate tags and duplicate scene-tag links
 - invalid thumbnail uploads, thumbnail storage availability, and owner-only thumbnail enforcement
 - missing scenes or tags

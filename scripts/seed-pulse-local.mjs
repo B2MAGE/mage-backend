@@ -81,7 +81,8 @@ if(existing.some(scene=>!titles.includes(scene.name)))throw new Error('Non-demo 
 const users=[];
 for(const [firstName,lastName,handle] of people) {
   const email=handle+'@pulse.local';
-  await api('auth/register',{method:'POST',body:{email,password,firstName,lastName,displayName:firstName+' '+lastName},allowConflict:true});
+  const profileHandle='@'+(firstName+lastName).toLowerCase();
+  await api('auth/register',{method:'POST',body:{email,password,firstName,lastName,displayName:firstName+' '+lastName,handle:profileHandle},allowConflict:true});
   users.push(await api('auth/login',{method:'POST',body:{email,password}}));
 }
 console.log('Verified registration/login for '+users.length+' demo users.');

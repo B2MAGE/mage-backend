@@ -8,9 +8,11 @@ import com.bdmage.mage_backend.client.GoogleTokenVerifier.VerifiedGoogleToken;
 import com.bdmage.mage_backend.exception.AccountConflictException;
 import com.bdmage.mage_backend.exception.AccountLinkRequiredException;
 import com.bdmage.mage_backend.exception.InvalidGoogleTokenException;
+import com.bdmage.mage_backend.exception.HandleRequiredException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -20,14 +22,24 @@ public class GoogleAuthenticationService {
 
 	private final GoogleTokenVerifier googleTokenVerifier;
 	private final UserRepository userRepository;
+	private final UserHandleService userHandleService;
 
 	public GoogleAuthenticationService(GoogleTokenVerifier googleTokenVerifier, UserRepository userRepository) {
+		this(googleTokenVerifier, userRepository, new UserHandleService(userRepository));
+	}
+
+	@Autowired
+	public GoogleAuthenticationService(
+			GoogleTokenVerifier googleTokenVerifier,
+			UserRepository userRepository,
+			UserHandleService userHandleService) {
 		this.googleTokenVerifier = googleTokenVerifier;
 		this.userRepository = userRepository;
+		this.userHandleService = userHandleService;
 	}
 
 	@Transactional
-	public GoogleAuthenticationResult authenticate(String idToken) {
+	public GoogleAuthenticationResult authenticate(String idToken, String handle) {
 		VerifiedGoogleToken verifiedGoogleToken = this.googleTokenVerifier.verify(idToken)
 				.orElseThrow(() -> new InvalidGoogleTokenException("Google ID token is invalid or expired."));
 
@@ -50,13 +62,20 @@ public class GoogleAuthenticationService {
 					"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 		}
 
+		if (!StringUtils.hasText(handle)) {
+			throw new HandleRequiredException("Choose a handle to finish creating your account.");
+		}
+		String normalizedHandle = this.userHandleService.normalizeInput(handle);
+		this.userHandleService.requireAvailable(normalizedHandle, null);
+
 		ResolvedNames resolvedNames = resolveNames(verifiedGoogleToken);
 		User googleUser = User.google(
 				normalisedEmail,
 				verifiedGoogleToken.subject(),
 				resolvedNames.firstName(),
 				resolvedNames.lastName(),
-				resolvedNames.displayName());
+				resolvedNames.displayName(),
+				normalizedHandle);
 
 		try {
 			User savedUser = this.userRepository.saveAndFlush(googleUser);
@@ -78,7 +97,7 @@ public class GoogleAuthenticationService {
 						"A local account already exists for this email. Link Google through /api/auth/link/google after authenticating that local account.");
 			}
 
-			throw new AccountConflictException("Google authentication conflicted with an existing account.");
+			throw UserHandleService.conflict();
 		}
 	}
 

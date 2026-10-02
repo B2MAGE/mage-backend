@@ -1,15 +1,13 @@
 package com.bdmage.mage_backend.dto;
 
 import java.time.Instant;
+import java.util.List;
 
-public record UserProfileResponse(
+public record PublicProfileResponse(
 		Long userId,
-		String email,
-		String firstName,
-		String lastName,
 		String displayName,
 		String handle,
 		String description,
-		String authProvider,
-		Instant createdAt) {
+		Instant createdAt,
+		List<SceneResponse> scenes) {
 }

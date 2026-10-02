@@ -85,7 +85,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Profile",
 				"Local",
-				"Profile Local User"));
+				"Profile Local User",
+				"profile_" + uniqueSuffix));
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -103,6 +104,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.firstName").value("Profile"))
 				.andExpect(jsonPath("$.lastName").value("Local"))
 				.andExpect(jsonPath("$.displayName").value("Profile Local User"))
+				.andExpect(jsonPath("$.handle").value("profile_" + uniqueSuffix))
+				.andExpect(jsonPath("$.description").isEmpty())
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.password").doesNotExist())
@@ -118,7 +121,9 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		MvcResult authenticationResult = this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(googleRequestBody(verifiedToken(subject, email, "Profile Google User"))))
+				.content(googleRequestBody(
+						verifiedToken(subject, email, "Profile Google User"),
+						"@google_" + uniqueSuffix)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn();
@@ -132,6 +137,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.firstName").value("Profile"))
 				.andExpect(jsonPath("$.lastName").value("Google User"))
 				.andExpect(jsonPath("$.displayName").value("Profile Google User"))
+				.andExpect(jsonPath("$.handle").value("google_" + uniqueSuffix))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.password").doesNotExist())
@@ -150,7 +156,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.passwordHashingService.hash(password),
 				"Original",
 				"Name",
-				"Profile Local User"));
+				"Profile Local User",
+				"original_" + uniqueSuffix));
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -165,18 +172,61 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"firstName":"Updated","lastName":"Profile","displayName":"Updated Profile"}
-						"""))
+						{"firstName":"Updated","lastName":"Profile","displayName":"Updated Profile","handle":"@Updated_%s","description":"  Scenes shaped by rhythm.  "}
+						""".formatted(uniqueSuffix)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.firstName").value("Updated"))
 				.andExpect(jsonPath("$.lastName").value("Profile"))
-				.andExpect(jsonPath("$.displayName").value("Updated Profile"));
+				.andExpect(jsonPath("$.displayName").value("Updated Profile"))
+				.andExpect(jsonPath("$.handle").value("updated_" + uniqueSuffix))
+				.andExpect(jsonPath("$.description").value("Scenes shaped by rhythm."));
 
 		User savedUser = this.userRepository.findByEmail(email).orElseThrow();
 		assertThat(savedUser.getFirstName()).isEqualTo("Updated");
 		assertThat(savedUser.getLastName()).isEqualTo("Profile");
 		assertThat(savedUser.getDisplayName()).isEqualTo("Updated Profile");
+		assertThat(savedUser.getHandle()).isEqualTo("updated_" + uniqueSuffix);
+		assertThat(savedUser.getDescription()).isEqualTo("Scenes shaped by rhythm.");
+	}
+
+	@Test
+	void updateMeRejectsHandleAlreadyOwnedByAnotherUser() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "profile-handle-update-" + uniqueSuffix + "@example.com";
+		String password = "password-" + uniqueSuffix;
+		String takenHandle = "taken_" + uniqueSuffix;
+
+		this.userRepository.saveAndFlush(new User(
+				email,
+				this.passwordHashingService.hash(password),
+				"Profile",
+				"User",
+				"Profile User",
+				"current_" + uniqueSuffix));
+		this.userRepository.saveAndFlush(new User(
+				"handle-owner-" + uniqueSuffix + "@example.com",
+				this.passwordHashingService.hash("owner-password-" + uniqueSuffix),
+				"Handle",
+				"Owner",
+				"Handle Owner",
+				takenHandle));
+
+		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(loginRequestBody(email, password)))
+				.andExpect(status().isOk())
+				.andReturn();
+
+		this.mockMvc.perform(put("/api/users/me")
+				.header("Authorization", "Bearer " + accessToken(loginResult))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"firstName":"Profile","lastName":"User","displayName":"Profile User","handle":"@%s","description":null}
+						""".formatted(takenHandle.toUpperCase())))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("HANDLE_ALREADY_IN_USE"))
+				.andExpect(jsonPath("$.details.handle").value("That handle is already in use."));
 	}
 
 	@Test
@@ -256,7 +306,9 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		MvcResult authenticationResult = this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(googleRequestBody(verifiedToken(subject, email, "Profile Google User"))))
+				.content(googleRequestBody(
+						verifiedToken(subject, email, "Profile Google User"),
+						"@password_" + uniqueSuffix)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn();
@@ -354,8 +406,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
 	}
 
-	private static String googleRequestBody(String idToken) {
-		return "{\"idToken\":\"" + idToken + "\"}";
+	private static String googleRequestBody(String idToken, String handle) {
+		return "{\"idToken\":\"" + idToken + "\",\"handle\":\"" + handle + "\"}";
 	}
 
 	private static String verifiedToken(String subject, String email, String displayName) {

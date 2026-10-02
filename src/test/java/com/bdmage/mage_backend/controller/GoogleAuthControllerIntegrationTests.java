@@ -46,15 +46,17 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 		String subject = "google-subject-" + uniqueSuffix;
 		String email = "google-user-" + uniqueSuffix + "@example.com";
 		String token = verifiedToken(subject, email, "Google User");
+		String handle = "@google_" + uniqueSuffix;
 		long countBefore = this.userRepository.count();
 
 		this.mockMvc.perform(post("/api/auth/google")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(token)))
+				.content(requestBody(token, handle)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.firstName").value("Google"))
 				.andExpect(jsonPath("$.lastName").value("User"))
+				.andExpect(jsonPath("$.handle").value(handle.substring(1)))
 				.andExpect(jsonPath("$.authProvider").value("GOOGLE"))
 				.andExpect(jsonPath("$.created").value(true))
 				.andExpect(jsonPath("$.accessToken").isNotEmpty());
@@ -70,6 +72,23 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 				.andExpect(jsonPath("$.accessToken").isNotEmpty());
 
 		assertThat(this.userRepository.count()).isEqualTo(countBefore + 1);
+	}
+
+	@Test
+	void googleAuthenticationRequiresHandleForANewAccount() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String subject = "google-handle-required-" + uniqueSuffix;
+		String email = "google-handle-required-" + uniqueSuffix + "@example.com";
+
+		this.mockMvc.perform(post("/api/auth/google")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(verifiedToken(subject, email, "Google User"))))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("HANDLE_REQUIRED"))
+				.andExpect(jsonPath("$.details.handle").value(
+						"Choose a handle to finish creating your account."));
+
+		assertThat(this.userRepository.findByGoogleSubject(subject)).isEmpty();
 	}
 
 	@Test
@@ -105,6 +124,10 @@ class GoogleAuthControllerIntegrationTests extends PostgresIntegrationTestSuppor
 
 	private static String requestBody(String idToken) {
 		return "{\"idToken\":\"" + idToken + "\"}";
+	}
+
+	private static String requestBody(String idToken, String handle) {
+		return "{\"idToken\":\"" + idToken + "\",\"handle\":\"" + handle + "\"}";
 	}
 
 	@TestConfiguration(proxyBeanMethods = false)

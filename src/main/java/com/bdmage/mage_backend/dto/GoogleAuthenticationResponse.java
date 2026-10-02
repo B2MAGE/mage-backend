@@ -6,6 +6,8 @@ public record GoogleAuthenticationResponse(
 		String firstName,
 		String lastName,
 		String displayName,
+		String handle,
+		String description,
 		String authProvider,
 		boolean created,
 		String accessToken) {

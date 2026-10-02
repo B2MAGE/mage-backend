@@ -57,7 +57,14 @@ class UserControllerTests {
 
 	@Test
 	void meReturnsAuthenticatedUserProfileWithoutSensitiveFields() throws Exception {
-		User user = new User("profile-user@example.com", "hashed-password", "Profile", "User", "Profile User");
+		User user = new User(
+				"profile-user@example.com",
+				"hashed-password",
+				"Profile",
+				"User",
+				"Profile User",
+				"profile_user");
+		user.updateProfile("Profile", "User", "Profile User", "profile_user", "Reactive visual artist.");
 		ReflectionTestUtils.setField(user, "id", 51L);
 		ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-03-25T20:15:30Z"));
 
@@ -71,6 +78,8 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.firstName").value("Profile"))
 				.andExpect(jsonPath("$.lastName").value("User"))
 				.andExpect(jsonPath("$.displayName").value("Profile User"))
+				.andExpect(jsonPath("$.handle").value("profile_user"))
+				.andExpect(jsonPath("$.description").value("Reactive visual artist."))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-25T20:15:30Z"))
 				.andExpect(jsonPath("$.password").doesNotExist())
@@ -91,23 +100,39 @@ class UserControllerTests {
 
 	@Test
 	void updateMeReturnsUpdatedProfile() throws Exception {
-		User user = new User("profile-user@example.com", "hashed-password", "Updated", "Name", "Profile User");
+		User user = new User(
+				"profile-user@example.com",
+				"hashed-password",
+				"Updated",
+				"Name",
+				"Updated Profile",
+				"updated_profile");
+		user.updateProfile(
+				"Updated", "Name", "Updated Profile", "updated_profile", "Audio-reactive scenes.");
 		ReflectionTestUtils.setField(user, "id", 51L);
 		ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-03-25T20:15:30Z"));
 
-		when(this.userProfileService.updateAuthenticatedUserProfile(eq(51L), eq("Updated"), eq("Name"), eq("Updated Profile")))
+		when(this.userProfileService.updateAuthenticatedUserProfile(
+				eq(51L),
+				eq("Updated"),
+				eq("Name"),
+				eq("Updated Profile"),
+				eq("@Updated_Profile"),
+				eq(" Audio-reactive scenes. ")))
 				.thenReturn(user);
 
 		this.mockMvc.perform(put("/api/users/me")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
 				.contentType("application/json")
 				.content("""
-						{"firstName":"Updated","lastName":"Name","displayName":"Updated Profile"}
+						{"firstName":"Updated","lastName":"Name","displayName":"Updated Profile","handle":"@Updated_Profile","description":" Audio-reactive scenes. "}
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.firstName").value("Updated"))
 				.andExpect(jsonPath("$.lastName").value("Name"))
-				.andExpect(jsonPath("$.displayName").value("Profile User"));
+				.andExpect(jsonPath("$.displayName").value("Updated Profile"))
+				.andExpect(jsonPath("$.handle").value("updated_profile"))
+				.andExpect(jsonPath("$.description").value("Audio-reactive scenes."));
 	}
 
 	@Test
@@ -116,13 +141,14 @@ class UserControllerTests {
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
 				.contentType("application/json")
 				.content("""
-						{"firstName":" ","lastName":" ","displayName":" "}
+						{"firstName":" ","lastName":" ","displayName":" ","handle":" "}
 						"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 				.andExpect(jsonPath("$.details.firstName").value("firstName must not be blank"))
 				.andExpect(jsonPath("$.details.lastName").value("lastName must not be blank"))
-				.andExpect(jsonPath("$.details.displayName").value("displayName must not be blank"));
+				.andExpect(jsonPath("$.details.displayName").value("displayName must not be blank"))
+				.andExpect(jsonPath("$.details.handle").value("handle must not be blank"));
 	}
 
 	@Test

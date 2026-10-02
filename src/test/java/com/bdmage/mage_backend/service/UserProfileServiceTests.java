@@ -5,9 +5,12 @@ import java.util.Optional;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidCurrentPasswordException;
 import com.bdmage.mage_backend.exception.LocalPasswordChangeUnavailableException;
+import com.bdmage.mage_backend.exception.HandleAlreadyInUseException;
+import com.bdmage.mage_backend.exception.ProfileNotFoundException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,11 +65,13 @@ class UserProfileServiceTests {
 	}
 
 	@Test
-	void updateAuthenticatedUserProfileTrimsAndPersistsNames() {
+	void updateAuthenticatedUserProfileTrimsNormalizesAndPersistsFields() {
 		UserRepository userRepository = mock(UserRepository.class);
 		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
 		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
-		User user = new User("user@example.com", "hashed-password", "Profile", "User", "Profile User");
+		User user = new User(
+				"user@example.com", "hashed-password", "Profile", "User", "Profile User", "profile_user");
+		ReflectionTestUtils.setField(user, "id", 42L);
 
 		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
 		when(userRepository.saveAndFlush(user)).thenReturn(user);
@@ -75,13 +80,89 @@ class UserProfileServiceTests {
 				42L,
 				" Updated ",
 				" Name ",
-				" Updated Profile ");
+				" Updated Profile ",
+				" @Updated_Profile ",
+				"  Scenes that move with the music.  ");
 
 		assertThat(updatedUser.getFirstName()).isEqualTo("Updated");
 		assertThat(updatedUser.getLastName()).isEqualTo("Name");
 		assertThat(updatedUser.getDisplayName()).isEqualTo("Updated Profile");
+		assertThat(updatedUser.getHandle()).isEqualTo("updated_profile");
+		assertThat(updatedUser.getDescription()).isEqualTo("Scenes that move with the music.");
 		verify(userRepository).findById(42L);
 		verify(userRepository).saveAndFlush(user);
+	}
+
+	@Test
+	void updateAuthenticatedUserProfileAllowsKeepingTheSameHandle() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+		User user = new User(
+				"user@example.com", "hashed-password", "Profile", "User", "Profile User", "profile_user");
+		ReflectionTestUtils.setField(user, "id", 42L);
+
+		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+		when(userRepository.findByHandle("profile_user")).thenReturn(Optional.of(user));
+		when(userRepository.saveAndFlush(user)).thenReturn(user);
+
+		User updatedUser = userProfileService.updateAuthenticatedUserProfile(
+				42L, "Profile", "User", "Profile User", "@Profile_User", " ");
+
+		assertThat(updatedUser.getHandle()).isEqualTo("profile_user");
+		assertThat(updatedUser.getDescription()).isNull();
+		verify(userRepository).saveAndFlush(user);
+	}
+
+	@Test
+	void updateAuthenticatedUserProfileRejectsAnotherUsersHandle() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+		User user = new User(
+				"user@example.com", "hashed-password", "Profile", "User", "Profile User", "profile_user");
+		User owner = new User(
+				"owner@example.com", "hashed-password", "Owner", "User", "Owner", "taken_handle");
+		ReflectionTestUtils.setField(user, "id", 42L);
+		ReflectionTestUtils.setField(owner, "id", 84L);
+
+		when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+		when(userRepository.findByHandle("taken_handle")).thenReturn(Optional.of(owner));
+
+		assertThatThrownBy(() -> userProfileService.updateAuthenticatedUserProfile(
+				42L, "Profile", "User", "Profile User", "@Taken_Handle", null))
+				.isInstanceOf(HandleAlreadyInUseException.class)
+				.hasMessage("That handle is already in use.");
+	}
+
+	@Test
+	void getPublicProfileNormalizesHandleAndReturnsMatchingUser() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+		User user = new User(
+				"user@example.com", "hashed-password", "Profile", "User", "Profile User", "profile_user");
+
+		when(userRepository.findByHandle("profile_user")).thenReturn(Optional.of(user));
+
+		assertThat(userProfileService.getPublicProfile("@Profile_User")).isSameAs(user);
+		verify(userRepository).findByHandle("profile_user");
+	}
+
+	@Test
+	void getPublicProfileReturnsNotFoundForUnknownOrInvalidHandle() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);
+		UserProfileService userProfileService = new UserProfileService(userRepository, passwordHashingService);
+
+		when(userRepository.findByHandle("missing_user")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> userProfileService.getPublicProfile("@missing_user"))
+				.isInstanceOf(ProfileNotFoundException.class)
+				.hasMessage("Profile not found.");
+		assertThatThrownBy(() -> userProfileService.getPublicProfile("not valid"))
+				.isInstanceOf(ProfileNotFoundException.class)
+				.hasMessage("Profile not found.");
 	}
 
 	@Test

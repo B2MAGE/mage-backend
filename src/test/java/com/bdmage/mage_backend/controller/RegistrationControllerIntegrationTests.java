@@ -43,15 +43,17 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 		String firstName = "Local";
 		String lastName = "User";
 		String displayName = "Local User";
+		String handle = "@local_" + uniqueSuffix;
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(email, password, firstName, lastName, displayName)))
+				.content(requestBody(email, password, firstName, lastName, displayName, handle)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.firstName").value(firstName))
 				.andExpect(jsonPath("$.lastName").value(lastName))
 				.andExpect(jsonPath("$.displayName").value(displayName))
+				.andExpect(jsonPath("$.handle").value(handle.substring(1)))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.password").doesNotExist())
 				.andExpect(jsonPath("$.passwordHash").doesNotExist());
@@ -60,6 +62,7 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 		assertThat(savedUser.getFirstName()).isEqualTo(firstName);
 		assertThat(savedUser.getLastName()).isEqualTo(lastName);
 		assertThat(savedUser.getDisplayName()).isEqualTo(displayName);
+		assertThat(savedUser.getHandle()).isEqualTo(handle.substring(1));
 		assertThat(savedUser.getPasswordHash()).isNotEqualTo(password);
 		assertThat(this.passwordHashingService.matches(password, savedUser.getPasswordHash())).isTrue();
 	}
@@ -74,7 +77,7 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(email, password, "Local", "User", "Local User")))
+				.content(requestBody(email, password, "Local", "User", "Local User", "@local_" + uniqueSuffix)))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"))
 				.andExpect(jsonPath("$.message").value("Local authentication is already configured for this email."));
@@ -90,11 +93,71 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 
 		this.mockMvc.perform(post("/api/auth/register")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody(email, password, "Local", "User", "Local User")))
+				.content(requestBody(email, password, "Local", "User", "Local User", "@google_" + uniqueSuffix)))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("ACCOUNT_LINK_REQUIRED"))
 				.andExpect(jsonPath("$.message").value(
 						"A Google-backed account already exists for this email. Link local authentication through /api/auth/link/local after authenticating with Google."));
+	}
+
+	@Test
+	void registrationRejectsCaseInsensitiveDuplicateHandle() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String handle = "shared_" + uniqueSuffix;
+		this.userRepository.saveAndFlush(new User(
+				"handle-owner-" + uniqueSuffix + "@example.com",
+				"hashed-password-value",
+				"Handle",
+				"Owner",
+				"Handle Owner",
+				handle));
+
+		this.mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(
+						"handle-new-" + uniqueSuffix + "@example.com",
+						"password-" + uniqueSuffix,
+						"New",
+						"User",
+						"New User",
+						"@" + handle.toUpperCase())))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("HANDLE_ALREADY_IN_USE"))
+				.andExpect(jsonPath("$.details.handle").value("That handle is already in use."));
+	}
+
+	@Test
+	void registrationRejectsMissingOrMalformedHandle() throws Exception {
+		String uniqueSuffix = String.valueOf(System.nanoTime());
+		String email = "invalid-handle-" + uniqueSuffix + "@example.com";
+
+		this.mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, "password-" + uniqueSuffix, "New", "User", "New User", "")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.handle").value("handle must not be blank"));
+
+		this.mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, "password-" + uniqueSuffix, "New", "User", "New User", "no-at-sign")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.handle").value(
+						"handle must start with @ and contain 3 to 30 letters, numbers, or underscores"));
+	}
+
+	@Test
+	void registrationRejectsShortPasswordAndTrimmedDisplayName() throws Exception {
+		String email = "short-registration-" + System.nanoTime() + "@example.com";
+		this.mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, "1234567", "New", "User", " A ", "@short_user")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.password").value("password must be at least 8 characters"))
+				.andExpect(jsonPath("$.details.displayName").value("displayName must be at least 2 characters"));
+		assertThat(this.userRepository.findByEmail(email)).isEmpty();
 	}
 
 	private static String requestBody(
@@ -102,12 +165,14 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 			String password,
 			String firstName,
 			String lastName,
-			String displayName) {
+			String displayName,
+			String handle) {
 		return "{\"email\":\"" + email
 				+ "\",\"password\":\"" + password
 				+ "\",\"firstName\":\"" + firstName
 				+ "\",\"lastName\":\"" + lastName
 				+ "\",\"displayName\":\"" + displayName
+				+ "\",\"handle\":\"" + handle
 				+ "\"}";
 	}
 }

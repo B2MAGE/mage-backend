@@ -1,6 +1,7 @@
 package com.bdmage.mage_backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateUserProfileRequest(
@@ -12,5 +13,12 @@ public record UpdateUserProfileRequest(
 		String lastName,
 		@NotBlank(message = "displayName must not be blank")
 		@Size(max = 100, message = "displayName must be at most 100 characters")
-		String displayName) {
+		String displayName,
+		@NotBlank(message = "handle must not be blank")
+		@Pattern(
+				regexp = "^@[a-zA-Z][a-zA-Z0-9_]{2,29}$",
+				message = "handle must start with @ and contain 3 to 30 letters, numbers, or underscores")
+		String handle,
+		@Size(max = 300, message = "description must be at most 300 characters")
+		String description) {
 }

@@ -173,6 +173,11 @@ public class SceneService {
 	}
 
 	@Transactional(readOnly = true)
+	public List<Scene> getPublicScenesForUser(Long requestedUserId) {
+		return this.sceneRepository.findAllByOwnerUserId(requestedUserId);
+	}
+
+	@Transactional(readOnly = true)
 	public List<Scene> getAllScenes() {
 		return this.sceneRepository.findAll();
 	}

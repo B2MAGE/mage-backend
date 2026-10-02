@@ -67,6 +67,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andExpect(jsonPath("$.sceneId").value(scene.getId()))
 				.andExpect(jsonPath("$.authorUserId").value(author.getId()))
 				.andExpect(jsonPath("$.authorDisplayName").value("Comment Author"))
+				.andExpect(jsonPath("$.authorHandle").value(author.getHandle()))
 				.andExpect(jsonPath("$.text").value("First pass is hypnotic."))
 				.andExpect(jsonPath("$.replyCount").value(0L))
 				.andExpect(jsonPath("$.upvotes").value(0L))
@@ -95,6 +96,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andExpect(jsonPath("$[0].sceneId").value(scene.getId()))
 				.andExpect(jsonPath("$[0].parentCommentId").doesNotExist())
 				.andExpect(jsonPath("$[0].authorDisplayName").value("Comment Author"))
+				.andExpect(jsonPath("$[0].authorHandle").value(author.getHandle()))
 				.andExpect(jsonPath("$[0].text").value("First pass is hypnotic."))
 				.andExpect(jsonPath("$[0].replyCount").value(1L))
 				.andExpect(jsonPath("$[0].upvotes").value(0L))
@@ -103,6 +105,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andExpect(jsonPath("$[0].replies.length()").value(1))
 				.andExpect(jsonPath("$[0].replies[0].commentId").value(replyCommentId))
 				.andExpect(jsonPath("$[0].replies[0].parentCommentId").value(parentCommentId))
+				.andExpect(jsonPath("$[0].replies[0].authorHandle").value(author.getHandle()))
 				.andExpect(jsonPath("$[0].replies[0].text").value("The second drop lands even better."))
 				.andExpect(jsonPath("$[0].replies[0].replyCount").value(0L));
 	}

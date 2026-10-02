@@ -1,15 +1,15 @@
 /** Authored content for the disposable local review database. No production seed migration. */
 export const users = [
-  { firstName: 'Ari', lastName: 'Rivera', displayName: 'Ari Rivera', email: 'ari@pulse.local' },
-  { firstName: 'Mina', lastName: 'Park', displayName: 'Mina Park', email: 'mina@pulse.local' },
-  { firstName: 'Jonah', lastName: 'Reed', displayName: 'Jonah Reed', email: 'jonah@pulse.local' },
-  { firstName: 'Talia', lastName: 'North', displayName: 'Talia North', email: 'talia@pulse.local' },
-  { firstName: 'Elio', lastName: 'Mercer', displayName: 'Elio Mercer', email: 'elio@pulse.local' },
-  { firstName: 'Sasha', lastName: 'Chen', displayName: 'Sasha Chen', email: 'sasha@pulse.local' },
-  { firstName: 'Nico', lastName: 'Santos', displayName: 'Nico Santos', email: 'nico@pulse.local' },
-  { firstName: 'Imani', lastName: 'Brooks', displayName: 'Imani Brooks', email: 'imani@pulse.local' },
-  { firstName: 'Kai', lastName: 'Tanaka', displayName: 'Kai Tanaka', email: 'kai@pulse.local' },
-  { firstName: 'Lena', lastName: 'Sol', displayName: 'Lena Sol', email: 'lena@pulse.local' },
+  { firstName: 'Ari', lastName: 'Rivera', displayName: 'Ari Rivera', handle: '@aririvera', email: 'ari@pulse.local' },
+  { firstName: 'Mina', lastName: 'Park', displayName: 'Mina Park', handle: '@minapark', email: 'mina@pulse.local' },
+  { firstName: 'Jonah', lastName: 'Reed', displayName: 'Jonah Reed', handle: '@jonahreed', email: 'jonah@pulse.local' },
+  { firstName: 'Talia', lastName: 'North', displayName: 'Talia North', handle: '@talianorth', email: 'talia@pulse.local' },
+  { firstName: 'Elio', lastName: 'Mercer', displayName: 'Elio Mercer', handle: '@eliomercer', email: 'elio@pulse.local' },
+  { firstName: 'Sasha', lastName: 'Chen', displayName: 'Sasha Chen', handle: '@sashachen', email: 'sasha@pulse.local' },
+  { firstName: 'Nico', lastName: 'Santos', displayName: 'Nico Santos', handle: '@nicosantos', email: 'nico@pulse.local' },
+  { firstName: 'Imani', lastName: 'Brooks', displayName: 'Imani Brooks', handle: '@imanibrooks', email: 'imani@pulse.local' },
+  { firstName: 'Kai', lastName: 'Tanaka', displayName: 'Kai Tanaka', handle: '@kaitanaka', email: 'kai@pulse.local' },
+  { firstName: 'Lena', lastName: 'Sol', displayName: 'Lena Sol', handle: '@lenasol', email: 'lena@pulse.local' },
 ];
 
 // Ten families, ten variations per family. The render catalog uses this same order.

@@ -58,7 +58,7 @@ public class AuthController {
 	@PostMapping("/google")
 	ResponseEntity<GoogleAuthenticationResponse> authenticateWithGoogle(
 			@Valid @RequestBody GoogleAuthenticationRequest request) {
-		GoogleAuthenticationResult result = this.googleAuthenticationService.authenticate(request.idToken());
+		GoogleAuthenticationResult result = this.googleAuthenticationService.authenticate(request.idToken(), request.handle());
 		HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
 		String accessToken = this.authenticationTokenService.issueToken(result.user());
 
@@ -69,6 +69,8 @@ public class AuthController {
 						result.user().getFirstName(),
 						result.user().getLastName(),
 						result.user().getDisplayName(),
+						result.user().getHandle(),
+						result.user().getDescription(),
 						result.user().getAuthProvider().name(),
 						result.created(),
 						accessToken));
@@ -81,7 +83,8 @@ public class AuthController {
 				request.password(),
 				request.firstName(),
 				request.lastName(),
-				request.displayName());
+				request.displayName(),
+				request.handle());
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(new RegistrationResponse(
@@ -90,6 +93,8 @@ public class AuthController {
 						user.getFirstName(),
 						user.getLastName(),
 						user.getDisplayName(),
+						user.getHandle(),
+						user.getDescription(),
 						user.getAuthProvider().name()));
 	}
 
@@ -104,6 +109,8 @@ public class AuthController {
 				user.getFirstName(),
 				user.getLastName(),
 				user.getDisplayName(),
+				user.getHandle(),
+				user.getDescription(),
 				user.getAuthProvider().name(),
 				accessToken));
 	}
@@ -147,6 +154,8 @@ public class AuthController {
 				result.user().getFirstName(),
 				result.user().getLastName(),
 				result.user().getDisplayName(),
+				result.user().getHandle(),
+				result.user().getDescription(),
 				result.user().getAuthProvider().name(),
 				result.linked());
 	}

@@ -17,6 +17,8 @@ import com.bdmage.mage_backend.service.UserProfileService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -80,6 +82,8 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.displayName").value("Profile User"))
 				.andExpect(jsonPath("$.handle").value("profile_user"))
 				.andExpect(jsonPath("$.description").value("Reactive visual artist."))
+				.andExpect(jsonPath("$.avatarGradientStart").value("#5c51ba"))
+				.andExpect(jsonPath("$.avatarGradientEnd").value("#264a48"))
 				.andExpect(jsonPath("$.authProvider").value("LOCAL"))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-25T20:15:30Z"))
 				.andExpect(jsonPath("$.password").doesNotExist())
@@ -118,7 +122,9 @@ class UserControllerTests {
 				eq("Name"),
 				eq("Updated Profile"),
 				eq("@Updated_Profile"),
-				eq(" Audio-reactive scenes. ")))
+				eq(" Audio-reactive scenes. "),
+				eq(null),
+				eq(null)))
 				.thenReturn(user);
 
 		this.mockMvc.perform(put("/api/users/me")
@@ -133,6 +139,22 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.displayName").value("Updated Profile"))
 				.andExpect(jsonPath("$.handle").value("updated_profile"))
 				.andExpect(jsonPath("$.description").value("Audio-reactive scenes."));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"", "#123", "123456", "#12345678", "red", "#gg0000", " #123456", "url(test)"})
+	void updateMeRejectsInvalidAvatarColors(String color) throws Exception {
+		for (String field : List.of("avatarGradientStart", "avatarGradientEnd")) {
+			this.mockMvc.perform(put("/api/users/me")
+					.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L)
+					.contentType("application/json")
+					.content(this.objectMapper.writeValueAsString(java.util.Map.of(
+							"firstName", "Ari", "lastName", "Rivera", "displayName", "Ari Rivera",
+							"handle", "@aririvera", field, color))))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+					.andExpect(jsonPath("$.details." + field).value(field + " must use the #RRGGBB format"));
+		}
 	}
 
 	@Test

@@ -8,6 +8,8 @@ public record LoginResponse(
 		String displayName,
 		String handle,
 		String description,
+		String avatarGradientStart,
+		String avatarGradientEnd,
 		String authProvider,
 		String accessToken) {
 }

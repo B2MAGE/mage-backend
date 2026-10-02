@@ -56,7 +56,9 @@ public class UserController {
 				request.lastName(),
 				request.displayName(),
 				request.handle(),
-				request.description());
+				request.description(),
+				request.avatarGradientStart(),
+				request.avatarGradientEnd());
 
 		return ResponseEntity.ok(toUserProfileResponse(user));
 	}
@@ -82,6 +84,8 @@ public class UserController {
 				user.getDisplayName(),
 				user.getHandle(),
 				user.getDescription(),
+				user.getAvatarGradientStart(),
+				user.getAvatarGradientEnd(),
 				user.getAuthProvider().name(),
 				user.getCreatedAt());
 	}

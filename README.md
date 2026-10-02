@@ -99,7 +99,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/auth/link/google`                | Public       | Link Google auth to an existing local account                                              |
 | `POST /api/auth/link/local`                 | Public       | Add local auth to an existing Google-backed account                                        |
 | `GET /api/users/me`                         | Bearer token | Return the current user profile                                                            |
-| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's names, unique handle, and description                      |
+| `PUT /api/users/me`                         | Bearer token | Update the authenticated user's names, unique handle, description, and avatar gradient     |
 | `PUT /api/users/me/password`                | Bearer token | Change the authenticated user's local password                                              |
 | `GET /api/profiles/{handle}`                | Public       | Return a public profile and its scenes by handle                                            |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
@@ -149,6 +149,8 @@ Successful auth and authenticated profile responses include the normalized handl
   "displayName": "New User",
   "handle": "newuser",
   "description": null,
+  "avatarGradientStart": "#5c51ba",
+  "avatarGradientEnd": "#264a48",
   "authProvider": "LOCAL"
 }
 ```
@@ -163,13 +165,17 @@ Successful auth and authenticated profile responses include the normalized handl
   "lastName": "User",
   "displayName": "Updated User",
   "handle": "@updateduser",
-  "description": "I build quiet, reactive scenes."
+  "description": "I build quiet, reactive scenes.",
+  "avatarGradientStart": "#5c51ba",
+  "avatarGradientEnd": "#264a48"
 }
 ```
 
 `description` is optional, may be cleared with `null` or blank text, and is limited to 300 characters. Changing a handle immediately changes the public profile URL.
 
-`GET /api/profiles/updateduser` is public and returns only public profile fields (`userId`, `displayName`, `handle`, `description`, `createdAt`) plus the user's public scenes. It does not expose email, personal-name fields, or authentication-provider details.
+`avatarGradientStart` and `avatarGradientEnd` are optional six-digit hex colors (`#RRGGBB`), normalized to lowercase. Omitted or `null` colors preserve the user's existing values; empty strings and CSS expressions are rejected. Existing and new users default to `#5c51ba` and `#264a48`. These colors are returned in all auth/profile responses, as `creatorAvatarGradientStart`/`creatorAvatarGradientEnd` on scenes, and as `authorAvatarGradientStart`/`authorAvatarGradientEnd` on comments and replies.
+
+`GET /api/profiles/updateduser` is public and returns only public profile fields (`userId`, `displayName`, `handle`, `description`, `avatarGradientStart`, `avatarGradientEnd`, `createdAt`) plus the user's public scenes. It does not expose email, personal-name fields, or authentication-provider details.
 
 `PUT /api/users/me/password` accepts:
 

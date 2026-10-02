@@ -47,6 +47,8 @@ public class ProfileController {
 				user.getDisplayName(),
 				user.getHandle(),
 				user.getDescription(),
+				user.getAvatarGradientStart(),
+				user.getAvatarGradientEnd(),
 				user.getCreatedAt(),
 				sceneResponses));
 	}

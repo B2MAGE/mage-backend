@@ -126,6 +126,8 @@ Schema changes are migration-driven. The repo expects PostgreSQL and keeps Hiber
 
 Within `users`, the backend stores `first_name`, `last_name`, `display_name`, a required unique lowercase `handle`, and an optional 300-character `description`. `display_name` remains the public attribution name. Public profile reads expose only the public identity fields and scenes; authenticated profile responses also include the personal-name and account fields.
 
+Avatar gradients are user-owned public identity fields: non-null `avatar_gradient_start` and `avatar_gradient_end` columns contain lowercase six-digit hex colors. Migration V17 initializes existing users to the same defaults as new accounts. Profile updates validate color strings instead of accepting arbitrary CSS, and scene/comment responses resolve colors from the creator/author rather than copying them into content records.
+
 Within `scenes`, the backend stores the scene name, optional plain-text description, JSON scene data, optional thumbnail reference, owner, and creation timestamp.
 
 ## External Boundary

@@ -71,6 +71,8 @@ public class AuthController {
 						result.user().getDisplayName(),
 						result.user().getHandle(),
 						result.user().getDescription(),
+						result.user().getAvatarGradientStart(),
+						result.user().getAvatarGradientEnd(),
 						result.user().getAuthProvider().name(),
 						result.created(),
 						accessToken));
@@ -95,6 +97,8 @@ public class AuthController {
 						user.getDisplayName(),
 						user.getHandle(),
 						user.getDescription(),
+						user.getAvatarGradientStart(),
+						user.getAvatarGradientEnd(),
 						user.getAuthProvider().name()));
 	}
 
@@ -111,6 +115,8 @@ public class AuthController {
 				user.getDisplayName(),
 				user.getHandle(),
 				user.getDescription(),
+				user.getAvatarGradientStart(),
+				user.getAvatarGradientEnd(),
 				user.getAuthProvider().name(),
 				accessToken));
 	}
@@ -156,6 +162,8 @@ public class AuthController {
 				result.user().getDisplayName(),
 				result.user().getHandle(),
 				result.user().getDescription(),
+				result.user().getAvatarGradientStart(),
+				result.user().getAvatarGradientEnd(),
 				result.user().getAuthProvider().name(),
 				result.linked());
 	}

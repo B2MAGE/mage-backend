@@ -20,5 +20,9 @@ public record UpdateUserProfileRequest(
 				message = "handle must start with @ and contain 3 to 30 letters, numbers, or underscores")
 		String handle,
 		@Size(max = 300, message = "description must be at most 300 characters")
-		String description) {
+		String description,
+		@Pattern(regexp = "^#[a-fA-F0-9]{6}$", message = "avatarGradientStart must use the #RRGGBB format")
+		String avatarGradientStart,
+		@Pattern(regexp = "^#[a-fA-F0-9]{6}$", message = "avatarGradientEnd must use the #RRGGBB format")
+		String avatarGradientEnd) {
 }

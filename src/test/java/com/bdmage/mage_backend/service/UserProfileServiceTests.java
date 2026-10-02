@@ -22,6 +22,25 @@ import static org.mockito.Mockito.when;
 class UserProfileServiceTests {
 
 	@Test
+	void updateProfilePersistsColorsAndLegacyUpdatesDoNotResetThem() {
+		UserRepository repository = mock(UserRepository.class);
+		UserProfileService service = new UserProfileService(repository, mock(PasswordHashingService.class));
+		User user = new User("user@example.com", "hash", "Ari", "Rivera", "Ari Rivera", "aririvera");
+		ReflectionTestUtils.setField(user, "id", 42L);
+		when(repository.findById(42L)).thenReturn(Optional.of(user));
+		when(repository.saveAndFlush(user)).thenReturn(user);
+
+		User updated = service.updateAuthenticatedUserProfile(
+				42L, "Ari", "Rivera", "Ari Rivera", "@aririvera", null, "#AA7733", "#1122FF");
+		assertThat(updated.getAvatarGradientStart()).isEqualTo("#aa7733");
+		assertThat(updated.getAvatarGradientEnd()).isEqualTo("#1122ff");
+
+		service.updateAuthenticatedUserProfile(42L, "Ari", "Rivera", "Ari", "@aririvera", "Updated description");
+		assertThat(user.getAvatarGradientStart()).isEqualTo("#aa7733");
+		assertThat(user.getAvatarGradientEnd()).isEqualTo("#1122ff");
+	}
+
+	@Test
 	void getAuthenticatedUserReturnsMatchingUser() {
 		UserRepository userRepository = mock(UserRepository.class);
 		PasswordHashingService passwordHashingService = mock(PasswordHashingService.class);

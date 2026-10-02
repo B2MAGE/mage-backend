@@ -67,7 +67,8 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		this.mockMvc.perform(get("/api/tags"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase")));
+				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase")))
+				.andExpect(jsonPath("$[*].sceneCount", contains(0, 0)));
 	}
 
 	@Test
@@ -79,7 +80,8 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						"""))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.tagId").isNumber())
-				.andExpect(jsonPath("$.name").value("chillwave"));
+				.andExpect(jsonPath("$.name").value("chillwave"))
+				.andExpect(jsonPath("$.sceneCount").value(0));
 
 		Tag savedTag = this.tagRepository.findByName("chillwave").orElseThrow();
 		assertThat(savedTag.getId()).isNotNull();
@@ -131,9 +133,25 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), showcase.getId()));
 		this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), ambient.getId()));
+		Scene anotherScene = this.sceneRepository.saveAndFlush(new Scene(
+				owner.getId(), "Night Orbit", this.objectMapper.createObjectNode()));
+		this.sceneTagRepository.saveAndFlush(new SceneTag(anotherScene.getId(), showcase.getId()));
 
 		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase")));
+				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase")))
+				.andExpect(jsonPath("$[*].sceneCount", contains(1, 2)));
+		this.mockMvc.perform(get("/api/tags"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", contains("ambient", "showcase", "unused")))
+				.andExpect(jsonPath("$[*].sceneCount", contains(1, 2, 0)));
+	}
+
+	@Test
+	void getAttachedTagsIsEmptyBeforeAnySceneIsTagged() throws Exception {
+		this.tagRepository.saveAndFlush(new Tag("unused"));
+		this.mockMvc.perform(get("/api/tags?attachedOnly=true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isEmpty());
 	}
 }

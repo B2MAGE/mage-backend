@@ -8,6 +8,7 @@ import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.service.SceneEngagementService;
 import com.bdmage.mage_backend.service.SceneService;
@@ -46,7 +47,8 @@ class UserControllerTests {
 		this.userRepository = mock(UserRepository.class);
 		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(
 				this.userRepository,
-				this.sceneEngagementService);
+				this.sceneEngagementService,
+				mock(SceneTagRepository.class));
 		this.mockMvc = MockMvcBuilders
 				.standaloneSetup(new UserController(this.sceneService, this.userProfileService, sceneResponseFactory))
 				.setControllerAdvice(new ApiExceptionHandler())

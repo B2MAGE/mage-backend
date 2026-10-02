@@ -19,6 +19,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -73,7 +74,7 @@ class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
     }
 
     @Test
-    void findAllAttachedToScenesReturnsOnlyTagsWithSceneLinksSortedByName() throws Exception {
+    void aggregateCountsDistinctScenesAndPreservesAlphabeticalOrder() throws Exception {
         User owner = this.userRepository.saveAndFlush(
                 new User("attached-tags-owner-" + System.nanoTime() + "@example.com", "hashed-password-value", "Attached Tags Owner"));
         Scene scene = this.sceneRepository.saveAndFlush(new Scene(
@@ -89,13 +90,56 @@ class TagRepositoryIntegrationTest extends PostgresIntegrationTestSupport {
         this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), showcaseTag.getId()));
         this.sceneTagRepository.saveAndFlush(new SceneTag(scene.getId(), ambientTag.getId()));
 
+        Scene anotherScene = this.sceneRepository.saveAndFlush(new Scene(
+                owner.getId(), "Night Orbit", this.objectMapper.createObjectNode()));
+        this.sceneTagRepository.saveAndFlush(new SceneTag(anotherScene.getId(), showcaseTag.getId()));
+
         this.entityManager.clear();
 
-        assertThat(this.tagRepository.findAllAttachedToScenes())
-                .extracting(Tag::getName)
-                .containsExactly("ambient", "showcase");
-        assertThat(this.tagRepository.findAllAttachedToScenes())
-                .extracting(Tag::getId)
-                .doesNotContain(unusedTag.getId());
+        assertThat(this.tagRepository.findAllWithSceneCounts(false))
+                .extracting(TagUsageProjection::getTagId, TagUsageProjection::getName, TagUsageProjection::getSceneCount)
+                .containsExactly(
+                        tuple(ambientTag.getId(), "ambient", 1L),
+                        tuple(showcaseTag.getId(), "showcase", 2L),
+                        tuple(unusedTag.getId(), "unused", 0L));
+        assertThat(this.tagRepository.findAllWithSceneCounts(true))
+                .extracting(TagUsageProjection::getName, TagUsageProjection::getSceneCount)
+                .containsExactly(tuple("ambient", 1L), tuple("showcase", 2L));
+    }
+
+    @Test
+    void countsFollowAttachmentDetachmentAndSceneDeletion() {
+        User owner = this.userRepository.saveAndFlush(
+                new User("tag-count-owner@example.com", "hashed-password-value", "Tag Count Owner"));
+        Scene first = this.sceneRepository.saveAndFlush(new Scene(
+                owner.getId(), "First Scene", this.objectMapper.createObjectNode()));
+        Scene second = this.sceneRepository.saveAndFlush(new Scene(
+                owner.getId(), "Second Scene", this.objectMapper.createObjectNode()));
+        Tag ambient = this.tagRepository.saveAndFlush(new Tag("ambient"));
+
+        assertThat(this.tagRepository.findAllWithSceneCounts(true)).isEmpty();
+        assertThat(this.tagRepository.findAllWithSceneCounts(false))
+                .extracting(TagUsageProjection::getSceneCount).containsExactly(0L);
+
+        SceneTag firstLink = this.sceneTagRepository.saveAndFlush(new SceneTag(first.getId(), ambient.getId()));
+        this.sceneTagRepository.saveAndFlush(new SceneTag(second.getId(), ambient.getId()));
+        assertThat(this.tagRepository.findAllWithSceneCounts(true))
+                .extracting(TagUsageProjection::getSceneCount).containsExactly(2L);
+
+        this.sceneTagRepository.delete(firstLink);
+        assertThat(this.tagRepository.findAllWithSceneCounts(true))
+                .extracting(TagUsageProjection::getSceneCount).containsExactly(1L);
+
+        this.sceneRepository.deleteById(second.getId());
+        assertThat(this.tagRepository.findAllWithSceneCounts(true)).isEmpty();
+        assertThat(this.tagRepository.findAllWithSceneCounts(false))
+                .extracting(TagUsageProjection::getName, TagUsageProjection::getSceneCount)
+                .containsExactly(tuple("ambient", 0L));
+    }
+
+    @Test
+    void aggregateReturnsEmptyForNoTags() {
+        assertThat(this.tagRepository.findAllWithSceneCounts(false)).isEmpty();
+        assertThat(this.tagRepository.findAllWithSceneCounts(true)).isEmpty();
     }
 }

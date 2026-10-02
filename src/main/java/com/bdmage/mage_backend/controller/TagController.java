@@ -29,13 +29,7 @@ public class TagController {
 	@GetMapping
 	ResponseEntity<List<TagResponse>> getAllTags(
 			@RequestParam(name = "attachedOnly", defaultValue = "false") boolean attachedOnly) {
-		List<Tag> tags = attachedOnly
-				? this.tagService.getAllTagsAttachedToScenes()
-				: this.tagService.getAllTags();
-
-		return ResponseEntity.ok(tags.stream()
-				.map(TagResponse::from)
-				.toList());
+		return ResponseEntity.ok(this.tagService.getTags(attachedOnly));
 	}
 
 	@PostMapping

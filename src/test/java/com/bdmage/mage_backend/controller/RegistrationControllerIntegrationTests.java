@@ -147,6 +147,19 @@ class RegistrationControllerIntegrationTests extends PostgresIntegrationTestSupp
 						"handle must start with @ and contain 3 to 30 letters, numbers, or underscores"));
 	}
 
+	@Test
+	void registrationRejectsShortPasswordAndTrimmedDisplayName() throws Exception {
+		String email = "short-registration-" + System.nanoTime() + "@example.com";
+		this.mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody(email, "1234567", "New", "User", " A ", "@short_user")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.details.password").value("password must be at least 8 characters"))
+				.andExpect(jsonPath("$.details.displayName").value("displayName must be at least 2 characters"));
+		assertThat(this.userRepository.findByEmail(email)).isEmpty();
+	}
+
 	private static String requestBody(
 			String email,
 			String password,

@@ -121,6 +121,8 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Auth And Profile Contract
 
+Local registration requires a password of 8 to 72 characters and a display name of 2 to 100 characters after trimming. Validation errors use the existing `details.password` and `details.displayName` fields.
+
 `POST /api/auth/register` now accepts:
 
 ```json

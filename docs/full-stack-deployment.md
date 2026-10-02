@@ -116,12 +116,13 @@ cat >/tmp/mage-minio-cors.xml <<EOF
 </CORSConfiguration>
 EOF
 
-docker run --rm --entrypoint sh --network mage_default \
+docker compose --project-name mage --env-file mage-backend/.env \
+  -f mage-backend/docker-compose.coolify.yml run --rm --no-deps --entrypoint sh \
   -v /tmp/mage-minio-cors.xml:/cors.xml:ro \
   -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
   -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
   -e MAGE_THUMBNAIL_BUCKET="$MAGE_THUMBNAIL_BUCKET" \
-  minio/mc:latest -ec '
+  minio-init -ec '
     until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do sleep 2; done
     mc mb --ignore-existing "local/$MAGE_THUMBNAIL_BUCKET"
     mc anonymous set download "local/$MAGE_THUMBNAIL_BUCKET"
@@ -197,6 +198,25 @@ Use this when Coolify is installed on the server and you want Coolify to build a
 - one frontend application from `https://github.com/B2MAGE/mage-frontend`
 
 The backend service stack uses `docker-compose.coolify.yml`, which contains the backend API, PostgreSQL, MinIO, and a one-time MinIO bucket initializer.
+
+The bucket initializer is built from the pinned MinIO client source in
+`docker/minio/Dockerfile` using the `client-runtime` target. It does not pull
+`minio/mc:latest` or build/replace the MinIO server. The existing server image,
+credentials, bucket setup commands, and persistent volumes are unchanged.
+Coolify must build both buildable services (`backend` and `minio-init`) before
+starting the stack. The first client build needs access to its Go dependencies
+and base images; later builds can reuse the build cache.
+
+With automatic deployments enabled for the connected branch in Coolify, merging
+to that branch can trigger a deployment without a GitHub Actions workflow or a
+manual deploy. Check Coolify's deployment history, deployed commit, and service
+health to confirm success; a successful image build alone is not a successful
+deployment.
+
+To validate this configuration and the client-only image locally without starting
+the application or touching its data, run
+`powershell -File scripts/verify-coolify-minio.ps1 -BuildImage` from the backend
+repository. The smoke test has no network access or mounted application volumes.
 
 In this setup, do not create separate Coolify PostgreSQL or MinIO resources. They are services inside the backend stack.
 
@@ -391,4 +411,3 @@ Requirements:
 ## Local Review And Content Recovery
 
 The production deployment above does not publish data from a developer's local database. For isolated restart-safe review, use [Pulse local review](./pulse-local-review.md). The [quality catalogue workflow](../scripts/QUALITY_REVIEW.md) explains read-only validation, initial seeding, capture checks, and resumable imports. The thumbnail refresh section in the local-review guide documents backups and recovery. Keep demo-only passwords and content out of production accounts.
-

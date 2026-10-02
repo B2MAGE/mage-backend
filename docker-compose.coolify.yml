@@ -26,7 +26,9 @@ services:
       - minio_data:/data
 
   minio-init:
-    image: minio/mc:latest
+    build:
+      context: ./docker/minio
+      target: client-runtime
     container_name: mage-minio-init
     depends_on:
       minio:

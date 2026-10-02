@@ -117,6 +117,10 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Scene Contract
 
+Scene lists from `GET /api/scenes` (including tag-filtered results), `GET /api/users/{id}/scenes`, and public profile scene collections use ascending scene ID order. This stable unique-key order does not depend on database query plans; clients may apply their own newest, most-viewed, or other presentation sorting.
+
+Discovery responses include the creator display name, handle, avatar-gradient colors, real engagement metrics, and attached tag names. Attached tags are loaded in one batch for a scene collection. `GET /api/tags` returns stable name-ordered entries containing `tagId`, `name`, and the real attached `sceneCount`; `?attachedOnly=true` excludes unused tags while the default catalogue retains them for the editor.
+
 `POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value. Owners can add, edit, or clear the description after creation with `PATCH /api/scenes/{id}/description`.
 
 ## Auth And Profile Contract

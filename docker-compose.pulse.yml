@@ -1,0 +1,13 @@
+# Local mockup review database. The original postgres_data volume is preserved.
+# Include this last, after the base, local, and MinIO compose files.
+services:
+  postgres:
+    container_name: mage-pulse-postgres
+    volumes:
+      - postgres_pulse_data:/var/lib/postgresql/data
+  backend:
+    container_name: mage-pulse-backend
+
+volumes:
+  postgres_pulse_data:
+    name: ${MAGE_PULSE_DATABASE_VOLUME:-mage-pulse-review-postgres-v1}

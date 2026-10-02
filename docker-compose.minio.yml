@@ -1,16 +1,18 @@
 services:
   minio:
-    image: minio/minio:latest
+    image: mage/minio-community:2025-10-15-local
+    build:
+      context: ./docker/minio
     container_name: mage-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MAGE_THUMBNAIL_MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MAGE_THUMBNAIL_MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
-      - minio_data:/data
+      - minio_community_data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -19,7 +21,8 @@ services:
       start_period: 10s
 
   minio-init:
-    image: minio/mc:latest
+    image: mage/minio-community:2025-10-15-local
+    pull_policy: never
     container_name: mage-minio-init
     depends_on:
       minio:
@@ -41,6 +44,8 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     environment:
       MAGE_THUMBNAIL_PROVIDER: minio
       MAGE_THUMBNAIL_REGION: ${MAGE_THUMBNAIL_MINIO_REGION:-us-east-1}
@@ -53,4 +58,4 @@ services:
       MAGE_THUMBNAIL_PUBLIC_BASE_URL: ${MAGE_THUMBNAIL_MINIO_PUBLIC_BASE_URL:-http://localhost:9000/mage-local-thumbnails}
 
 volumes:
-  minio_data:
+  minio_community_data:

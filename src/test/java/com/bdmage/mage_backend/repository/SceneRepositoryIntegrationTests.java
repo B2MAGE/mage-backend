@@ -71,6 +71,24 @@ class SceneRepositoryIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
+	void discoveryListsUseTheSameStableSceneIdOrder() {
+		User owner = userRepository.saveAndFlush(new User(
+				"ordered-owner-" + System.nanoTime() + "@example.com", "hashed-password", "Ordered Owner"));
+		Tag tag = tagRepository.saveAndFlush(new Tag("ordered-" + System.nanoTime()));
+		Scene first = sceneRepository.saveAndFlush(new Scene(owner.getId(), "Z first", objectMapper.createObjectNode()));
+		Scene second = sceneRepository.saveAndFlush(new Scene(owner.getId(), "A second", objectMapper.createObjectNode()));
+		sceneTagRepository.saveAndFlush(new SceneTag(second.getId(), tag.getId()));
+		sceneTagRepository.saveAndFlush(new SceneTag(first.getId(), tag.getId()));
+		entityManager.clear();
+
+		assertThat(sceneRepository.findAll()).extracting(Scene::getId).isSorted();
+		assertThat(sceneRepository.findAllByOwnerUserId(owner.getId())).extracting(Scene::getId)
+				.containsExactly(first.getId(), second.getId());
+		assertThat(sceneRepository.findAllByTagName(tag.getName())).extracting(Scene::getId)
+				.containsExactly(first.getId(), second.getId());
+	}
+
+	@Test
 	void findAllByOwnerUserIdReturnsOnlyMatchingOwnerScenes() throws Exception {
 		User firstOwner = userRepository.saveAndFlush(
 				new User("first-scene-owner-" + System.nanoTime() + "@example.com", "hashed-password-value", "First Owner"));

@@ -9,6 +9,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface SceneRepository extends JpaRepository<Scene, Long> {
 
+	@Override
+	@Query("SELECT scene FROM Scene scene ORDER BY scene.id ASC")
+	List<Scene> findAll();
+
 	@Query(value = """
 			SELECT p.*
 			FROM scenes p
@@ -19,5 +23,6 @@ public interface SceneRepository extends JpaRepository<Scene, Long> {
 			""", nativeQuery = true)
 	List<Scene> findAllByTagName(@Param("tagName") String tagName);
 
-	List<Scene> findAllByOwnerUserId(Long ownerUserId);
+	@Query("SELECT scene FROM Scene scene WHERE scene.ownerUserId = :ownerUserId ORDER BY scene.id ASC")
+	List<Scene> findAllByOwnerUserId(@Param("ownerUserId") Long ownerUserId);
 }

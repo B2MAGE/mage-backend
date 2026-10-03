@@ -128,7 +128,7 @@ Within `users`, the backend stores `first_name`, `last_name`, `display_name`, a 
 
 Avatar gradients are user-owned public identity fields: non-null `avatar_gradient_start` and `avatar_gradient_end` columns contain lowercase six-digit hex colors. Migration V17 initializes existing users to the same defaults as new accounts. Profile updates validate color strings instead of accepting arbitrary CSS, and scene/comment responses resolve colors from the creator/author rather than copying them into content records.
 
-Within `scenes`, the backend stores the scene name, optional plain-text description, JSON scene data, optional thumbnail reference, owner, and creation timestamp.
+Within `scenes`, the backend stores the scene name, optional plain-text description, JSON scene data, optional thumbnail reference, owner, and creation timestamp. Migration V19 adds server-owned `scene_mode` metadata without rewriting existing JSON. `SceneDocumentValidator` enforces the shared PP-B01 template/custom contract and PP-V01 limits before `SceneService` assigns a validated mode. See [scene documents](scene-documents.md) for compatibility and coordinated deployment.
 
 ## Scene availability boundary
 

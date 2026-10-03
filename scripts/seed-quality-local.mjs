@@ -259,7 +259,9 @@ for (let index = 0; index < content.length; index++) {
   let scene = visibleBefore.find(existing => existing.name === definition.name && existing.ownerUserId === owner.userId);
   if (scene) {
     assert.equal(scene.description, definition.description, `Existing description differs for ${definition.name}.`);
-    assert.deepEqual(scene.sceneData, catalog[index].sceneData, `Existing render data differs for ${definition.name}.`);
+    const readable = scene.sceneData ? scene : await api(`scenes/${scene.sceneId}/repair`, { token: owner.accessToken });
+    const engineData = readable.sceneMode === 'custom-v1' ? readable.sceneData.scene : readable.sceneData;
+    assert.deepEqual(engineData, catalog[index].sceneData, `Existing render data differs for ${definition.name}.`);
   } else {
     const upload = await api('scenes/thumbnail/presign', {
       method: 'POST', token: owner.accessToken,
@@ -275,7 +277,7 @@ for (let index = 0; index < content.length; index++) {
       method: 'POST', token: owner.accessToken,
       body: {
         name: definition.name, description: definition.description,
-        sceneData: catalog[index].sceneData, thumbnailObjectKey: upload.objectKey,
+        sceneData: { schemaVersion: 1, kind: 'custom', scene: catalog[index].sceneData }, thumbnailObjectKey: upload.objectKey,
       },
     });
   }

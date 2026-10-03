@@ -16,6 +16,9 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "scenes")
 public class Scene {
+	public static final String LEGACY_CUSTOM = "legacy-custom";
+	public static final String CUSTOM_V1 = "custom-v1";
+	public static final String TEMPLATE_V1 = "template-v1";
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,6 +36,10 @@ public class Scene {
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(name = "scene_data", nullable = false, columnDefinition = "jsonb")
 	private JsonNode sceneData;
+
+	// Set only after contract validation; old rows and raw constructors stay untrusted.
+	@Column(name = "scene_mode", nullable = false, length = 20)
+	private String sceneMode = LEGACY_CUSTOM;
 
 	@Column(name = "thumbnail_ref", length = 512)
 	private String thumbnailRef;
@@ -87,6 +94,22 @@ public class Scene {
 		return this.thumbnailRef;
 	}
 
+	public String getSceneMode() {
+		return this.sceneMode;
+	}
+
+	/** Requires a document returned by SceneDocumentValidator.validateAndNormalize. */
+	public void updateValidatedDocument(JsonNode document) {
+		Objects.requireNonNull(document, "document must not be null");
+		if (document.path("schemaVersion").asInt() != 1
+				|| !("custom".equals(document.path("kind").asText())
+						|| "template".equals(document.path("kind").asText()))) {
+			throw new IllegalArgumentException("Expected a validated version 1 scene document");
+		}
+		this.sceneData = document;
+		this.sceneMode = "template".equals(document.path("kind").asText()) ? TEMPLATE_V1 : CUSTOM_V1;
+	}
+
 	public Instant getCreatedAt() {
 		return this.createdAt;
 	}
@@ -103,5 +126,6 @@ public class Scene {
 		this.name = Objects.requireNonNull(name, "name must not be null");
 		this.description = description;
 		this.sceneData = Objects.requireNonNull(sceneData, "sceneData must not be null");
+		this.sceneMode = LEGACY_CUSTOM;
 	}
 }

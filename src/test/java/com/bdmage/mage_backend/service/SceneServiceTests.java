@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.service;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -56,7 +58,7 @@ class SceneServiceTests {
 				"{\"visualizer\":{\"shader\":\"source\",\"assetUrl\":\"https://example.com\"}}",
 				"{\"visualizer\":{\"shader\":\"source\"},\"state\":{\"size\":\"expression()\"}}",
 				"{\"visualizer\":{\"shader\":\"" + "x".repeat(65537) + "\"}}")) {
-			var data = this.objectMapper.readTree(invalid);
+			var data = customDocument(invalid);
 			var createError = assertThrows(InvalidSceneDataException.class, () -> service.createScene(
 					42L, "New", null, data, "scenes/pending/42/thumbnails/test.png"));
 			var updateError = assertThrows(InvalidSceneDataException.class, () -> service.updateScene(
@@ -82,7 +84,7 @@ class SceneServiceTests {
 				42L,
 				" Aurora Drift ",
 				" A glassy nebula drift. ",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				null);
@@ -91,10 +93,11 @@ class SceneServiceTests {
 		verify(sceneRepository).saveAndFlush(sceneCaptor.capture());
 
 		Scene persistedScene = sceneCaptor.getValue();
+		assertThat(persistedScene.getSceneMode()).isEqualTo("custom-v1");
 		assertThat(persistedScene.getOwnerUserId()).isEqualTo(42L);
 		assertThat(persistedScene.getName()).isEqualTo("Aurora Drift");
 		assertThat(persistedScene.getDescription()).isEqualTo("A glassy nebula drift.");
-		assertThat(persistedScene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
+		assertThat(persistedScene.getSceneData()).isEqualTo(customDocument("""
 				{"visualizer":{"shader":"nebula"}}
 				"""));
 		assertThat(persistedScene.getThumbnailRef()).isNull();
@@ -118,7 +121,7 @@ class SceneServiceTests {
 				42L,
 				"Aurora Drift",
 				"   ",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				null);
@@ -140,7 +143,7 @@ class SceneServiceTests {
 				null,
 				"Scene Name",
 				null,
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				null))
@@ -169,7 +172,7 @@ class SceneServiceTests {
 				42L,
 				"Aurora Drift",
 				null,
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				"scenes/pending/42/thumbnails/abc123.png");
@@ -203,7 +206,7 @@ class SceneServiceTests {
 				42L,
 				"Aurora Drift",
 				null,
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				"scenes/pending/42/thumbnails/abc123.png"))
@@ -225,7 +228,7 @@ class SceneServiceTests {
 				99L,
 				"Scene Name",
 				null,
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				null))
@@ -244,7 +247,7 @@ class SceneServiceTests {
 		Scene scene = new Scene(
 				42L,
 				"Aurora Drift",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
 
@@ -284,7 +287,7 @@ class SceneServiceTests {
 		Scene scene = new Scene(
 				77L,
 				"Aurora Drift",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
 
@@ -306,7 +309,7 @@ class SceneServiceTests {
 		Scene scene = new Scene(
 				42L,
 				"Aurora Drift",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				"https://cdn.example.com/scenes/15/thumbnails/thumb.png");
@@ -665,7 +668,7 @@ class SceneServiceTests {
 		Scene existingScene = new Scene(
 				42L,
 				"Aurora Drift",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				"https://cdn.example.com/scenes/15/thumbnails/old-thumb.png");
@@ -749,7 +752,7 @@ class SceneServiceTests {
 				42L,
 				"Aurora Drift",
 				"Existing description.",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
 
@@ -797,14 +800,14 @@ class SceneServiceTests {
 				15L,
 				" Updated Scene ",
 				" Updated description. ",
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						"""));
 
 		assertThat(result).isSameAs(scene);
 		assertThat(scene.getName()).isEqualTo("Updated Scene");
 		assertThat(scene.getDescription()).isEqualTo("Updated description.");
-		assertThat(scene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
+		assertThat(scene.getSceneData()).isEqualTo(customDocument("""
 				{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 				"""));
 		verify(sceneRepository).saveAndFlush(scene);
@@ -882,7 +885,7 @@ class SceneServiceTests {
 		Scene scene = new Scene(
 				ownerUserId,
 				name,
-				this.objectMapper.readTree("""
+				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""));
 		ReflectionTestUtils.setField(scene, "id", sceneId);

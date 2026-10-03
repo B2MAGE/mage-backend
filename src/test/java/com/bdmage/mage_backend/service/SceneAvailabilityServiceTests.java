@@ -100,10 +100,96 @@ class SceneAvailabilityServiceTests {
 
 	@Test
 	void submittedTemplateMetadataCannotBypassGlobalSwitch() throws Exception {
-		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(control(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, false, null, null, null, Scene.LEGACY_CUSTOM)));
 		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
 		Scene claimedTemplate = scene("{\"kind\":\"template\",\"templateId\":\"trusted\",\"visualizer\":{\"shader\":\"arbitrary\"}}");
-		assertThat(service(true).status(claimedTemplate).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+		assertThat(service(true).status(claimedTemplate).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+	}
+
+	@Test
+	void validatedTemplatesBypassOnlyTheCustomSwitchAndStillHonorSceneDisable() {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, false, null, null, null, Scene.TEMPLATE_V1)), List.of(
+				new SceneAvailabilityControl(23L, true, 7L, CHANGED_AT, "Investigation", Scene.TEMPLATE_V1)));
+		assertThat(service(false).status(23L).available()).isTrue();
+		assertThat(service(false).status(23L).code()).isEqualTo("SCENE_DISABLED");
+		verifyNoInteractions(this.scenes);
+	}
+
+	@Test
+	void upgradingCurrentRowCannotAuthorizePreviouslyLoadedCustomOrLegacySource() throws Exception {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, false, null, null, null, Scene.TEMPLATE_V1)));
+		SceneAvailabilityService service = service(false);
+		assertThat(service.status(loadedScene(23L, Scene.CUSTOM_V1)).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+		assertThat(service.status(loadedScene(23L, Scene.LEGACY_CUSTOM)).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+		assertThat(service.status(loadedScene(23L, "unknown-v9")).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+		assertThat(service.status(loadedScene(23L, null)).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+		assertThat(service.status(loadedScene(23L, Scene.TEMPLATE_V1)).available()).isTrue();
+		// Status-only callers do not publish an older payload and report current DB state.
+		assertThat(service.status(23L).available()).isTrue();
+		assertThat(service.statusesByIds(List.of(23L)).getFirst().available()).isTrue();
+	}
+
+	@Test
+	void currentCustomOrLegacyStateStillRestrictsPreviouslyLoadedTemplateData() throws Exception {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(control(false)));
+		assertThat(service(false).status(loadedScene(23L, Scene.TEMPLATE_V1)).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, false, null, null, null, Scene.LEGACY_CUSTOM)));
+		assertThat(service(true).status(loadedScene(23L, Scene.TEMPLATE_V1)).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+	}
+
+	@Test
+	void batchPublicationCombinesCurrentAndLoadedModesForEveryPayload() throws Exception {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L, 24L, 25L, 26L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, false, null, null, null, Scene.TEMPLATE_V1),
+				new SceneAvailabilityControl(24L, false, null, null, null, Scene.TEMPLATE_V1),
+				new SceneAvailabilityControl(25L, false, null, null, null, Scene.CUSTOM_V1),
+				new SceneAvailabilityControl(26L, false, null, null, null, Scene.TEMPLATE_V1)));
+		var statuses = service(false).statuses(List.of(
+				loadedScene(23L, Scene.CUSTOM_V1), loadedScene(24L, Scene.LEGACY_CUSTOM),
+				loadedScene(25L, Scene.TEMPLATE_V1), loadedScene(26L, Scene.TEMPLATE_V1)));
+		assertThat(statuses.get(23L).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+		assertThat(statuses.get(24L).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+		assertThat(statuses.get(25L).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+		assertThat(statuses.get(26L).available()).isTrue();
+		verifyNoInteractions(this.scenes);
+	}
+
+	@Test
+	void duplicateSnapshotsCannotWeakenPublicationRequirements() throws Exception {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, false, null, null, null, Scene.TEMPLATE_V1)));
+		var customFirst = List.of(loadedScene(23L, Scene.CUSTOM_V1), loadedScene(23L, Scene.TEMPLATE_V1));
+		assertThat(service(false).statuses(customFirst).get(23L).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+		assertThat(service(false).statuses(customFirst.reversed()).get(23L).code()).isEqualTo("CUSTOM_RENDERING_DISABLED");
+	}
+
+	@Test
+	void sceneDisableAlwaysWinsOverLoadedModeAndReleaseGate() throws Exception {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(false)));
+		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+				new SceneAvailabilityControl(23L, true, 7L, CHANGED_AT, "Investigation", Scene.TEMPLATE_V1)));
+		assertThat(service(false).status(loadedScene(23L, Scene.LEGACY_CUSTOM)).code()).isEqualTo("SCENE_DISABLED");
+		assertThat(service(false).status(loadedScene(23L, Scene.CUSTOM_V1)).code()).isEqualTo("SCENE_DISABLED");
+	}
+
+	@Test
+	void legacyAndUnknownModesRemainUnavailableEvenWhenCustomRenderingIsEnabled() {
+		when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(true)));
+		for (String mode : List.of(Scene.LEGACY_CUSTOM, "unknown-v9")) {
+			when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
+					new SceneAvailabilityControl(23L, false, null, null, null, mode)));
+			assertThat(service(true).status(23L).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
+		}
+		verifyNoInteractions(this.scenes);
 	}
 
 	@Test
@@ -228,7 +314,7 @@ class SceneAvailabilityServiceTests {
 	}
 
 	private static SceneAvailabilityControl control(boolean disabled) {
-		return new SceneAvailabilityControl(23L, disabled, 7L, CHANGED_AT, "Private investigation");
+		return new SceneAvailabilityControl(23L, disabled, 7L, CHANGED_AT, "Private investigation", Scene.CUSTOM_V1);
 	}
 
 	private static CustomRenderingControl custom(boolean enabled) {
@@ -238,6 +324,13 @@ class SceneAvailabilityServiceTests {
 	private static Scene scene(String data) throws Exception {
 		Scene scene = new Scene(42L, "Test", new ObjectMapper().readTree(data));
 		ReflectionTestUtils.setField(scene, "id", 23L);
+		return scene;
+	}
+
+	private static Scene loadedScene(long id, String mode) throws Exception {
+		Scene scene = scene("{\"visualizer\":{\"shader\":\"previously loaded source\"}}");
+		ReflectionTestUtils.setField(scene, "id", id);
+		ReflectionTestUtils.setField(scene, "sceneMode", mode);
 		return scene;
 	}
 }

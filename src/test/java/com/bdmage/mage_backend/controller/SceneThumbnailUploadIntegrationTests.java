@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
+
 import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,7 +58,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 
 	@Test
 	void createSceneThumbnailUploadReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/scenes/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/thumbnail/presign").with(explicitCustomSceneDocument())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -72,7 +74,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 
 	@Test
 	void createThumbnailUploadReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/scenes/15/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/15/thumbnail/presign").with(explicitCustomSceneDocument())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -91,7 +93,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 		User owner = createUser("new-thumb-owner");
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/thumbnail/presign").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -119,7 +121,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -148,7 +150,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 
 		String otherAccessToken = accessToken(login(other.getEmail(), ownerPassword(other.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + otherAccessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -168,7 +170,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 		User user = createUser("thumb-missing");
 		String accessToken = accessToken(login(user.getEmail(), ownerPassword(user.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/99999/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/99999/thumbnail/presign").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -194,7 +196,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 						""")));
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/presign").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -214,7 +216,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 		User owner = createUser("thumb-create");
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		MvcResult createResult = this.mockMvc.perform(post("/api/scenes")
+		MvcResult createResult = this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -251,7 +253,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 						""")));
 		String accessToken = accessToken(login(owner.getEmail(), ownerPassword(owner.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/finalize")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/finalize").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -279,7 +281,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 						""")));
 		String otherAccessToken = accessToken(login(other.getEmail(), ownerPassword(other.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/finalize")
+		this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/thumbnail/finalize").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + otherAccessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -295,7 +297,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 		User user = createUser("thumb-finalize-missing");
 		String accessToken = accessToken(login(user.getEmail(), ownerPassword(user.getEmail())));
 
-		this.mockMvc.perform(post("/api/scenes/99999/thumbnail/finalize")
+		this.mockMvc.perform(post("/api/scenes/99999/thumbnail/finalize").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""

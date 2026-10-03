@@ -117,7 +117,7 @@ for(let index=0;index<titles.length;index++){
       name:titles[index],
       description:index===0?'A slow-moving audiovisual environment built around layered geometry, reactive bloom, and shifting color.':
         titles[index]+' explores '+tagSets[index%tagSets.length][0].toLowerCase()+' motion through layered geometry and shifting light. Try it with your own music, or let the slow rotation play on its own. Created as part of the Pulse local review collection.',
-      sceneData:plannedSceneData[index],thumbnailObjectKey:upload.objectKey,
+      sceneData:{schemaVersion:1,kind:'custom',scene:plannedSceneData[index]},thumbnailObjectKey:upload.objectKey,
     }});
   }
   await api('scenes/'+scene.sceneId+'/tags',{method:'PUT',token:owner.accessToken,body:{tagIds:tagSets[index%tagSets.length].map(name=>tags.get(name.toLowerCase()))}});

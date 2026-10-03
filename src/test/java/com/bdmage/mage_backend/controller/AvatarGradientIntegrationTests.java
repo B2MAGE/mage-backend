@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -85,14 +87,14 @@ class AvatarGradientIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$[0].creatorAvatarGradientStart").value("#aabbcc"))
 				.andExpect(jsonPath("$[0].creatorAvatarGradientEnd").value("#223344"));
 
-		String commentJson = mvc.perform(post("/api/scenes/" + scene.getId() + "/comments")
+		String commentJson = mvc.perform(post("/api/scenes/" + scene.getId() + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", authorization).contentType("application/json").content("{\"text\":\"A color test\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.authorAvatarGradientStart").value("#aabbcc"))
 				.andExpect(jsonPath("$.authorAvatarGradientEnd").value("#223344"))
 				.andReturn().getResponse().getContentAsString();
 		long parentId = mapper.readTree(commentJson).get("commentId").asLong();
-		mvc.perform(post("/api/scenes/" + scene.getId() + "/comments")
+		mvc.perform(post("/api/scenes/" + scene.getId() + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", authorization).contentType("application/json")
 				.content(mapper.writeValueAsString(Map.of("text", "A reply", "parentCommentId", parentId))))
 				.andExpect(status().isCreated());

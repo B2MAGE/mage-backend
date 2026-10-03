@@ -75,7 +75,7 @@ class SceneResponseFactoryTests {
 	void aBlockedResponseCannotRetainSourceEvenIfDirectlyConstructed() {
 		SceneAvailabilityResponse blocked = new SceneAvailabilityResponse(11L, false, "CUSTOM_RENDERING_DISABLED", "Custom rendering is paused.");
 		SceneResponse response = new SceneResponse(11L, 7L, "Ari", "ari", "#000000", "#ffffff",
-				"Scene", null, Map.of("visualizer", Map.of("shader", "source")), null, null, List.of(), null, blocked);
+				"Scene", null, Map.of("visualizer", Map.of("shader", "source")), null, null, List.of(), null, blocked, Scene.LEGACY_CUSTOM);
 		assertThat(response.sceneData()).isNull();
 	}
 

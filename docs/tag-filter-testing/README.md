@@ -88,13 +88,13 @@ $scene1 = Invoke-RestMethod -Method Post `
   -Uri "http://localhost:8080/api/scenes" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
-  -Body '{"name":"Aurora Drift","sceneData":{"visualizer":{"shader":"nebula"}}}'
+  -Body '{"name":"Aurora Drift","sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"nebula"}}}}'
 
 $scene2 = Invoke-RestMethod -Method Post `
   -Uri "http://localhost:8080/api/scenes" `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
-  -Body '{"name":"Signal Bloom","sceneData":{"visualizer":{"shader":"pulse"}}}'
+  -Body '{"name":"Signal Bloom","sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"pulse"}}}}'
 ```
 
 ## 10. Attach Different Tags to the Two Scenes

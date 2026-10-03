@@ -54,18 +54,25 @@ public class SceneAvailabilityService {
 
 	@Transactional(readOnly = true)
 	public SceneAvailabilityResponse status(Scene scene) {
-		return status(scene.getId());
+		validateId(scene.getId());
+		return statusesForIds(List.of(scene.getId()), Map.of(scene.getId(), publicationMode(scene.getSceneMode())))
+				.get(scene.getId());
 	}
 
 	@Transactional(readOnly = true)
 	public SceneAvailabilityResponse status(Long sceneId) {
 		validateId(sceneId);
-		return statusesForIds(List.of(sceneId)).get(sceneId);
+		return statusesForIds(List.of(sceneId), Map.of()).get(sceneId);
 	}
 
 	@Transactional(readOnly = true)
 	public Map<Long, SceneAvailabilityResponse> statuses(List<Scene> scenes) {
-		return statusesForIds(scenes.stream().map(Scene::getId).distinct().toList());
+		Map<Long, String> loadedModes = new LinkedHashMap<>();
+		for (Scene scene : scenes) {
+			validateId(scene.getId());
+			loadedModes.merge(scene.getId(), publicationMode(scene.getSceneMode()), SceneAvailabilityService::restrictiveMode);
+		}
+		return statusesForIds(List.copyOf(loadedModes.keySet()), loadedModes);
 	}
 
 	@Transactional(readOnly = true)
@@ -74,7 +81,7 @@ public class SceneAvailabilityService {
 			throw new InvalidSceneAvailabilityRequestException("Supply between 1 and 100 scene IDs.");
 		}
 		sceneIds.forEach(SceneAvailabilityService::validateId);
-		return List.copyOf(statusesForIds(List.copyOf(new LinkedHashSet<>(sceneIds))).values());
+		return List.copyOf(statusesForIds(List.copyOf(new LinkedHashSet<>(sceneIds)), Map.of()).values());
 	}
 
 	@Transactional(readOnly = true)
@@ -132,7 +139,7 @@ public class SceneAvailabilityService {
 		return scene;
 	}
 
-	private Map<Long, SceneAvailabilityResponse> statusesForIds(List<Long> sceneIds) {
+	private Map<Long, SceneAvailabilityResponse> statusesForIds(List<Long> sceneIds, Map<Long, String> loadedModes) {
 		if (sceneIds.isEmpty()) return Map.of();
 		Map<Long, SceneAvailabilityControl> controls = this.sceneControls.findForExistingSceneIds(sceneIds).stream()
 				.collect(Collectors.toMap(SceneAvailabilityControl::sceneId, Function.identity()));
@@ -140,13 +147,18 @@ public class SceneAvailabilityService {
 		Map<Long, SceneAvailabilityResponse> statuses = new LinkedHashMap<>();
 		for (Long sceneId : sceneIds) {
 			SceneAvailabilityControl control = controls.get(sceneId);
+			// Publication can use an entity loaded before a concurrent scene replacement.
+			// A fresh template mode must never authorize that older custom/legacy payload.
+			String mode = control == null ? Scene.LEGACY_CUSTOM : publicationMode(control.sceneMode());
+			if (loadedModes.containsKey(sceneId)) mode = restrictiveMode(mode, loadedModes.get(sceneId));
 			if (control == null) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false, "SCENE_NOT_FOUND", "Scene not found."));
 			} else if (control.disabled()) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false, "SCENE_DISABLED", "This scene is unavailable."));
-			} else if (!customEnabled) {
-				// All currently accepted stored documents are legacy/custom scenes.
-				// Submitted kind/template metadata cannot confer trusted-template status.
+			} else if (Scene.LEGACY_CUSTOM.equals(mode)) {
+				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
+						"SCENE_UPGRADE_REQUIRED", "This scene needs an update from its creator before it can play."));
+			} else if (Scene.CUSTOM_V1.equals(mode) && !customEnabled) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
 						"CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));
 			} else {
@@ -154,6 +166,15 @@ public class SceneAvailabilityService {
 			}
 		}
 		return statuses;
+	}
+
+	private static String publicationMode(String mode) {
+		return Scene.CUSTOM_V1.equals(mode) || Scene.TEMPLATE_V1.equals(mode) ? mode : Scene.LEGACY_CUSTOM;
+	}
+
+	private static String restrictiveMode(String first, String second) {
+		if (Scene.LEGACY_CUSTOM.equals(first) || Scene.LEGACY_CUSTOM.equals(second)) return Scene.LEGACY_CUSTOM;
+		return Scene.CUSTOM_V1.equals(first) || Scene.CUSTOM_V1.equals(second) ? Scene.CUSTOM_V1 : Scene.TEMPLATE_V1;
 	}
 
 	private SceneAvailabilityControl requireSceneControl(Long sceneId) {

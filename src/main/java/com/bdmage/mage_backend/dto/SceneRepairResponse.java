@@ -15,7 +15,8 @@ public record SceneRepairResponse(
 		Map<String, Object> sceneData,
 		String thumbnailRef,
 		SceneAvailabilityResponse availability,
-		boolean playable) {
+		boolean playable,
+		String sceneMode) {
 
 	private static final ObjectMapper JSON_OBJECT_MAPPER = new ObjectMapper();
 	private static final TypeReference<Map<String, Object>> SCENE_DATA_TYPE = new TypeReference<>() {
@@ -24,6 +25,6 @@ public record SceneRepairResponse(
 	public static SceneRepairResponse from(Scene scene, SceneAvailabilityResponse availability) {
 		return new SceneRepairResponse(scene.getId(), scene.getOwnerUserId(), scene.getName(),
 				scene.getDescription(), JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE),
-				scene.getThumbnailRef(), availability, false);
+				scene.getThumbnailRef(), availability, false, scene.getSceneMode());
 	}
 }

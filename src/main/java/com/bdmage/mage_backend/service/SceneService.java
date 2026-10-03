@@ -21,6 +21,7 @@ import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
+import com.bdmage.mage_backend.validation.SceneSubmissionValidator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
@@ -45,6 +46,7 @@ public class SceneService {
 	private static final String INVALID_THUMBNAIL_TYPE_MESSAGE = "Thumbnail must be a valid image (jpeg, png, webp, or gif).";
 	private static final String INVALID_THUMBNAIL_SIZE_MESSAGE = "Thumbnail must not exceed 5 MB.";
 	private static final ObjectMapper JSON_OBJECT_MAPPER = new ObjectMapper();
+	private static final SceneSubmissionValidator SCENE_VALIDATOR = new SceneSubmissionValidator();
 
 	private final SceneRepository sceneRepository;
 	private final TagRepository tagRepository;
@@ -116,6 +118,9 @@ public class SceneService {
 			String thumbnailObjectKey,
 			Long playlistId) {
 		requireAuthenticatedUser(authenticatedUserId);
+		// All content-writing callers, including imports and future revisions, must
+		// pass this boundary before storage, thumbnail finalization, or attachments.
+		SCENE_VALIDATOR.validate(sceneData);
 
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
 		if (StringUtils.hasText(thumbnailObjectKey)) {
@@ -326,6 +331,7 @@ public class SceneService {
 	@Transactional
 	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description, JsonNode sceneData) {
 		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		SCENE_VALIDATOR.validate(sceneData);
 		scene.updateDetails(name.trim(), normalizeOptionalText(description), sceneData);
 
 		Scene savedScene = this.sceneRepository.saveAndFlush(scene);

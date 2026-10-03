@@ -19,6 +19,14 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+	@ExceptionHandler(InvalidSceneDataException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidSceneData(
+			InvalidSceneDataException ex,
+			HttpServletRequest request) {
+		return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+				"Request validation failed.", ex.getDetails(), request.getRequestURI());
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValid(
 			MethodArgumentNotValidException ex,

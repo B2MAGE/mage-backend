@@ -86,7 +86,7 @@ class SceneControllerTests {
 				"Aurora Drift",
 				"A glassy nebula drift.",
 				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						"""));
 		ReflectionTestUtils.setField(scene, "id", 15L);
 		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
@@ -96,7 +96,7 @@ class SceneControllerTests {
 				"Aurora Drift",
 				"A glassy nebula drift.",
 				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						"""),
 				null,
 				null))
@@ -110,7 +110,7 @@ class SceneControllerTests {
 						{
 						  "name":"Aurora Drift",
 						  "description":"A glassy nebula drift.",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						}
 						"""))
 				.andExpect(status().isCreated())
@@ -121,7 +121,7 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("A glassy nebula drift."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.sceneData.state.size").value(0.92))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"));
 	}
 
@@ -239,7 +239,7 @@ class SceneControllerTests {
 				"Updated Scene",
 				"Updated description.",
 				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						"""));
 		ReflectionTestUtils.setField(scene, "id", 15L);
 		ReflectionTestUtils.setField(scene, "createdAt", Instant.parse("2026-03-26T15:30:00Z"));
@@ -250,7 +250,7 @@ class SceneControllerTests {
 				" Updated Scene ",
 				" Updated description. ",
 				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						""")))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
@@ -262,7 +262,7 @@ class SceneControllerTests {
 						{
 						  "name":" Updated Scene ",
 						  "description":" Updated description. ",
-						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						}
 						"""))
 				.andExpect(status().isOk())
@@ -272,7 +272,7 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$.name").value("Updated Scene"))
 				.andExpect(jsonPath("$.description").value("Updated description."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("pulse"))
-				.andExpect(jsonPath("$.sceneData.state.energy").value(0.5));
+				.andExpect(jsonPath("$.sceneData.state.size").value(0.5));
 	}
 
 	@Test
@@ -636,7 +636,7 @@ class SceneControllerTests {
 				"Aurora Drift",
 				"A detail-page description.",
 				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						"""),
 				"https://cdn.example.com/scenes/15/thumbnails/thumb.png");
 		ReflectionTestUtils.setField(scene, "id", 15L);
@@ -657,7 +657,7 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("A detail-page description."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.sceneData.state.size").value(0.92))
 				.andExpect(jsonPath("$.thumbnailRef").value("https://cdn.example.com/scenes/15/thumbnails/thumb.png"))
 				.andExpect(jsonPath("$.createdAt").value("2026-03-26T15:30:00Z"))
 				.andExpect(jsonPath("$.tags[0]").value("ambient"))

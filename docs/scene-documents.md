@@ -28,6 +28,16 @@ are neither coerced nor clamped. Shared PP-B01 fixtures exercise the same
 contract on both sides; custom engine content must additionally pass PP-V01.
 Whole-document size/depth budgets include the envelope and normalized defaults.
 
+PP-B03 extends template settings with bounded controls for camera position/orientation, motion,
+initial state, music-response mappings, built-in effects and effect order. Existing camera,
+bloom, tint and parameter fields remain canonical. The new fields are optional, and absent
+fields keep the original version-one defaults; no shader catalog or database migration changes.
+Templates remain `template-v1` after editing these settings. Shader source is still rejected
+at every template level. The schema extensions `x-uniqueBy` and `x-maxOptionalEffects` enforce
+unique audio mapping targets and the shared four-effect budget, including bloom and tint.
+Deploy this backend before the frontend exposes the expanded controls; the old validator
+rejects new fields, and older frontends must refresh before editing expanded documents.
+
 Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`, and
 `playlistId`; replacement accepts only `name`, `description`, and `sceneData`.
 Client fields such as `sceneMode`, `disabled`, `availability`, or owner IDs are

@@ -24,7 +24,8 @@ public final class SceneDocumentValidator {
 	private static final Pattern FIELD_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 	private static final Set<String> KEYWORDS = Set.of("$schema", "$id", "$ref", "$defs", "title", "description",
 			"oneOf", "anyOf", "not", "type", "const", "enum", "properties", "required", "additionalProperties",
-			"propertyNames", "items", "minimum", "maximum", "pattern", "minLength", "maxLength", "default");
+			"propertyNames", "items", "minimum", "maximum", "pattern", "minLength", "maxLength", "default",
+			"maxItems", "uniqueItems", "x-uniqueBy", "x-maxOptionalEffects");
 	private static final JsonNode SCHEMA = load("scene-v1.schema.json");
 	private static final JsonNode CATALOG = load("template-catalog.v1.json");
 	private static final Set<String> TEMPLATE_PAIRS = catalogPairs();
@@ -136,11 +137,24 @@ public final class SceneDocumentValidator {
 					result.set(property.getKey(), validate(property.getValue().path("default"), property.getValue(), fieldPath(path, property.getKey())));
 				}
 			}
+			if (rule.has("x-maxOptionalEffects")) validateTemplateEffectBudget(result, rule.path("x-maxOptionalEffects").intValue(), path);
 			return result;
 		}
 		if (value.isArray()) {
+			if (rule.has("maxItems") && value.size() > rule.path("maxItems").intValue()) {
+				invalid(path, "Too many array items; maximum is " + rule.path("maxItems").intValue() + ".");
+			}
 			var result = JSON.createArrayNode();
-			for (int index = 0; index < value.size(); index++) result.add(validate(value.get(index), rule.path("items"), path + "[" + index + "]"));
+			Set<JsonNode> seen = new HashSet<>();
+			for (int index = 0; index < value.size(); index++) {
+				String itemPath = path + "[" + index + "]";
+				JsonNode item = validate(value.get(index), rule.path("items"), itemPath);
+				JsonNode identity = rule.has("x-uniqueBy") ? item.path(rule.path("x-uniqueBy").textValue()) : item;
+				if ((rule.path("uniqueItems").asBoolean() || rule.has("x-uniqueBy")) && !seen.add(identity)) {
+					invalid(itemPath, "Duplicate items are not allowed.");
+				}
+				result.add(item);
+			}
 			return result;
 		}
 		if (value.isNumber()) {
@@ -157,6 +171,19 @@ public final class SceneDocumentValidator {
 		}
 		if (!value.isValueNode() || value.isPojo() || value.isBinary() || value.isMissingNode()) invalid(path, "Must contain JSON values only.");
 		return value.deepCopy();
+	}
+
+	/** Template effects use the same workload limit without resolving any shader source. */
+	private void validateTemplateEffectBudget(JsonNode settings, int maximum, String path) {
+		int count = settings.path("bloom").path("enabled").asBoolean() ? 1 : 0;
+		if (settings.path("tint").path("enabled").asBoolean()) count++;
+		for (JsonNode flag : SceneLimits.policy().path("optionalEffectFlags")) {
+			if (!flag.asText().equals("colorify")
+					&& settings.path("effects").path("passes").path(flag.asText()).asBoolean()) count++;
+		}
+		if (count > maximum) {
+			invalid(path + ".effects", "Enable at most " + maximum + " optional effects, including bloom and tint.");
+		}
 	}
 
 	private static boolean matchesType(JsonNode value, String type) {

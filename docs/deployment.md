@@ -47,6 +47,12 @@ The backend must receive:
 
 The backend will fail fast if required datasource values, Google auth settings, or thumbnail storage settings are missing.
 
+## Scene availability rollout
+
+`MAGE_OPERATOR_USER_IDS` is an empty-by-default comma-separated allowlist of existing user IDs. `MAGE_CUSTOM_RENDERING_RELEASE_APPROVED` defaults to `false`. Custom rendering also requires an explicit operator enable in the database after PP-I03 approval. Both checked-in Compose deployment definitions forward these settings.
+
+With the default settings, all current legacy scene documents are withheld from playable responses. Coordinate deployment with PP-R03's frontend guards and unavailable-state display. Follow the [scene availability runbook](scene-availability.md) for release approval, emergency disablement, safe repair access, and cache handling.
+
 ## Thumbnail Upload Infrastructure
 
 Scene thumbnails are no longer stored on local container disk.

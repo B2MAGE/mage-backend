@@ -249,6 +249,10 @@ Failure behavior:
 - returns `404 SCENE_NOT_FOUND` when the scene id does not exist
 - returns `503 THUMBNAIL_STORAGE_UNAVAILABLE` when provider presign or verification is unavailable
 
+## Operator scene controls
+
+Use the [scene availability runbook](scene-availability.md) to configure operators, disable or re-enable a scene, use the emergency custom-rendering switch, and verify propagation. Management is currently through authenticated APIs; PP-R03 adds frontend controls and renderer guards. Custom rendering defaults to disabled until isolation release approval and explicit operator enablement.
+
 ## Database Operations
 
 ### Migrations

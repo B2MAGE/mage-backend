@@ -23,13 +23,18 @@ public final class SceneSubmissionValidator {
 	private final JsonNode policy = SceneLimits.policy();
 
 	public void validate(JsonNode sceneData) {
+		validateTransportBudget(sceneData);
+		validateRule(sceneData, this.policy.path("scene"), "sceneData");
+		validateEffectBudget(sceneData);
+	}
+
+	/** Shared whole-document budgets, independent of legacy engine field names. */
+	public void validateTransportBudget(JsonNode sceneData) {
 		if (sceneData == null || !sceneData.isObject()) {
 			invalid("sceneData", "Must be a JSON object.");
 		}
 		validateStructure(sceneData);
 		validateBytes(sceneData);
-		validateRule(sceneData, this.policy.path("scene"), "sceneData");
-		validateEffectBudget(sceneData);
 	}
 
 	private void validateStructure(JsonNode root) {

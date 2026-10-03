@@ -163,7 +163,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.creatorDisplayName").value("Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("Soft teal bloom with low-end drift."))
-				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
+				.andExpect(jsonPath("$.sceneData").doesNotExist())
+				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andReturn();
 
@@ -491,8 +492,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.sceneId").value(savedScene.getId()))
 				.andExpect(jsonPath("$.name").value("Updated Scene"))
 				.andExpect(jsonPath("$.description").value("Updated description."))
-				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("pulse"))
-				.andExpect(jsonPath("$.sceneData.state.size").value(0.5));
+				.andExpect(jsonPath("$.sceneData").doesNotExist())
+				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"));
 
 		Scene updatedScene = this.sceneRepository.findById(savedScene.getId()).orElseThrow();
 		assertThat(updatedScene.getName()).isEqualTo("Updated Scene");
@@ -873,8 +874,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.creatorDisplayName").value("Public Get Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("A public scene detail description."))
-				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.sceneData").doesNotExist())
+				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
@@ -940,8 +941,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.creatorDisplayName").value("Get Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("An authenticated scene detail description."))
-				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("nebula"))
-				.andExpect(jsonPath("$.sceneData.state.energy").value(0.92))
+				.andExpect(jsonPath("$.sceneData").doesNotExist())
+				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))

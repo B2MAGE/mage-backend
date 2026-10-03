@@ -50,7 +50,8 @@ class UserControllerTests {
 		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(
 				this.userRepository,
 				this.sceneEngagementService,
-				mock(SceneTagRepository.class));
+				mock(SceneTagRepository.class),
+				com.bdmage.mage_backend.support.SceneAvailabilityTestSupport.availableScenes());
 		this.mockMvc = MockMvcBuilders
 				.standaloneSetup(new UserController(this.sceneService, this.userProfileService, sceneResponseFactory))
 				.setControllerAdvice(new ApiExceptionHandler())

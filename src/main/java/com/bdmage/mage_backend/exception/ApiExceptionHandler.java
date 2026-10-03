@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.bdmage.mage_backend.dto.ApiErrorResponse;
 
@@ -18,6 +19,39 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+	@ExceptionHandler(OperatorAccessRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handleOperatorAccessRequired(
+			OperatorAccessRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(HttpStatus.FORBIDDEN, "OPERATOR_ACCESS_REQUIRED",
+				ex.getMessage(), Map.of(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(CustomRenderingReleaseRequiredException.class)
+	ResponseEntity<ApiErrorResponse> handleCustomRenderingReleaseRequired(
+			CustomRenderingReleaseRequiredException ex,
+			HttpServletRequest request) {
+		return buildResponse(HttpStatus.CONFLICT, "CUSTOM_RENDERING_RELEASE_REQUIRED",
+				ex.getMessage(), Map.of(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidSceneAvailabilityRequestException.class)
+	ResponseEntity<ApiErrorResponse> handleInvalidSceneAvailabilityRequest(
+			InvalidSceneAvailabilityRequestException ex,
+			HttpServletRequest request) {
+		return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+				ex.getMessage(), Map.of(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ResponseEntity<ApiErrorResponse> handleMethodArgumentTypeMismatch(
+			MethodArgumentTypeMismatchException ex,
+			HttpServletRequest request) {
+		return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+				"Request validation failed.", Map.of(ex.getName(), "Parameter has an invalid value."),
+				request.getRequestURI());
+	}
 
 	@ExceptionHandler(InvalidSceneDataException.class)
 	ResponseEntity<ApiErrorResponse> handleInvalidSceneData(

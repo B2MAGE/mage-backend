@@ -10,5 +10,7 @@ Use these docs as the source of truth for working in `mage-backend`.
 4. [architecture.md](architecture.md)
 5. [engineering-standards.md](engineering-standards.md)
 6. [operations.md](operations.md)
+7. [scene-submission-limits.md](scene-submission-limits.md)
+8. [scene-submission-inventory.md](scene-submission-inventory.md)
 
 The complete [full-stack deployment guide](full-stack-deployment.md) is included in this repository so Docker/Coolify, storage, and local-review instructions travel with each release.

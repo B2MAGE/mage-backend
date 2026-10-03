@@ -117,6 +117,12 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Scene Contract
 
+Scene creation and content replacement enforce the checked-in
+[submission limits policy](docs/scene-submission-limits.md) before persistence.
+Request bodies are bounded before JSON binding, including gzip and chunked input.
+Run the [read-only inventory](docs/scene-submission-inventory.md) to check existing
+records; this change does not rewrite legacy data.
+
 Scene lists from `GET /api/scenes` (including tag-filtered results), `GET /api/users/{id}/scenes`, and public profile scene collections use ascending scene ID order. This stable unique-key order does not depend on database query plans; clients may apply their own newest, most-viewed, or other presentation sorting.
 
 Discovery responses include the creator display name, handle, avatar-gradient colors, real engagement metrics, and attached tag names. Attached tags are loaded in one batch for a scene collection. `GET /api/tags` returns stable name-ordered entries containing `tagId`, `name`, and the real attached `sceneCount`; `?attachedOnly=true` excludes unused tags while the default catalogue retains them for the editor.

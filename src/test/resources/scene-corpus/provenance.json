@@ -1,0 +1,602 @@
+{
+  "formatVersion": 1,
+  "frontendCommit": "2ee2e3ae24dfa068e7bae2bc08a96b3624396ead",
+  "templateDefinitionsPath": "src/modules/player/templates/versions/v1/definitions.ts",
+  "templateDefaultsPath": "src/modules/player/templates/resolveScene.ts",
+  "demoDefinitionsPath": "scripts/quality-scene-catalog.mjs",
+  "demoDefinitionsSha256": "4c634f4a3f4af900761330505758c06328677451caf9c36406d6c50170d93e30",
+  "fixtures": {
+    "builtin-presets.json": {
+      "scenes": 16,
+      "fileSha256": "2d8886026ea11751c511c763946633e87545c01ec0504dd5fde305ede7edf5a9",
+      "records": [
+        {
+          "sceneId": "template:embedded-scene-0@1",
+          "sceneSha256": "dd66167e8a11ee0f827879bb52f953172ef170090d85258b5bedf5ae966d3a50",
+          "shaderSha256": "5d0668aad5be120267d59dbbc1ae8bd113a8667d9d4a7cffab2e59ed0fa033bf"
+        },
+        {
+          "sceneId": "template:embedded-scene-1@1",
+          "sceneSha256": "928fa2b167ab583d6e68135219bc81cf1da89b47ada536e2e1c297ffe497552a",
+          "shaderSha256": "40b627b46b9f7ca99701e2b0b3746b43da6d354a0ceb57e5a8551032210c878b"
+        },
+        {
+          "sceneId": "template:embedded-scene-2@1",
+          "sceneSha256": "909b7b8189d5cf013ca9790524ec1313ea42424580686e1d85f91a6c411a3c95",
+          "shaderSha256": "18794488f917e29ef4d237f955752740287f4057cc5c4780759e03a1dbd81c17"
+        },
+        {
+          "sceneId": "template:embedded-scene-3@1",
+          "sceneSha256": "a2955c783f4272f9ede11cf54904cec65eb08e3fc03bcc65f0e978482c1b1d47",
+          "shaderSha256": "2979eaee864b621c4b462cf9a4a4cd0dee50316eadfd5789aa9478a29d982423"
+        },
+        {
+          "sceneId": "template:embedded-scene-4@1",
+          "sceneSha256": "e411ae7f41a78b9fa7482e13e39fdfaaba50737b8a1c64c1385561cea8de25c4",
+          "shaderSha256": "00aa24d383ddb47964e677bc2d6e0b1a98beb0e8bca91e83b277b22aa46451cb"
+        },
+        {
+          "sceneId": "template:embedded-scene-5@1",
+          "sceneSha256": "d0002199f6ae4ec4f42a99964df020303e65b265e69f9bb877640f243ccf136b",
+          "shaderSha256": "9dd071092dd7ba0604dbadd2ea4108aab6e32fd4a210df3fe43ab4f1d58aa775"
+        },
+        {
+          "sceneId": "template:embedded-scene-6@1",
+          "sceneSha256": "a8cf1929421586e2a6e52784377dda58794eab1bc8ea0d642d025539d727ebfd",
+          "shaderSha256": "b06e2e9599075671437335fb13397f025837d92a0e2bbe6d3c84ceb5dd1961f8"
+        },
+        {
+          "sceneId": "template:embedded-scene-7@1",
+          "sceneSha256": "362cf665088746bfcdafd115770ff2f4259548d2c630c325e55961196ba02229",
+          "shaderSha256": "bc03de2e801043c870e335ac107beed558c92151a61bc8d18ed8edf0a32ba4bd"
+        },
+        {
+          "sceneId": "template:embedded-scene-8@1",
+          "sceneSha256": "e437a39e21089369362d3b4cd3180b1eb8ad9c3822cfcc7767cb38af36d2dfc4",
+          "shaderSha256": "d80290ef69facee4cf08cf2e3428526649b597e3f6861a26ac58c56e591e535d"
+        },
+        {
+          "sceneId": "template:embedded-scene-9@1",
+          "sceneSha256": "972c16f4c3404772692694ff436ad7c73715cfc570edcfc608a5a1d7388ccc91",
+          "shaderSha256": "8c3033e118542c4549a8f724955bb9a8869ee23e58e676b41a64be1b3bbe92f6"
+        },
+        {
+          "sceneId": "template:embedded-scene-10@1",
+          "sceneSha256": "d7beb7d4171c697cd801160860019b9bdc35cf642074de0611f938c2cdca026b",
+          "shaderSha256": "48ab51903dcd6eb89d342c7017032cc8bdc27670dc6cf23de4f7a3a347b97cf8"
+        },
+        {
+          "sceneId": "template:embedded-scene-11@1",
+          "sceneSha256": "ceaa8e7699f1a286b257cf8ef3f359271b1451eb5f7cb6c2490187527d9ef22c",
+          "shaderSha256": "c452251e0928e3fb966bb7158b7b2a3e076cd88454a85aeb095b487570681fc1"
+        },
+        {
+          "sceneId": "template:embedded-scene-12@1",
+          "sceneSha256": "762e395b13b0549446f3ea3a02e8ebac751e01a95307bee4da1e085f2111ba54",
+          "shaderSha256": "06156e6d902678ef42505deb5762de6e19722f7da83fdb3a441669a12e6109e8"
+        },
+        {
+          "sceneId": "template:embedded-scene-13@1",
+          "sceneSha256": "be1bed15ffdd1f9a0934b34594f28bc7136d6f6a7dd2e74f4aae75170cb71102",
+          "shaderSha256": "2ce68933b3aa9a36b56a1222bc6e9d4c5d39dcf0ace4387565ed052cff5ab85a"
+        },
+        {
+          "sceneId": "template:reaction-rings-v1@1",
+          "sceneSha256": "bddd041dfbe3d78ae568cec7fcf0dd2a7a0146770dcf1de9d1550a31e37be86e",
+          "shaderSha256": "66bfd1b6d7eda9e051b79c01389e5fe2a16efc123837cd6f1535cf5f19a37bf8"
+        },
+        {
+          "sceneId": "template:reaction-lantern-v1@1",
+          "sceneSha256": "227d222ab594abe9ec84d5e6cc368fd97adf8555d817da5f383eecda34b24264",
+          "shaderSha256": "644c07142d501f37ecfdfabb6064b22816f785ac5dbbc880d075bcadfcfd0bd6"
+        }
+      ]
+    },
+    "demo-quality.json": {
+      "scenes": 100,
+      "fileSha256": "258287e30d51dc1d790ed83e9492f2f355345a80237dd958fad347d72adb5bf8",
+      "records": [
+        {
+          "sceneId": "quality:orbital-rings:00",
+          "sceneSha256": "be468c5ed75f25b1d444f5f9830745ebfea9119a046ed1f719e555745b71e718",
+          "shaderSha256": "95d9a65a15f32a9392a1764c74b70cc5abd65a5bf93f383bf7dcbefd2960fc07"
+        },
+        {
+          "sceneId": "quality:orbital-rings:01",
+          "sceneSha256": "eac88f7426841f6caf50868df38531c62c2e6a1a5398cff199dad2c14af9ed2b",
+          "shaderSha256": "02cf057499f742e514faed0ead2ed4731924a446aceb7962fee24df8d19f7da9"
+        },
+        {
+          "sceneId": "quality:orbital-rings:02",
+          "sceneSha256": "583e4d5d195ca25cfa925b52d2023e3d86eba3d4e3fba59158400a92b21fb6fc",
+          "shaderSha256": "833e92c726b479d3cc77e46c0b7f98362a80dbbf9877341fd10e3b4e8662d984"
+        },
+        {
+          "sceneId": "quality:orbital-rings:03",
+          "sceneSha256": "aede9353e8e1f35a4654fc8b875a9c8f4700b69345d713ddc74f1b31530c4bc0",
+          "shaderSha256": "fe4ce218e3565a0ab3768d31a3cac65eb328edcfad6e5d9093b9fdfd7aa8cb9e"
+        },
+        {
+          "sceneId": "quality:orbital-rings:04",
+          "sceneSha256": "0899424a6ccb77f15eb36b671f4c7ce441543822816effe4049e5000788944b5",
+          "shaderSha256": "3bd080c99a4f34fcf5dc5d9f1f9ae00e32da1acf95ec17e89850ce9f9cff251a"
+        },
+        {
+          "sceneId": "quality:orbital-rings:05",
+          "sceneSha256": "8ba6aff3211e332f3d4aba5a3768053bedab2d0b511cbe6e3e7652feb183e672",
+          "shaderSha256": "7b4f46f94ba84f6f823cf7a35527af5fc6b3069f5d14c234e4308febe8646ab5"
+        },
+        {
+          "sceneId": "quality:orbital-rings:06",
+          "sceneSha256": "bf47534488e96984ca6bde9c69bd8ca08b4dec4a5850861d388755e9113a6123",
+          "shaderSha256": "b09a9b0ab8b2d68df0f859cf2b3dbb2e976528551681119504cc7c5adda3abf6"
+        },
+        {
+          "sceneId": "quality:orbital-rings:07",
+          "sceneSha256": "4830c7f17a7d617cb1e38049c234f7627e5e9641aeb65daf8bac02ae70299c0b",
+          "shaderSha256": "f9bd0b732c8ff260dac75e7dbacfe664a9f5d78d0c4e8479795e3716e797ae25"
+        },
+        {
+          "sceneId": "quality:orbital-rings:08",
+          "sceneSha256": "6bc24f8434f7e770e80af026bd0e8f4dc511716f4ff03a11ef6278f77a5a4bab",
+          "shaderSha256": "76e3bcadb3a53a8a5e2540c13563d57163c0c3bca9c554ce77d1f24efd929238"
+        },
+        {
+          "sceneId": "quality:orbital-rings:09",
+          "sceneSha256": "a97729fe5f159ae562e9554d2b9cd7cff36ba4c853ac01b476ea78755de7f747",
+          "shaderSha256": "70c8af21378e2a625b43faabe4e749ea8caf0846f5d44c19f0935d6f768d6686"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:00",
+          "sceneSha256": "3176d14d354d3d6dfffe80480b821c069e8aab1b2af44b53a80c43b2f138162d",
+          "shaderSha256": "8808e40c74be1344d218a85dd6aacbac651e8c6c75f9520517da5cee1bcfb72f"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:01",
+          "sceneSha256": "4acbe39a96412cc096436239d177f51dbeceed595454b5f057a4697138699302",
+          "shaderSha256": "f868c4bd288a2c48b46cbdc92f86930fa87e660606bca29817aad93c89fa85b8"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:02",
+          "sceneSha256": "0f1ed4fac393a3626223b119df2df4fe91ca8b6864c8f05dd987314d269a5ab0",
+          "shaderSha256": "094a915cdd0cf17affbd73dc1024ec31894292bb0727a3ece1eaca67c462148b"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:03",
+          "sceneSha256": "c2174f2d2b349b4bc737581fffa795d82e2c50661e4f25a20d4b5bca87798b3a",
+          "shaderSha256": "cb6dad8ac6a809ba599e0c220ae388ae6810ae0467a07a3f34e8c28a9ebeaf2e"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:04",
+          "sceneSha256": "f380561c510b92ec68c0e27832ca5d9f399858e2ec65791afaea76b888a5ebd4",
+          "shaderSha256": "f4eb6d058c63e88ce3b2095c2828516275045f64c2918f42599349d89daa75f4"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:05",
+          "sceneSha256": "97ba3fbdf8e29161bbff95cde11f3544c286a738f4119b46bf6f09430f3b0cb0",
+          "shaderSha256": "17496c234b32596647fcfcd65b5983a6f9a47860984aebfb33ac04b73a28c8d6"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:06",
+          "sceneSha256": "00edd8b4346ee31760af5c97cefc80f0aee1df2bdb08e632fcab7add5fb63304",
+          "shaderSha256": "b8bfd8e1a742ba26dc55b2513d25937327621b1e49cd145ae620847084ba3bdf"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:07",
+          "sceneSha256": "9a86bd22ef35c91a1cd014d330ae37f8f753e3de0c2a5704cfbbc17b391c67c3",
+          "shaderSha256": "6d3d8bdefda8addf09c6b9c361b7ae02322eae87196680edee2ba6645c3e7b39"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:08",
+          "sceneSha256": "b8a6e8e2775de9c6aa85b071b676263a2a4c9498892e56870d75276b9f94a7bd",
+          "shaderSha256": "c2cfca0c3ca81f9191020063a5f80e47ca80e1114371645fa6ad1d2255c1de6f"
+        },
+        {
+          "sceneId": "quality:nested-cube-frames:09",
+          "sceneSha256": "a1ece40c82fdedad9a7f0fecdfd327f77beb8986673a8935c51a7220237eeba9",
+          "shaderSha256": "92f00ec47a5e89d5a9cb8c75b127aff237bef73f1f0552d7378acf08b86fee45"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:00",
+          "sceneSha256": "4a861cb52c25c93a0158e203ee9baefefb798aa8ae3569faacaca6a7db0ed78f",
+          "shaderSha256": "ca158e0312cce9aa12bf7e336a90675c6417bbaf5242850aae8528c7d92675f0"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:01",
+          "sceneSha256": "365f5fe97e16cd005f494649e0379652c450eefefb492b3dd15cb949aa10f473",
+          "shaderSha256": "1cd65bc84ce8c9e3c5727882c65b9f241538b4921229bf20f4333c784de4c849"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:02",
+          "sceneSha256": "17994462672a0b2b5ba8a604ee9bf3caa4416a46962d0618e53e0a208e091200",
+          "shaderSha256": "7b3dfc0a214a6d0a53ad0b56c97c1b7c08df478ba20daa45bbcabf659e0db2ac"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:03",
+          "sceneSha256": "8cc3556d6ea3c35fce50cd33e6c06314b4360a4d4cc5514a493873f61cca49b2",
+          "shaderSha256": "e3e2ef2ede6f1d04adc9b242365bc6d0865354aa7bc2b71e8cc604b8414cea0d"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:04",
+          "sceneSha256": "d215a97246e618a7de4cf38a9f6ad57bee21fb12ce28343344be79ccfc6fb403",
+          "shaderSha256": "9474e1fe577948ed78221fd78be3bd3ebde3d486f9e70fb07650c63635bf918d"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:05",
+          "sceneSha256": "f0b20cfe6167f87e98d6c7cf751cb0b68d0616d39e07828993c9ae9ab39fe265",
+          "shaderSha256": "7ced1314cdb01c40ba22f8c714944f6a38a2ad44321461c97ce8cf22449fa18d"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:06",
+          "sceneSha256": "f33bff328895fe1ef6cca326c3a9190bbe1b407969b32e55ee640dda18669c0a",
+          "shaderSha256": "90c6986ac8872acc22edcc6b4f2025b989d8c5426db087fad591bc71345f5e26"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:07",
+          "sceneSha256": "934742ec9e53cba4feac798f9a76a7c47e165ceace7e431e1033b01f9e369aa6",
+          "shaderSha256": "f74d4a079a07bef4a7b1a398475dae113b88cd790cb5543edd7de7e255d5dda0"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:08",
+          "sceneSha256": "c7fb19cbf51b02884609ddb148eb1dbaa27e201585e1003a6998ec4b1795fc0f",
+          "shaderSha256": "e997ebf57777f38ba15fa104bc7b46a9b30e489a969e48f1e36fcb46f51a8cb7"
+        },
+        {
+          "sceneId": "quality:sphere-cluster:09",
+          "sceneSha256": "0241cfc378d06b9464d9b4fcaead56ef7c58c8fb159d555d78256fb9f9fb73ed",
+          "shaderSha256": "b8455711baf99332e3ed28e8590ec79e398189d1501e8b9e83ad4eb24f4fb921"
+        },
+        {
+          "sceneId": "quality:linked-tori:00",
+          "sceneSha256": "368f59662cc4bf43e3182491b1fc48071b5c03f5e8b1563687158071b1f59696",
+          "shaderSha256": "637acea7a25270627978d0547a6bfb77a26cbdbf1dfab964423b6191c12810de"
+        },
+        {
+          "sceneId": "quality:linked-tori:01",
+          "sceneSha256": "350665acbefdd7ee36b0ee224a2ba60f60427ac0202d284cf181802f4130a86f",
+          "shaderSha256": "a06cb793c1be4e9876d43060266d69acb438b157f529dc0eef13b358b0456d20"
+        },
+        {
+          "sceneId": "quality:linked-tori:02",
+          "sceneSha256": "2c6145ac58131a687dcec55b8cb204decfaebedee32d1741cddf6436b0c8c46b",
+          "shaderSha256": "c226851e544d9facf8ff45ed879482394e68b6ae71caf4170717ef743aff21f0"
+        },
+        {
+          "sceneId": "quality:linked-tori:03",
+          "sceneSha256": "308f345709fdead7152a32ea6d43bdea69c0bfff65d98852845127b2e20a3cfc",
+          "shaderSha256": "52a8a9eee64a7b1ff6870aaa0fa61de0a2063396d054c274e3d6950b89665d82"
+        },
+        {
+          "sceneId": "quality:linked-tori:04",
+          "sceneSha256": "7cec9047a88a7fcaf3310a383167ced38b51b23c88ca70d85d00aa97f10556ee",
+          "shaderSha256": "4aa6b237a9032c94451ec4822d75553e20164829bc77b95c8d8cb084751dc55e"
+        },
+        {
+          "sceneId": "quality:linked-tori:05",
+          "sceneSha256": "2d7726de7ebe4171189fc691febb7496593a036976b90230f283aea8af3721c8",
+          "shaderSha256": "b3fefa5090adf518937fc4b58b2d2bdca34abb95a6d38689771e66a1247a1f29"
+        },
+        {
+          "sceneId": "quality:linked-tori:06",
+          "sceneSha256": "4f946a8219b7fc8b7d0c5af2af6b95888f1a9dd5aa5bb3de0320ffa5626d3f67",
+          "shaderSha256": "d9394d19936d2b28b87c9ca4f1e44fc1245ff7b62791ae29fc0ab67eb34a5755"
+        },
+        {
+          "sceneId": "quality:linked-tori:07",
+          "sceneSha256": "9f56f6541acf4df640c6b448335a990cb0ec536db26c72388e6a19d480027b23",
+          "shaderSha256": "2608db5f1bf48cbbfd0c77e6491cb842bcce8ca7ac53b187d7376bef8c15cb7a"
+        },
+        {
+          "sceneId": "quality:linked-tori:08",
+          "sceneSha256": "252c2e739293a291dd11ffe5d8541367648e382af125b2c99fa7a9d9178eb088",
+          "shaderSha256": "5331b1a901e7aaed6112148483b589b3ac9314358a8785ca042f7dd2f330f472"
+        },
+        {
+          "sceneId": "quality:linked-tori:09",
+          "sceneSha256": "29404fbc6c8e492033dae8ffe0954b43ea1456b84328637818a6a545544def1a",
+          "shaderSha256": "8d3f310e664645dcc8f91188481400f0a33da94b52938d3e9925a8c26c142ba7"
+        },
+        {
+          "sceneId": "quality:ring-tower:00",
+          "sceneSha256": "1efc6ff09328faeda964fa1ebf602bc30fb4e149285e21d80ddb329cd97a9c0b",
+          "shaderSha256": "cb6f7c01f5287275be11877277b160779a0326542be99897b1c608aa06c3867c"
+        },
+        {
+          "sceneId": "quality:ring-tower:01",
+          "sceneSha256": "62d85c44761555f53288e41ba68adf058d776318fc61bf34ab6e97bfea078789",
+          "shaderSha256": "099fb201c850cd4e9f9a5789cb3db6c43f09383512b63d810e50f790cd4cc69b"
+        },
+        {
+          "sceneId": "quality:ring-tower:02",
+          "sceneSha256": "fa788a572cfb9423f7f0b09c06581af9754cd5addef241d02416a26464767633",
+          "shaderSha256": "7b29c619cc6002b5e4e340fb7d2214048513474c2ac0946647d8d3324c12a8f0"
+        },
+        {
+          "sceneId": "quality:ring-tower:03",
+          "sceneSha256": "191fbc697f3aba74d312411369c2265e230988cc2ddee38490dd2c9568e20098",
+          "shaderSha256": "6006a993bd59deaf8395e4d2d08298b17da8c9fddf1767dcc58f00bc2b935ace"
+        },
+        {
+          "sceneId": "quality:ring-tower:04",
+          "sceneSha256": "0f43538ac50527f3f01de2cb27fbf7a8c5c1ada0031a8a20b5d27aae2f6fc173",
+          "shaderSha256": "00d00cc46eca2959e6b8a1c7ee49e788f2f4e7941d142497f868bb8cff5a3c34"
+        },
+        {
+          "sceneId": "quality:ring-tower:05",
+          "sceneSha256": "3847e83e41addc3cadea8d005914d8ef794022704b40bba6244cda09eddd8710",
+          "shaderSha256": "78c7505cc9b1cde9e211f38dc7f8e2331ca3b89e5851f26ec80f56e352bcb332"
+        },
+        {
+          "sceneId": "quality:ring-tower:06",
+          "sceneSha256": "e654a0dbf68938bcd00fefbe079f42a4aff0093af2c1b5a98beba44de060300b",
+          "shaderSha256": "56aa483ba536d66bdaafa7fce1689ba7e65dbe7bbde97794fbf08386c221e3a5"
+        },
+        {
+          "sceneId": "quality:ring-tower:07",
+          "sceneSha256": "9c720328ef4693ee67ffa261cc9bbd518a8feb2b2c1e87724848703165622ce0",
+          "shaderSha256": "3f1298b8f0b96536f74ae6fdb5d1aed63890737e1c21cad1a4bb7516d3318128"
+        },
+        {
+          "sceneId": "quality:ring-tower:08",
+          "sceneSha256": "f06edc7075efd7947db88ebf6b1387291207a8c5d390a1a4b514a6e7590ac6b1",
+          "shaderSha256": "2f984cccb712f4ea45e8960c7e6d4912222e1cb11f2a49a9758464716c5efd36"
+        },
+        {
+          "sceneId": "quality:ring-tower:09",
+          "sceneSha256": "662e4bef19a55dd80a3f95e548f22d341f6a94e3105ed30e5c300bfc2b9bdd23",
+          "shaderSha256": "7ccfec61fd1b787be140fbe114e37a3f69afd5aa97329c8172f19a15b976c846"
+        },
+        {
+          "sceneId": "quality:radial-beads:00",
+          "sceneSha256": "f4eb633c328f25d13498b7ee4446e9c6d07349f4f056bf6150cc2cafbb6f497f",
+          "shaderSha256": "ce5b006d4d7625ef303717997eff704e1bd8710936eb15245d46490570e0145a"
+        },
+        {
+          "sceneId": "quality:radial-beads:01",
+          "sceneSha256": "117739b4ec3c3a62d8b0030e52800ba6bfeb63f14055e5aa8680a63b36feb592",
+          "shaderSha256": "31bfdab7f63e1c86f675f958aee3235611beef61d1e1dea39024e4be01b9b455"
+        },
+        {
+          "sceneId": "quality:radial-beads:02",
+          "sceneSha256": "8471a710c669feadbe5245d5df77a3a75f110f1aef407f68449ef5a8cfdd9e2b",
+          "shaderSha256": "7029e9fc579524a983e43fb1ab0c5673d89cf0c8e4c463cb94d843632a56bc5a"
+        },
+        {
+          "sceneId": "quality:radial-beads:03",
+          "sceneSha256": "150432b35ed839d67daab0a66b3006654baf500e17e1bc3710772231daba33e3",
+          "shaderSha256": "fb0517ca22ee354d6c1c8cb6bfd8d28f5da4331afa9577ee0faa5620baaf64b0"
+        },
+        {
+          "sceneId": "quality:radial-beads:04",
+          "sceneSha256": "f4357f07bb0aa46d2acbd4569371bc8251e1820a010c0bafc5250b6b4b78139f",
+          "shaderSha256": "42027dfb935f1dd719a3a2d9f41fbf1f6b32f163d86c1431d8dad5cc077a855f"
+        },
+        {
+          "sceneId": "quality:radial-beads:05",
+          "sceneSha256": "c4b68ddd25440fa1937dc77bb08d830fb4687b9fdb34ccdb2201e594b88a2039",
+          "shaderSha256": "3b676c4c1bf0212ad127be68bb9047ad3784507cebd0845030b649c1529ce872"
+        },
+        {
+          "sceneId": "quality:radial-beads:06",
+          "sceneSha256": "ab961c112ba8f2e41a68c0e20638b13f0b30c19b18f28e2cd58a36011944e968",
+          "shaderSha256": "8da527c5d35a58887bb7a57492e5934cdfa2962cd3f9609624361b95144b531c"
+        },
+        {
+          "sceneId": "quality:radial-beads:07",
+          "sceneSha256": "a9a42940abd04afb8b72b7414a2719a06c2c34e94b6772533eaff758d1b99603",
+          "shaderSha256": "a8b02d9ab83d45dcdae9b3becdf5a64d8fc3dc2c09b90c71c93dacfc93bc5257"
+        },
+        {
+          "sceneId": "quality:radial-beads:08",
+          "sceneSha256": "e96b21bb2b7b47be81c691a367a84b584154fd7c5815e3c2f2277542612afcc2",
+          "shaderSha256": "6d4a1e0fa307e036730c200603ed835267c1710e6bc1225c8c1393a45e9f72f6"
+        },
+        {
+          "sceneId": "quality:radial-beads:09",
+          "sceneSha256": "05b3f466221fe9c4c35ecd8805969c07371c3f55923a3bd3b5b351a6369bab9b",
+          "shaderSha256": "55b44b0520b5307389a864cde148c1cc988b9247885754d90ed7583c39e61c88"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:00",
+          "sceneSha256": "64bee359222e2cc4c18b6afeb9216592130d96712e69f31f6fab07ab13046db4",
+          "shaderSha256": "950bcc43fcd1b40986c6e05eb8f0837c14843059704a514a69eecae69c6749e2"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:01",
+          "sceneSha256": "d83ab32d5d4b2f1220a33e8f762e128f7e4041eb974e3d89577e2e7ae1d65e1d",
+          "shaderSha256": "35598f6d5b0e61c525c2aca1ac04ab580e0e679bd5215c5f31825833b7cc201f"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:02",
+          "sceneSha256": "81b1fabc134271ece9e684c02f30c2208736dd5122a3a271c2c88373600b5b5d",
+          "shaderSha256": "5406648d94adfe3f0666fc093f701c291ba0982b4bb1ca0ac5611de470798104"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:03",
+          "sceneSha256": "14e386108bfd4b13cbfa2ecf1a8e11915476299310b449385f9a013a9d445cfd",
+          "shaderSha256": "c2247f13f1aa07a428334f07973c95e9433f066b9d457e7011acfbd0f42d25a3"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:04",
+          "sceneSha256": "4f08ada872c657711a28f332860a1bef9120c16d50d82e3642275e51ad94cdad",
+          "shaderSha256": "950e07d03693665b3cffb5b887ad77b0ff746944a71243378c12d64ad739b684"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:05",
+          "sceneSha256": "93a0e781f67fba74e43bc12dedd6f08d421a9ea6ad534f41b3a65bca51bcd619",
+          "shaderSha256": "630278ef23f36eff61adc98dd2b002b8f7e3b358cbac355aaae3692639d0aca3"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:06",
+          "sceneSha256": "663d1be59122ea8a356ce41d79085d123929368995ac44c02b2d8806306c5522",
+          "shaderSha256": "d10bce92460d35a6fe741af0d75e98e14459c6885f5c756e9639088e00737ec7"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:07",
+          "sceneSha256": "3e2b730ade46f0f3fb8ea5411c0172de7e85643f15193d234de1959d11146fd9",
+          "shaderSha256": "5603d19bc3c6a388ddd35bab08ad7039f2d71bf583d342fbb305a2cb9a1c1cf8"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:08",
+          "sceneSha256": "1c7c419af68a4ec68f04ef58adcc4ed58c9dffd8ba2122d8161b3fdd0be9f5f5",
+          "shaderSha256": "39a5443ef167c950444481eda5ec972dd3ce7a716df6f12451e2caa656adfb87"
+        },
+        {
+          "sceneId": "quality:crystal-boxes:09",
+          "sceneSha256": "00ce29d4a6e54c206eb2957dd166da41fae98b00a2061da8bf19e4ae9f6fca5b",
+          "shaderSha256": "383638b289c37ca39d29287be1b04f89d836429d358b642ec6a5c3343f5f68db"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:00",
+          "sceneSha256": "77c2c2fc65afdade1abb69868cfc9fed31cebab09622bfcacd3bf08121237f30",
+          "shaderSha256": "fe4c4c090df3a811f19ec84c124c2d8ea4309a8283d59645b4782b77628e3ebe"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:01",
+          "sceneSha256": "958a5175b95f2c15e199309a356a9e81cd6bb9ae7b1b6f9933820b6e034d2670",
+          "shaderSha256": "2aab345a49df95e7aebcc77cfdee8b1aaf4a5d1f1a72365af24c897132491bce"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:02",
+          "sceneSha256": "3a1854b96f420b5ee76cf3dece47b68999bbd8732bd1f4f819a8f45ed4d529ec",
+          "shaderSha256": "a5805c02986fafced30dc8102d8f70561c8a68abd3b1cb4e06dae3f379fb8a9a"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:03",
+          "sceneSha256": "79a7fb857564f24909c99f4fd44d63895fbb70ba38c258119121e02f7b48665d",
+          "shaderSha256": "82df89d36c5f7aae2f9dab3ea02b9c8a6988bed0aff0bac85dfab548a06f1fa9"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:04",
+          "sceneSha256": "a3267625ac266c598d63948340c39d6a8cd47c81375517841da0987a635404ba",
+          "shaderSha256": "311c43afd223a94822aeef61e8c3e297f846d4342316acc2c12b5391d8c1584e"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:05",
+          "sceneSha256": "9e89f77a907c8a46420709adbed465f2995cd296aa3821a1a226997836547f7e",
+          "shaderSha256": "ac1733534aa05e2567ebb35ef5d4789566b47efd92e7235694d3e3e5d317dcd7"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:06",
+          "sceneSha256": "e19a41aa67fe35a481982fcbcbab893ba72e8f53a5b502b0d6a18d33e0cba9d0",
+          "shaderSha256": "9306b6823f667d32ab6eafae62aad3de144da14e4fca272e79b84fc108f848bd"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:07",
+          "sceneSha256": "422522c411dd3ecf6071c9891362537990be084557481877346499b44fce57ae",
+          "shaderSha256": "4a3ab787f24ffea0c8dc09f0b5d2e1948a552ec5da16b54c656a0c39a3285895"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:08",
+          "sceneSha256": "553c2fa62f03035bcee48fcfd0d71641d63b9d885fe84d0235c359a9ace510f7",
+          "shaderSha256": "b027c55b728880329823abf14569e221284d88015ac6f67f74f5452990f807dc"
+        },
+        {
+          "sceneId": "quality:concentric-hoops:09",
+          "sceneSha256": "6fef2e3287ea0c2453e4a4d6beda4bb5b5daa5b7a686e020ecc3c3a11a2c7986",
+          "shaderSha256": "4ee25465e285775b310a98aaf15ee1ce9679309f7b29535ec4b80d90e0a405d4"
+        },
+        {
+          "sceneId": "quality:floating-pillars:00",
+          "sceneSha256": "ea03a452eb1f509e78585a8f0af863b93a780743a64386578f5efb2b04d1f256",
+          "shaderSha256": "4d91624839ca29c887f0c9fddcd106044f02a9d08076906f56689c1da84d1582"
+        },
+        {
+          "sceneId": "quality:floating-pillars:01",
+          "sceneSha256": "55c0aca26b56302ce4a0185f1462e21b9845f8be0c9178ada6837eef36013285",
+          "shaderSha256": "acc5ffce3fa75741509615b252325eed15ef4267736f9af35588eb82f9f7a332"
+        },
+        {
+          "sceneId": "quality:floating-pillars:02",
+          "sceneSha256": "cb0b6abd124e0f5fdbf933029795fb8cda1feaa2645a1cf17f1ab7367df9c299",
+          "shaderSha256": "307908ddfd335b47fc6cde45662b7f9ad4e42e4cdcd3b6767b5da576ddc418b1"
+        },
+        {
+          "sceneId": "quality:floating-pillars:03",
+          "sceneSha256": "76700718b5702e7bab1ac6e1fecc5cf8f41981608433f5748b75b104a39dca4d",
+          "shaderSha256": "31a87f35462105c3712937508ea12ac960bb8e7235a48aa29e8d74b50a0e057e"
+        },
+        {
+          "sceneId": "quality:floating-pillars:04",
+          "sceneSha256": "968e0cd0cf5615ac98989aa228e21bf58633b3f4a3c81a7e6e037810ee69ad1f",
+          "shaderSha256": "bae96d054a51f504580fa18bb60632c4aa2367843f0924c66327abf25b9a356a"
+        },
+        {
+          "sceneId": "quality:floating-pillars:05",
+          "sceneSha256": "8c3301b7e662688b6786a7f430e09807b446b9cf25193441bb5b75929578ae86",
+          "shaderSha256": "fdf6e1b4ab871c8f24b9625d7d8d879fe2dc740bbe695cffefed9ac085252099"
+        },
+        {
+          "sceneId": "quality:floating-pillars:06",
+          "sceneSha256": "ad71b518b69f47c97c6f9abcfee199b8de0219279a5cea85340e3f28df0e3e6a",
+          "shaderSha256": "c945a098f85edfcc6130078de7aa18cf4561a63ef6a827af2ea64fabef99c08f"
+        },
+        {
+          "sceneId": "quality:floating-pillars:07",
+          "sceneSha256": "0bb2705c76c4fd5d409198d879c083cf2a6182eba0d4afc08e146367e62c6929",
+          "shaderSha256": "6c0c05cdd995ed7fa54ca2d0f24c9a2ef33d0f5d3fc77b9d8d042a1e202a88af"
+        },
+        {
+          "sceneId": "quality:floating-pillars:08",
+          "sceneSha256": "b53721f6acda7781a0d1c457b073fd62b35b82536659bfaa9fbf8ac2380eff6f",
+          "shaderSha256": "9975ef44e30e0ca0e29f3e142ed7fcaf7129b714425d6c5000ea505c52a94d8f"
+        },
+        {
+          "sceneId": "quality:floating-pillars:09",
+          "sceneSha256": "454d10c74244a21429c9afee0bc7898b59a0ed3c286a5830c5548048d8ce7eb0",
+          "shaderSha256": "d59a4ee13cd43d576dfd7164c19c493bd918e732952dacb284fd736e1cbea71c"
+        },
+        {
+          "sceneId": "quality:caged-core:00",
+          "sceneSha256": "342fc8b7573a79184e7e471f6acf7ae59e24405408d77e379920b5bddb35e8d9",
+          "shaderSha256": "f05f644262ce7f7b047858ebc34286755b22e538293d7f3f046417e81230e3c8"
+        },
+        {
+          "sceneId": "quality:caged-core:01",
+          "sceneSha256": "9329d03a54acb3dbbb627fbf7d42eef391d6becf4b82175a0bfe325a27fd6929",
+          "shaderSha256": "d16d6a132966b57534b711b7bc17034a1e6ec3bc87a77cbba181df42c33e7b22"
+        },
+        {
+          "sceneId": "quality:caged-core:02",
+          "sceneSha256": "1ab0a65f343b504e67df9cfab706f004ca8bd98d5ba2637a7927431690ea4bcf",
+          "shaderSha256": "43695e5f2c46c0ab42042cbb134cfb4b59ff3227c1ced2b54b1f3d3012d232a8"
+        },
+        {
+          "sceneId": "quality:caged-core:03",
+          "sceneSha256": "82e9d1f7b3eb1c979d9f6f478dd3a121d1ea33979319b371583af2fd73c07b8f",
+          "shaderSha256": "35055e50c4dfa897b47ad2c2f4faeed9827ee51db614fe6ca9e891928406efc4"
+        },
+        {
+          "sceneId": "quality:caged-core:04",
+          "sceneSha256": "4f9821dcee95d849f84aeb6ab1380dab792024f1b6c8a079d0d2570b387297fd",
+          "shaderSha256": "3fd8116bc92c8e787aef22a22f95e67c327e08fc9cbea26f2704e3e9a79f3df3"
+        },
+        {
+          "sceneId": "quality:caged-core:05",
+          "sceneSha256": "4f74dc7e2c45684d95aa4c9f971a77a4fed276bbf799f8e51810afa879177c7f",
+          "shaderSha256": "5adae9fea8086d82436a261024366c71d370cd5b6c5b6e5627f9bd53cdbd8bba"
+        },
+        {
+          "sceneId": "quality:caged-core:06",
+          "sceneSha256": "1b55448edcff733464fb6862fbedba9f35ed3f10020473da8478b45503dd2fc6",
+          "shaderSha256": "14927461ef8ccb1eca20cb2ad37c51834cb6bb6948b6f63c161be1d577be27d8"
+        },
+        {
+          "sceneId": "quality:caged-core:07",
+          "sceneSha256": "58c88a26e2d34aec11da4263800554e3d93da1a2d90cded8323bc2ffe930442d",
+          "shaderSha256": "54d22ee89d4dda2ce112a592008bf8236ec1f7bee8ca63a118acccf37fab80b4"
+        },
+        {
+          "sceneId": "quality:caged-core:08",
+          "sceneSha256": "4fced58370499f073572a3d0b9a6953a8a5b56f6a1de3040013aae027308c217",
+          "shaderSha256": "ab2068a0df3d4ff78f9c1b4d24b2bdafeef1b6b59805e4b04b865b4133ec4ecb"
+        },
+        {
+          "sceneId": "quality:caged-core:09",
+          "sceneSha256": "5567f6fdcc2a956035475bbb213d58f0f50e0c55cf4edf50ab6b10b874e5e050",
+          "shaderSha256": "1e704139862dc57ec2060bbb41e60c46c6e1777ba3487264f4882cf125a5792a"
+        }
+      ]
+    }
+  }
+}

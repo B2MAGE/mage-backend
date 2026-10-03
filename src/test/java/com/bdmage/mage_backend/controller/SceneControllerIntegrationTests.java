@@ -76,6 +76,44 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
+	void sceneLimitsRejectCreateAndUpdateWithoutPartialPersistence() throws Exception {
+		String suffix = String.valueOf(System.nanoTime());
+		String email = "limits-" + suffix + "@example.com";
+		String password = "password-" + suffix;
+		User owner = this.userRepository.saveAndFlush(new User(
+				email, this.passwordHashingService.hash(password), "Limits User"));
+		String token = accessToken(this.mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON).content(loginRequestBody(email, password)))
+				.andExpect(status().isOk()).andReturn());
+		var originalData = this.objectMapper.readTree("{\"visualizer\":{\"shader\":\"sphere(0.5);\"}}");
+		Scene existing = this.sceneRepository.saveAndFlush(new Scene(owner.getId(), "Original", originalData));
+		long countBefore = this.sceneRepository.count();
+		for (String invalid : java.util.List.of(
+				"{\"visualizer\":{\"shader\":\"source\"},\"intent\":{\"fov\":180}}",
+				"{\"visualizer\":{\"shader\":\"source\"},\"fx\":{\"passOrder\":[\"bloom\",\"bloom\"]}}",
+				"{\"visualizer\":{\"shader\":\"source\"},\"fx\":{\"passes\":{\"rgbShift\":true,\"dot\":true,\"technicolor\":true,\"sobel\":true,\"glitch\":true}}}",
+				"{\"visualizer\":{\"shader\":\"do-not-echo-source\",\"imports\":[\"https://example.com/code.js\"]}}",
+				"{\"visualizer\":{\"shader\":\"" + "é".repeat(32769) + "\"}}")) {
+			String body = "{\"name\":\"Changed\",\"description\":\"Changed\",\"sceneData\":" + invalid + "}";
+			var createResult = this.mockMvc.perform(post("/api/scenes")
+					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+					.andExpect(jsonPath("$.details").isMap()).andReturn();
+			var updateResult = this.mockMvc.perform(put("/api/scenes/" + existing.getId())
+					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+					.andExpect(jsonPath("$.details").isMap()).andReturn();
+			assertThat(this.objectMapper.readTree(createResult.getResponse().getContentAsString()).path("details"))
+					.isEqualTo(this.objectMapper.readTree(updateResult.getResponse().getContentAsString()).path("details"));
+			assertThat(createResult.getResponse().getContentAsString()).doesNotContain("do-not-echo-source", "https://example.com/code.js");
+		}
+		assertThat(this.sceneRepository.count()).isEqualTo(countBefore);
+		Scene unchanged = this.sceneRepository.findById(existing.getId()).orElseThrow();
+		assertThat(unchanged.getName()).isEqualTo("Original");
+		assertThat(unchanged.getSceneData()).isEqualTo(originalData);
+	}
+
+	@Test
 	void createSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
 		this.mockMvc.perform(post("/api/scenes")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -117,7 +155,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{
 						  "name":" Aurora Drift ",
 						  "description":" Soft teal bloom with low-end drift. ",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"energy":0.92}}
+						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						}
 						"""))
 				.andExpect(status().isCreated())
@@ -446,7 +484,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{
 						  "name":" Updated Scene ",
 						  "description":" Updated description. ",
-						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						}
 						"""))
 				.andExpect(status().isOk())
@@ -454,7 +492,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.name").value("Updated Scene"))
 				.andExpect(jsonPath("$.description").value("Updated description."))
 				.andExpect(jsonPath("$.sceneData.visualizer.shader").value("pulse"))
-				.andExpect(jsonPath("$.sceneData.state.energy").value(0.5));
+				.andExpect(jsonPath("$.sceneData.state.size").value(0.5));
 
 		Scene updatedScene = this.sceneRepository.findById(savedScene.getId()).orElseThrow();
 		assertThat(updatedScene.getName()).isEqualTo("Updated Scene");

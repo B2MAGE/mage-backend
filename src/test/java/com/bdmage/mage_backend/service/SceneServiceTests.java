@@ -9,6 +9,7 @@ import java.util.Optional;
 import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.InvalidSceneDataException;
 import com.bdmage.mage_backend.exception.SceneForbiddenException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
 import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
@@ -34,10 +35,39 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SceneServiceTests {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
+
+	@Test
+	void createAndUpdateUseTheSameLimitsBeforeAnyContentSideEffects() throws Exception {
+		SceneRepository repository = mock(SceneRepository.class);
+		UserRepository users = mock(UserRepository.class);
+		ThumbnailStorageService storage = mock(ThumbnailStorageService.class);
+		SceneService service = sceneServiceWithStorage(repository, users, storage);
+		Scene original = scene(15L, 42L, "Original", Instant.parse("2026-03-26T15:00:00Z"));
+		var originalData = original.getSceneData().deepCopy();
+		when(users.existsById(42L)).thenReturn(true);
+		when(repository.findById(15L)).thenReturn(Optional.of(original));
+		for (String invalid : List.of(
+				"{}",
+				"{\"visualizer\":{\"shader\":\"source\",\"assetUrl\":\"https://example.com\"}}",
+				"{\"visualizer\":{\"shader\":\"source\"},\"state\":{\"size\":\"expression()\"}}",
+				"{\"visualizer\":{\"shader\":\"" + "x".repeat(65537) + "\"}}")) {
+			var data = this.objectMapper.readTree(invalid);
+			var createError = assertThrows(InvalidSceneDataException.class, () -> service.createScene(
+					42L, "New", null, data, "scenes/pending/42/thumbnails/test.png"));
+			var updateError = assertThrows(InvalidSceneDataException.class, () -> service.updateScene(
+					42L, 15L, "Changed", "Changed", data));
+			assertThat(createError.getDetails()).isEqualTo(updateError.getDetails());
+			assertThat(original.getName()).isEqualTo("Original");
+			assertThat(original.getSceneData()).isEqualTo(originalData);
+		}
+		verify(repository, never()).saveAndFlush(any(Scene.class));
+		verifyNoInteractions(storage);
+	}
 
 	@Test
 	void createSceneTrimsFieldsAndPersistsForAuthenticatedUser() throws Exception {
@@ -768,14 +798,14 @@ class SceneServiceTests {
 				" Updated Scene ",
 				" Updated description. ",
 				this.objectMapper.readTree("""
-						{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+						{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						"""));
 
 		assertThat(result).isSameAs(scene);
 		assertThat(scene.getName()).isEqualTo("Updated Scene");
 		assertThat(scene.getDescription()).isEqualTo("Updated description.");
 		assertThat(scene.getSceneData()).isEqualTo(this.objectMapper.readTree("""
-				{"visualizer":{"shader":"pulse"},"state":{"energy":0.5}}
+				{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 				"""));
 		verify(sceneRepository).saveAndFlush(scene);
 	}

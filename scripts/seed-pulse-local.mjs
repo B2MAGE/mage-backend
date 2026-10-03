@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateSceneSubmissions } from './audit-scene-submissions.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const frontend = path.resolve(repo, '../mage-frontend');
@@ -73,6 +74,12 @@ function sceneData(index) {
   }
   return sanitizeSceneData(data);
 }
+// Java 21/Maven are required. Freeze the exact payloads validated here so every
+// planned scene passes before any account, upload, or scene can be created.
+const plannedSceneData = titles.map((_, index) => sceneData(index));
+await validateSceneSubmissions(plannedSceneData.map((sceneData, index) => ({
+  sceneId: `pulse-${index + 1}`, sceneData,
+})));
 // Use the exact mockup artwork, including its five colored backgrounds.
 const thumbnails=await Promise.all(Array.from({length:5},(_,index)=>
   readFile(path.join(repo,'scripts/assets/pulse-thumbnails',String(index+1)+'.png'))));
@@ -110,7 +117,7 @@ for(let index=0;index<titles.length;index++){
       name:titles[index],
       description:index===0?'A slow-moving audiovisual environment built around layered geometry, reactive bloom, and shifting color.':
         titles[index]+' explores '+tagSets[index%tagSets.length][0].toLowerCase()+' motion through layered geometry and shifting light. Try it with your own music, or let the slow rotation play on its own. Created as part of the Pulse local review collection.',
-      sceneData:sceneData(index),thumbnailObjectKey:upload.objectKey,
+      sceneData:plannedSceneData[index],thumbnailObjectKey:upload.objectKey,
     }});
   }
   await api('scenes/'+scene.sceneId+'/tags',{method:'PUT',token:owner.accessToken,body:{tagIds:tagSets[index%tagSets.length].map(name=>tags.get(name.toLowerCase()))}});

@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { users as people, scenes as content } from './quality-scene-content.mjs';
 import { buildSceneCatalog } from './quality-scene-catalog.mjs';
+import { validateSceneSubmissions } from './audit-scene-submissions.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.join(repo, '.local', 'quality-review');
@@ -35,6 +36,11 @@ assert.ok(process.argv.slice(2).every(arg => ['--resume', '--validate-only'].inc
 const day = 86_400_000;
 const minute = 60_000;
 const catalog = buildSceneCatalog();
+// Java 21/Maven are required. Validate the complete batch before creating any
+// account, upload, or scene, including when the local API runs an older build.
+await validateSceneSubmissions(catalog.map((item, index) => ({
+  sceneId: `quality-${index + 1}`, sceneData: item.sceneData,
+})));
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const fingerprint = sha256(JSON.stringify({ people, content, catalog }));
 const iso = milliseconds => new Date(milliseconds).toISOString();

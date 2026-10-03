@@ -11,7 +11,7 @@ Custom rendering starts **disabled**. Both conditions must be met to enable it:
 
 Setting the environment flag alone does not enable rendering. A missing environment flag, missing database switch row, or false value keeps it disabled. If an already-enabled deployment changes the release flag to false, public availability becomes disabled even though the admin response still shows the stored `enabled` value. Set the stored switch to false before restoring the release flag if a new operator enable should be required.
 
-**All documents currently accepted by this backend are legacy/custom scenes.** Backend validation of trusted template references belongs to PP-B02. Client-supplied `kind` or template metadata cannot bypass the switch. Consequently, with the default settings, all existing scene responses retain their metadata and thumbnail but return `sceneData: null`. Stored content is preserved. Older frontends need PP-R03 to present this state clearly and stop already-running scenes.
+PP-B02 adds a server-owned document classification. Existing scenes remain `legacy-custom` until an explicit validated owner save, with status `SCENE_UPGRADE_REQUIRED`. New custom documents require the global switch and release gate; validated catalog templates bypass only the custom switch. Client-supplied mode metadata cannot grant trust. Stored legacy content is preserved and remains owner-readable through repair access. See [scene documents and rollout](scene-documents.md).
 
 Before rollout, coordinate the frontend release and remove any previously cached source-bearing API responses from the reverse proxy/CDN. Do not enable custom rendering merely to preserve old playback before isolation approval.
 
@@ -49,7 +49,7 @@ Public scene status:
 }
 ```
 
-Public codes are `AVAILABLE`, `SCENE_DISABLED`, `CUSTOM_RENDERING_DISABLED`, and `SCENE_NOT_FOUND`. Available status has a null message. Missing IDs return an unavailable status with HTTP 200, including in batches; malformed, missing, empty, nonpositive, or more than 100 requested IDs return HTTP 400. Scene disablement takes precedence over the global switch in the scene status code.
+Public codes are `AVAILABLE`, `SCENE_DISABLED`, `SCENE_UPGRADE_REQUIRED`, `CUSTOM_RENDERING_DISABLED`, and `SCENE_NOT_FOUND`. Available status has a null message. Missing IDs return an unavailable status with HTTP 200, including in batches; malformed, missing, empty, nonpositive, or more than 100 requested IDs return HTTP 400. Scene disablement takes precedence over document classification and the global switch.
 
 Global public status returns `enabled`, `code`, and `message`. It reports the effective state: persisted enabled **and** release approved. Operator global status separately returns stored `enabled` and `releaseApproved`.
 

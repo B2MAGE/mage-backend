@@ -44,7 +44,7 @@ container's responsibility; the filter cannot interpret bytes outside its body.
 
 ## Accepted scene data
 
-The current format requires an object with a nonblank string at
+The custom envelope's `scene` object requires a nonblank string at
 `visualizer.shader`. Accepted root branches are `visualizer`, `controls`,
 `intent`, `fx`, `state`, `audioResponse`, and `audioResponseConfig`. Each branch
 has an explicit nested allowlist, type, and numeric range in the policy.
@@ -54,8 +54,9 @@ all three numeric coordinates. The entire branch may be omitted. Unknown fields,
 keys, source aliases, external asset URLs/imports, and arbitrary renderer
 configuration are rejected.
 
-PP-B02 owns template/custom envelope validation and authorization. Until it is
-implemented, those new envelopes are rejected by this legacy scene validator.
+PP-B02 requires a versioned template/custom envelope around new submissions;
+see [scene documents](scene-documents.md). This policy validates the custom
+envelope's inner engine data and the complete envelope's resource budgets.
 Passing this policy never grants trust to shader source.
 
 `fx.passOrder` accepts the 16 engine pass IDs listed in the policy, at most once
@@ -97,8 +98,8 @@ the affected field and limit. Malformed transport JSON returns
 `400 MALFORMED_REQUEST`. Diagnostics do not echo source or submitted values;
 overlong or unusual field names are represented by their parent path.
 
-Existing records are not migrated, deleted, or executed by this work. Reads
-remain compatible, including records that fail the new-write policy. The
+PP-B02 preserves existing documents with a server-owned legacy classification.
+Unsupported source remains available through owner-only repair access. The
 read-only audit and its measured compatibility report are documented in
 [`scene-submission-inventory.md`](scene-submission-inventory.md). Operators can
 run it against a database/API export before rollout. New content replacements

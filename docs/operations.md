@@ -177,11 +177,9 @@ After the browser upload succeeds, create the scene with:
   "name": "Scene Name",
   "description": "Plain-text scene description.",
   "sceneData": {
-    "visualizer": {},
-    "controls": {},
-    "intent": {},
-    "fx": {},
-    "state": {}
+    "schemaVersion": 1,
+    "kind": "custom",
+    "scene": {"visualizer": {"shader": "sphere(0.5);"}}
   },
   "thumbnailObjectKey": "scenes/pending/42/thumbnails/abc123.png"
 }

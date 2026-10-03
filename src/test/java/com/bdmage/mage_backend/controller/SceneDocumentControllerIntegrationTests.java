@@ -97,6 +97,39 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
+	void fullTemplateSettingsSurviveCreateUpdateAndReopenWithoutBecomingCustom() throws Exception {
+		ObjectNode document = (ObjectNode) template();
+		document.set("settings", this.json.readTree("""
+				{"camera":{"tilt":0.4,"orientationMode":1},
+				 "motion":{"power_factor":4,"easing_speed":0.5},
+				 "effects":{"passes":{"rgbShift":true,"afterImage":true},
+				   "params":{"rgbShift":{"amount":0.02,"angle":0.5}},"passOrder":["RGBShift","afterImagePass","outputPass"]},
+				 "audioResponse":"mapped-v1","audioResponseConfig":{"version":1,"sensitivity":0.6,
+				   "mappings":[{"target":"size","source":"bass-hit","amount":0.5,"attack":0.03,"release":0.4}]}}
+				"""));
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneMode").asText()).isEqualTo("template-v1");
+		assertThat(created.path("availability").path("available").asBoolean()).isTrue();
+		ObjectNode updatedDocument = (ObjectNode) created.path("sceneData").deepCopy();
+		((ObjectNode) updatedDocument.path("settings").path("effects").path("params").path("rgbShift")).put("amount", 0.04);
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(updatedDocument).toString()))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneMode").value("template-v1")).andReturn());
+		JsonNode canonical = updated.path("sceneData");
+		assertThat(canonical).isEqualTo(updatedDocument);
+		assertThat(canonical.findValues("shader")).isEmpty();
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(canonical);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(canonical);
+		((ObjectNode) updatedDocument.path("settings").path("effects")).put("shader", "sphere(1)");
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(updatedDocument).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.settings.effects.shader']").exists());
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(canonical);
+	}
+
+	@Test
 	void explicitCustomSourceRoundTripsOnlyAfterOperatorEnablesCustomRendering() throws Exception {
 		JsonNode document = customDocument("{\"visualizer\":{\"shader\":\"sphere(0.5);\"}}");
 		JsonNode created = create(document);

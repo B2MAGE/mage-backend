@@ -18,8 +18,11 @@ or required-engine-field rules.
 The validator implements only the checked-in schema's required features:
 local `$defs`/`$ref`, the root template/custom `oneOf`, `anyOf`, `not`, JSON types,
 `const`, `enum`, object `properties`/`required`/`additionalProperties`/
-`propertyNames`, array `items`, numeric `minimum`/`maximum`, string
+`propertyNames`, array `items`/`maxItems`/`uniqueItems`, numeric `minimum`/`maximum`, string
 `pattern`/`minLength`/`maxLength`, and recursive `default` materialization.
+`x-uniqueBy` enforces unique audio mapping targets; `x-maxOptionalEffects` counts
+bloom, tint and enabled optional passes together. These application-specific
+keywords are also enforced by the frontend parser and its schema conformance tests.
 Title, description, dialect, and ID are annotations. It rejects unknown keywords,
 external references, reference siblings, unsupported types, and nested `oneOf`
 at initialization. It is not intended as a general JSON Schema implementation.

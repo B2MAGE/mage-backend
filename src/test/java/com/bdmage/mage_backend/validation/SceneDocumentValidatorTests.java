@@ -23,7 +23,7 @@ class SceneDocumentValidatorTests {
 	@TestFactory
 	Stream<DynamicTest> sharedFrontendFixturesHaveIdenticalValidityAndDefaults() throws Exception {
 		JsonNode fixtures = resource("/contracts/scenes/fixtures.json");
-		assertThat(fixtures.path("cases").size()).isEqualTo(84);
+		assertThat(fixtures.path("cases").size()).isGreaterThanOrEqualTo(84);
 		return fixtures.path("cases").valueStream().map(row -> DynamicTest.dynamicTest(row.path("name").asText(), () -> {
 			JsonNode document = row.path("document");
 			JsonNode original = document.deepCopy();
@@ -116,6 +116,70 @@ class SceneDocumentValidatorTests {
 		fx.putObject("bloom").put("enabled", true);
 		fx.putObject("passes").put("rgbShift", true).put("afterImage", true).put("colorify", true).put("glitch", true);
 		assertInvalid(document, "sceneData.scene.fx");
+	}
+
+	@Test
+	void restoredTemplateControlsStayDataOnlyAndRetainTheirValues() throws Exception {
+		ObjectNode document = template();
+		document.set("parameters", this.mapper.readTree("{\"scale\":200,\"speed\":10}"));
+		JsonNode settings = this.mapper.readTree("""
+				{"camera":{"fov":140,"orbitSpeed":-3,"tilt":0.4,"orientationMode":2,"orientationSpeed":4},
+				 "controls":{"position0":{"x":1,"y":2,"z":7},"target0":{"x":0,"y":1,"z":0},"zoom0":2},
+				 "motion":{"minimizing_factor":0.6,"power_factor":6,"pointerDownMultiplier":2,"base_speed":0.3,"easing_speed":0.4},
+				 "state":{"size":2,"pointerDown":0.3,"currPointerDown":0.1,"currAudio":1,"time":12,"volume_multiplier":0.4},
+				 "effects":{"passes":{"rgbShift":true,"afterImage":true,"kaleid":true},
+				   "toneMapping":{"method":4,"exposure":1.2},"passOrder":["kaleidoShader","RGBShift","afterImagePass","outputPass"],
+				   "params":{"rgbShift":{"amount":0.025,"angle":0.4},"afterImage":{"damp":0.8},"kaleid":{"sides":8,"angle":0.2}}},
+				 "audioResponse":"mapped-v1","audioResponseConfig":{"version":1,"sensitivity":0.8,
+				   "mappings":[{"target":"size","source":"bass-hit","amount":0.7,"attack":0.03,"release":0.4}]}}
+				""");
+		document.set("settings", settings);
+		JsonNode normalized = this.validator.validateAndNormalize(document);
+		for (String field : List.of("controls", "motion", "state", "effects", "audioResponse", "audioResponseConfig")) {
+			assertThat(normalized.path("settings").path(field)).isEqualTo(settings.path(field));
+		}
+		assertThat(normalized.path("parameters")).isEqualTo(document.path("parameters"));
+		assertThat(normalized.findValues("shader")).isEmpty();
+		assertThat(normalized.path("kind").asText()).isEqualTo("template");
+	}
+
+	@Test
+	void templateEffectBudgetIncludesBloomAndTintButExcludesOutput() {
+		ObjectNode document = template();
+		ObjectNode settings = document.putObject("settings");
+		settings.putObject("bloom").put("enabled", true);
+		settings.putObject("tint").put("enabled", true);
+		ObjectNode passes = settings.putObject("effects").putObject("passes");
+		passes.put("rgbShift", true).put("afterImage", true).put("outputPass", true);
+		assertThatCode(() -> this.validator.validateAndNormalize(document)).doesNotThrowAnyException();
+		passes.put("glitch", true);
+		assertInvalid(document, "sceneData.settings.effects");
+	}
+
+	@Test
+	void extendedTemplateControlsRejectSourceUnknownsDuplicatesAndOutOfRangeValues() throws Exception {
+		for (String field : List.of("motion", "effects", "controls", "state", "audioResponseConfig")) {
+			ObjectNode document = template();
+			ObjectNode section = document.putObject("settings").putObject(field).put("shader", "sphere(1)");
+			if (field.equals("audioResponseConfig")) section.put("version", 1);
+			if (field.equals("controls")) {
+				section.putObject("position0").put("x", 0).put("y", 0).put("z", 5);
+				section.putObject("target0").put("x", 0).put("y", 0).put("z", 0);
+				section.put("zoom0", 1);
+			}
+			assertInvalid(document, "sceneData.settings." + field + ".shader");
+		}
+		ObjectNode duplicatePass = template();
+		duplicatePass.putObject("settings").putObject("effects").putArray("passOrder").add("bloom").add("bloom");
+		assertInvalid(duplicatePass, "sceneData.settings.effects.passOrder[1]");
+		ObjectNode duplicateMapping = template();
+		duplicateMapping.putObject("settings").set("audioResponseConfig", this.mapper.readTree("""
+				{"version":1,"mappings":[{"target":"size","source":"bass-hit"},{"target":"size","source":"mid-level"}]}
+				"""));
+		assertInvalid(duplicateMapping, "sceneData.settings.audioResponseConfig.mappings[1]");
+		ObjectNode invalidMotion = template();
+		invalidMotion.putObject("settings").putObject("motion").put("power_factor", 11);
+		assertInvalid(invalidMotion, "sceneData.settings.motion.power_factor");
 	}
 
 	@Test

@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import com.bdmage.mage_backend.dto.SceneDetailResponse;
 import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.dto.SceneResponse;
+import com.bdmage.mage_backend.dto.SceneAvailabilityResponse;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.UserRepository;
@@ -23,12 +24,14 @@ public class SceneResponseFactory {
 	private final UserRepository userRepository;
 	private final SceneTagRepository sceneTagRepository;
 	private final SceneEngagementService sceneEngagementService;
+	private final SceneAvailabilityService sceneAvailabilityService;
 
 	public SceneResponseFactory(UserRepository userRepository, SceneEngagementService sceneEngagementService,
-			SceneTagRepository sceneTagRepository) {
+			SceneTagRepository sceneTagRepository, SceneAvailabilityService sceneAvailabilityService) {
 		this.userRepository = userRepository;
 		this.sceneTagRepository = sceneTagRepository;
 		this.sceneEngagementService = sceneEngagementService;
+		this.sceneAvailabilityService = sceneAvailabilityService;
 	}
 
 	public SceneResponse from(Scene scene) {
@@ -40,7 +43,7 @@ public class SceneResponseFactory {
 				creator.avatarGradientStart(),
 				creator.avatarGradientEnd(),
 				List.of(),
-				resolveEngagement(scene, null));
+				resolveEngagement(scene, null), this.sceneAvailabilityService.status(scene));
 	}
 
 	public SceneResponse from(Scene scene, List<String> tags) {
@@ -52,7 +55,7 @@ public class SceneResponseFactory {
 				creator.avatarGradientStart(),
 				creator.avatarGradientEnd(),
 				tags,
-				resolveEngagement(scene, null));
+				resolveEngagement(scene, null), this.sceneAvailabilityService.status(scene));
 	}
 
 	public SceneDetailResponse detailFrom(
@@ -61,7 +64,8 @@ public class SceneResponseFactory {
 			SceneEngagementResponse engagement) {
 		CreatorIdentity creator = resolveCreatorIdentity(scene);
 		return SceneDetailResponse.from(scene, creator.displayName(), creator.handle(),
-				creator.avatarGradientStart(), creator.avatarGradientEnd(), tags, engagement);
+				creator.avatarGradientStart(), creator.avatarGradientEnd(), tags, engagement,
+				this.sceneAvailabilityService.status(scene));
 	}
 
 	public List<SceneResponse> from(List<Scene> scenes) {
@@ -73,6 +77,7 @@ public class SceneResponseFactory {
 			return List.of();
 		}
 		Map<Long, CreatorIdentity> creators = resolveCreatorIdentities(scenes);
+		Map<Long, SceneAvailabilityResponse> availability = this.sceneAvailabilityService.statuses(scenes);
 		List<Long> sceneIds = scenes.stream().map(Scene::getId).toList();
 		Map<Long, List<String>> tagsBySceneId = this.sceneTagRepository.findTagNamesBySceneIds(sceneIds).stream()
 				.collect(Collectors.groupingBy(SceneTagNameProjection::getSceneId,
@@ -90,7 +95,7 @@ public class SceneResponseFactory {
 							creator.avatarGradientStart(),
 							creator.avatarGradientEnd(),
 							tagsBySceneId.getOrDefault(scene.getId(), List.of()),
-							resolveEngagement(scene, currentUserId));
+							resolveEngagement(scene, currentUserId), availability.get(scene.getId()));
 				})
 				.toList();
 	}

@@ -117,6 +117,8 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Scene Contract
 
+Scene responses include an `availability` status and return `sceneData: null` while unavailable. **Custom rendering defaults to disabled**, including all current legacy scene documents, until isolation release approval and an explicit operator enable. Metadata and stored source are preserved. Operator controls, public single/batch status checks, and owner-only repair access are documented in the [scene availability runbook](docs/scene-availability.md). The frontend management and live-stop UI are a separate story (PP-R03).
+
 Scene creation and content replacement enforce the checked-in
 [submission limits policy](docs/scene-submission-limits.md) before persistence.
 Request bodies are bounded before JSON binding, including gzip and chunked input.

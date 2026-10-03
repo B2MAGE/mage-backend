@@ -2,8 +2,10 @@ package com.bdmage.mage_backend.service;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 import com.bdmage.mage_backend.dto.SceneResponse;
+import com.bdmage.mage_backend.dto.SceneAvailabilityResponse;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.repository.SceneTagNameProjection;
@@ -24,7 +26,8 @@ class SceneResponseFactoryTests {
 	private final UserRepository users = mock(UserRepository.class);
 	private final SceneTagRepository tags = mock(SceneTagRepository.class);
 	private final SceneEngagementService engagement = mock(SceneEngagementService.class);
-	private final SceneResponseFactory factory = new SceneResponseFactory(users, engagement, tags);
+	private final SceneAvailabilityService availability = com.bdmage.mage_backend.support.SceneAvailabilityTestSupport.availableScenes();
+	private final SceneResponseFactory factory = new SceneResponseFactory(users, engagement, tags, availability);
 
 	@Test
 	void sceneListsIncludeOnlyTheirOwnTagsFromOneBatchLookup() {
@@ -49,7 +52,31 @@ class SceneResponseFactoryTests {
 	@Test
 	void emptyListsDoNotIssueTagOrOwnerQueries() {
 		assertThat(factory.from(List.of())).isEmpty();
-		verifyNoInteractions(users, tags, engagement);
+		verifyNoInteractions(users, tags, engagement, availability);
+	}
+
+	@Test
+	void everyFactoryEntryPointWithholdsDisabledSourceIncludingCreatorMutationResponses() {
+		Scene scene = scene(11L);
+		SceneAvailabilityResponse blocked = new SceneAvailabilityResponse(11L, false, "SCENE_DISABLED", "Scene is unavailable.");
+		when(availability.status(scene)).thenReturn(blocked);
+		when(availability.statuses(List.of(scene))).thenReturn(Map.of(11L, blocked));
+		assertThat(factory.from(scene).sceneData()).isNull();
+		assertThat(factory.from(scene, List.of("test")).sceneData()).isNull();
+		assertThat(factory.detailFrom(scene, List.of(), null).sceneData()).isNull();
+		SceneResponse listed = factory.from(List.of(scene), 7L).getFirst();
+		assertThat(listed.sceneData()).isNull();
+		assertThat(listed.availability()).isEqualTo(blocked);
+		assertThat(listed.name()).isEqualTo("Scene 11");
+		verify(availability).statuses(List.of(scene));
+	}
+
+	@Test
+	void aBlockedResponseCannotRetainSourceEvenIfDirectlyConstructed() {
+		SceneAvailabilityResponse blocked = new SceneAvailabilityResponse(11L, false, "CUSTOM_RENDERING_DISABLED", "Custom rendering is paused.");
+		SceneResponse response = new SceneResponse(11L, 7L, "Ari", "ari", "#000000", "#ffffff",
+				"Scene", null, Map.of("visualizer", Map.of("shader", "source")), null, null, List.of(), null, blocked);
+		assertThat(response.sceneData()).isNull();
 	}
 
 	private static Scene scene(Long id) {

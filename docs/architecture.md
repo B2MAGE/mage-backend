@@ -130,6 +130,14 @@ Avatar gradients are user-owned public identity fields: non-null `avatar_gradien
 
 Within `scenes`, the backend stores the scene name, optional plain-text description, JSON scene data, optional thumbnail reference, owner, and creation timestamp.
 
+## Scene availability boundary
+
+`SceneAvailabilityService` calculates effective status using the independent per-scene block, a persisted global custom-rendering switch, and a deployment release gate. `OperatorAccessService` checks the authenticated user against a configured numeric-ID allowlist. New admin routes are explicitly covered by bearer-token authentication.
+
+`SceneResponseFactory` checks availability for all source-bearing public responses, including mutation responses and profile collections. Scene DTOs cannot retain `sceneData` when status is unavailable. Only the explicit owner repair endpoint returns source while blocked, in a separate payload marked `playable: false`.
+
+Migration V18 adds `scene_availability_controls` and `custom_rendering_control`. Small JDBC repositories read fresh control state without loading shader source or reusing managed scene entities; conditional PostgreSQL upserts preserve audit data for retries. Content updates cannot overwrite these controls. Public status and scene responses use `Cache-Control: no-store`. The [availability runbook](scene-availability.md) describes the API, default-disabled release gate, deployment implications, and frontend responsibilities.
+
 ## External Boundary
 
 Google sign-in is isolated behind the `GoogleTokenVerifier` interface. The production implementation is `GoogleApiClientTokenVerifier`.

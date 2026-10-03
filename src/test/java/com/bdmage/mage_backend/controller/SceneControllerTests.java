@@ -66,7 +66,8 @@ class SceneControllerTests {
 		SceneResponseFactory sceneResponseFactory = new SceneResponseFactory(
 				this.userRepository,
 				this.sceneEngagementService,
-				mock(SceneTagRepository.class));
+				mock(SceneTagRepository.class),
+				com.bdmage.mage_backend.support.SceneAvailabilityTestSupport.availableScenes());
 		this.mockMvc = MockMvcBuilders
 				.standaloneSetup(new SceneController(this.sceneService, sceneResponseFactory, this.sceneEngagementService))
 				.setControllerAdvice(new ApiExceptionHandler())

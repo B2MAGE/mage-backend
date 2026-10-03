@@ -4,6 +4,8 @@ import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.User;
 import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -16,6 +18,26 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AuthenticationInterceptorTests {
+
+	@ParameterizedTest
+	@ValueSource(strings = {"/api/scene-availability", "/api/scene-availability/15", "/api/rendering-status"})
+	void availabilityReadsArePublic(String path) {
+		AuthenticationTokenService tokens = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(tokens);
+		assertThat(interceptor.preHandle(new MockHttpServletRequest("GET", path),
+				new MockHttpServletResponse(), new Object())).isTrue();
+		verifyNoInteractions(tokens);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"/api/scenes/15/repair", "/api/admin/scenes/15/availability", "/api/admin/rendering/custom"})
+	void availabilityAdministrationAndRepairRequireAuthentication(String path) {
+		AuthenticationTokenService tokens = mock(AuthenticationTokenService.class);
+		AuthenticationInterceptor interceptor = new AuthenticationInterceptor(tokens);
+		assertThatThrownBy(() -> interceptor.preHandle(new MockHttpServletRequest("GET", path),
+				new MockHttpServletResponse(), new Object())).isInstanceOf(AuthenticationRequiredException.class);
+		verifyNoInteractions(tokens);
+	}
 
 	@Test
 	void preHandleAuthenticatesBearerTokenAndStoresUserInRequestContext() {

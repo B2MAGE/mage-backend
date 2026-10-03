@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,7 +59,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 		Scene scene = saveScene(author.getId(), "Commented Scene");
 		String accessToken = accessToken(author.getEmail(), "password-" + author.getEmail());
 
-		MvcResult parentResult = this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/comments")
+		MvcResult parentResult = this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -76,7 +78,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andReturn();
 
 		Long parentCommentId = commentId(parentResult);
-		MvcResult replyResult = this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/comments")
+		MvcResult replyResult = this.mockMvc.perform(post("/api/scenes/" + scene.getId() + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -120,7 +122,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 		String voterToken = accessToken(voter.getEmail(), "password-" + voter.getEmail());
 		Long commentId = createComment(scene.getId(), authorToken, "Vote on this texture.");
 
-		this.mockMvc.perform(put("/api/scenes/" + scene.getId() + "/comments/" + commentId + "/vote")
+		this.mockMvc.perform(put("/api/scenes/" + scene.getId() + "/comments/" + commentId + "/vote").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + voterToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -131,7 +133,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andExpect(jsonPath("$.downvotes").value(0L))
 				.andExpect(jsonPath("$.currentUserVote").value("up"));
 
-		this.mockMvc.perform(put("/api/scenes/" + scene.getId() + "/comments/" + commentId + "/vote")
+		this.mockMvc.perform(put("/api/scenes/" + scene.getId() + "/comments/" + commentId + "/vote").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + voterToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -167,7 +169,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 		Long parentCommentId = createComment(firstScene.getId(), accessToken, "Parent comment.");
 		Long replyCommentId = createReply(firstScene.getId(), accessToken, parentCommentId, "Existing reply.");
 
-		this.mockMvc.perform(post("/api/scenes/" + secondScene.getId() + "/comments")
+		this.mockMvc.perform(post("/api/scenes/" + secondScene.getId() + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -177,7 +179,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 				.andExpect(jsonPath("$.code").value("INVALID_COMMENT_PARENT"))
 				.andExpect(jsonPath("$.message").value("Parent comment must be a top-level comment on this scene."));
 
-		this.mockMvc.perform(post("/api/scenes/" + firstScene.getId() + "/comments")
+		this.mockMvc.perform(post("/api/scenes/" + firstScene.getId() + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -196,7 +198,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 		String accessToken = accessToken(author.getEmail(), "password-" + author.getEmail());
 		Long commentId = createComment(scene.getId(), accessToken, "Anonymous votes should fail.");
 
-		this.mockMvc.perform(put("/api/scenes/" + scene.getId() + "/comments/" + commentId + "/vote")
+		this.mockMvc.perform(put("/api/scenes/" + scene.getId() + "/comments/" + commentId + "/vote").with(explicitCustomSceneDocument())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"vote":"up"}
@@ -207,7 +209,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 	}
 
 	private Long createComment(Long sceneId, String accessToken, String text) throws Exception {
-		MvcResult result = this.mockMvc.perform(post("/api/scenes/" + sceneId + "/comments")
+		MvcResult result = this.mockMvc.perform(post("/api/scenes/" + sceneId + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"text\":\"" + text + "\"}"))
@@ -218,7 +220,7 @@ class SceneCommentControllerIntegrationTests extends PostgresIntegrationTestSupp
 	}
 
 	private Long createReply(Long sceneId, String accessToken, Long parentCommentId, String text) throws Exception {
-		MvcResult result = this.mockMvc.perform(post("/api/scenes/" + sceneId + "/comments")
+		MvcResult result = this.mockMvc.perform(post("/api/scenes/" + sceneId + "/comments").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""

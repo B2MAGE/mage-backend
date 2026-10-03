@@ -56,6 +56,9 @@ class CustomRenderingReleaseGateIntegrationTests extends PostgresIntegrationTest
 		this.operatorToken = this.tokens.issueToken(operator);
 		this.scene = this.scenes.saveAndFlush(new Scene(operator.getId(), "Unapproved renderer",
 				new ObjectMapper().readTree("{\"visualizer\":{\"shader\":\"sphere(0.5);\"}}")));
+		this.scene.updateValidatedDocument(new com.bdmage.mage_backend.validation.SceneDocumentValidator().validateAndNormalize(
+				com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument(this.scene.getSceneData())));
+		this.scene = this.scenes.saveAndFlush(this.scene);
 		reset();
 	}
 

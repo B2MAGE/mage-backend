@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -95,16 +97,18 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				"{\"visualizer\":{\"shader\":\"do-not-echo-source\",\"imports\":[\"https://example.com/code.js\"]}}",
 				"{\"visualizer\":{\"shader\":\"" + "é".repeat(32769) + "\"}}")) {
 			String body = "{\"name\":\"Changed\",\"description\":\"Changed\",\"sceneData\":" + invalid + "}";
-			var createResult = this.mockMvc.perform(post("/api/scenes")
+			var createResult = this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 					.andExpect(jsonPath("$.details").isMap()).andReturn();
-			var updateResult = this.mockMvc.perform(put("/api/scenes/" + existing.getId())
+			var updateResult = this.mockMvc.perform(put("/api/scenes/" + existing.getId()).with(explicitCustomSceneDocument())
 					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 					.andExpect(jsonPath("$.details").isMap()).andReturn();
 			assertThat(this.objectMapper.readTree(createResult.getResponse().getContentAsString()).path("details"))
 					.isEqualTo(this.objectMapper.readTree(updateResult.getResponse().getContentAsString()).path("details"));
+			this.objectMapper.readTree(createResult.getResponse().getContentAsString()).path("details").fieldNames()
+					.forEachRemaining(field -> assertThat(field).startsWith("sceneData.scene."));
 			assertThat(createResult.getResponse().getContentAsString()).doesNotContain("do-not-echo-source", "https://example.com/code.js");
 		}
 		assertThat(this.sceneRepository.count()).isEqualTo(countBefore);
@@ -115,7 +119,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/scenes")
+		this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{
@@ -148,7 +152,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		MvcResult createResult = this.mockMvc.perform(post("/api/scenes")
+		MvcResult createResult = this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -174,7 +178,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		assertThat(savedScene.getOwnerUserId()).isEqualTo(savedUser.getId());
 		assertThat(savedScene.getName()).isEqualTo("Aurora Drift");
 		assertThat(savedScene.getDescription()).isEqualTo("Soft teal bloom with low-end drift.");
-		assertThat(savedScene.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("nebula");
+		assertThat(savedScene.getSceneData().path("scene").path("visualizer").path("shader").asText()).isEqualTo("nebula");
 		assertThat(savedScene.getThumbnailRef()).isNull();
 		assertThat(savedScene.getCreatedAt()).isNotNull();
 		assertThat(this.scenePlaylistRepository.findAllBySceneId(sceneId)).isEmpty();
@@ -199,7 +203,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		MvcResult createResult = this.mockMvc.perform(post("/api/scenes")
+		MvcResult createResult = this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -243,7 +247,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/scenes")
+		this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -286,7 +290,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				"description", "a".repeat(1001),
 				"sceneData", java.util.Map.of("visualizer", java.util.Map.of("shader", "nebula"))));
 
-		this.mockMvc.perform(post("/api/scenes")
+		this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody))
@@ -478,7 +482,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId())
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId()).with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -498,9 +502,9 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene updatedScene = this.sceneRepository.findById(savedScene.getId()).orElseThrow();
 		assertThat(updatedScene.getName()).isEqualTo("Updated Scene");
 		assertThat(updatedScene.getDescription()).isEqualTo("Updated description.");
-		assertThat(updatedScene.getSceneData().path("visualizer").path("shader").asText()).isEqualTo("pulse");
+		assertThat(updatedScene.getSceneData().path("scene").path("visualizer").path("shader").asText()).isEqualTo("pulse");
 
-		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId() + "/tags")
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId() + "/tags").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -553,7 +557,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId())
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId()).with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -593,7 +597,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		String accessToken = accessToken(loginResult);
 
-		this.mockMvc.perform(post("/api/scenes")
+		this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -609,7 +613,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void attachTagToSceneReturnsUnauthorizedWhenRequestHasNoAuthenticationHeader() throws Exception {
-		this.mockMvc.perform(post("/api/scenes/15/tags")
+		this.mockMvc.perform(post("/api/scenes/15/tags").with(explicitCustomSceneDocument())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"tagId":7}
@@ -645,7 +649,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -687,7 +691,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -724,7 +728,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/tags").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -875,7 +879,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("A public scene detail description."))
 				.andExpect(jsonPath("$.sceneData").doesNotExist())
-				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"))
+				.andExpect(jsonPath("$.availability.code").value("SCENE_UPGRADE_REQUIRED"))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
@@ -942,7 +946,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("An authenticated scene detail description."))
 				.andExpect(jsonPath("$.sceneData").doesNotExist())
-				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"))
+				.andExpect(jsonPath("$.availability.code").value("SCENE_UPGRADE_REQUIRED"))
 				.andExpect(jsonPath("$.thumbnailRef").value("thumbnails/scene-1.png"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.tags[0]").value(ambientTagName))
@@ -997,7 +1001,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{"visualizer":{"shader":"nebula"}}
 						""")));
 
-		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/views")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/views").with(explicitCustomSceneDocument())
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.views").value(1L))
@@ -1037,7 +1041,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId() + "/vote")
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId() + "/vote").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -1049,7 +1053,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.currentUserVote").value("up"))
 				.andExpect(jsonPath("$.currentUserSaved").value(false));
 
-		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/save")
+		this.mockMvc.perform(post("/api/scenes/" + savedScene.getId() + "/save").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())

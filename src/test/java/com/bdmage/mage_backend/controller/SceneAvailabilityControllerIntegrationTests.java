@@ -1,5 +1,9 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument;
+import com.bdmage.mage_backend.validation.SceneDocumentValidator;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -88,6 +92,8 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		this.strangerToken = this.tokens.issueToken(user("stranger"));
 		this.scene = this.scenes.saveAndFlush(new Scene(this.owner.getId(), "Availability test",
 				this.json.valueToTree(Map.of("visualizer", Map.of("shader", SHADER)))));
+		this.scene.updateValidatedDocument(new SceneDocumentValidator().validateAndNormalize(customDocument(this.scene.getSceneData())));
+		this.scene = this.scenes.saveAndFlush(this.scene);
 		resetGlobalControl();
 	}
 
@@ -143,7 +149,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		assertThat(enabled.path("reason").asText()).isEqualTo("Repaired and checked");
 		assertThat(changeScene(false, "Another duplicate")).isEqualTo(enabled);
 		this.mvc.perform(get("/api/scenes/{id}", this.scene.getId()))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.visualizer.shader").value(SHADER))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.scene.visualizer.shader").value(SHADER))
 				.andExpect(jsonPath("$.availability.available").value(true));
 	}
 
@@ -169,7 +175,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 			assertThat(disabledScene.toString()).doesNotContain(SHADER);
 			assertThat(result.getResponse().getContentAsString()).doesNotContain(PRIVATE_REASON, "changedByUserId", "changedAt");
 		}
-		assertThat(this.scenes.findById(this.scene.getId()).orElseThrow().getSceneData().path("visualizer").path("shader").asText())
+		assertThat(this.scenes.findById(this.scene.getId()).orElseThrow().getSceneData().path("scene").path("visualizer").path("shader").asText())
 				.isEqualTo(SHADER);
 	}
 
@@ -179,16 +185,15 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		JsonNode originalControl = changeScene(true, PRIVATE_REASON);
 		String importedBody = this.json.writeValueAsString(Map.of(
 				"name", "Imported replacement", "description", "Edited",
-				"sceneData", Map.of("visualizer", Map.of("shader", "sphere(0.7);")),
-				"disabled", false, "availability", Map.of("available", true), "changedByUserId", this.owner.getId()));
+				"sceneData", Map.of("visualizer", Map.of("shader", "sphere(0.7);"))));
 		for (MockHttpServletRequestBuilder request : List.of(
-				put("/api/scenes/{id}", this.scene.getId()).content(importedBody),
+				put("/api/scenes/{id}", this.scene.getId()).with(explicitCustomSceneDocument()).content(importedBody),
 				patch("/api/scenes/{id}/description", this.scene.getId()).content("{\"description\":\"New description\",\"disabled\":false}"))) {
 			MvcResult result = this.mvc.perform(request.header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
 			assertSuppressed(body(result), "SCENE_DISABLED");
 		}
-		assertThat(this.scenes.findById(this.scene.getId()).orElseThrow().getSceneData().path("visualizer").path("shader").asText())
+		assertThat(this.scenes.findById(this.scene.getId()).orElseThrow().getSceneData().path("scene").path("visualizer").path("shader").asText())
 				.isEqualTo("sphere(0.7);");
 		assertThat(body(this.mvc.perform(get(adminScenePath()).header("Authorization", bearer(this.operatorToken)))
 				.andExpect(status().isOk()).andReturn())).isEqualTo(originalControl);
@@ -200,7 +205,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		changeScene(true, PRIVATE_REASON);
 		when(this.thumbnailStorage.finalizeUpload(this.scene.getId(), "uploaded-thumbnail"))
 				.thenReturn(new ThumbnailStorageService.FinalizedThumbnail("uploaded-thumbnail", "https://cdn.test.example.com/new.png"));
-		MvcResult result = this.mvc.perform(post("/api/scenes/{id}/thumbnail/finalize", this.scene.getId())
+		MvcResult result = this.mvc.perform(post("/api/scenes/{id}/thumbnail/finalize", this.scene.getId()).with(explicitCustomSceneDocument())
 				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"objectKey\":\"uploaded-thumbnail\"}"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.thumbnailRef").value("https://cdn.test.example.com/new.png"))
@@ -219,7 +224,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		}
 		MvcResult result = this.mvc.perform(get(repair).header("Authorization", bearer(this.ownerToken)))
 				.andExpect(status().isOk()).andExpect(header().string("Cache-Control", containsString("no-store")))
-				.andExpect(jsonPath("$.sceneData.visualizer.shader").value(SHADER))
+				.andExpect(jsonPath("$.sceneData.scene.visualizer.shader").value(SHADER))
 				.andExpect(jsonPath("$.playable").value(false))
 				.andExpect(jsonPath("$.availability.available").value(false)).andReturn();
 		assertThat(result.getResponse().getContentAsString()).doesNotContain(PRIVATE_REASON, "changedByUserId");
@@ -236,7 +241,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		}
 		enableCustom();
 		this.mvc.perform(get("/api/scenes/{id}", this.scene.getId()))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.visualizer.shader").value(SHADER));
+				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.scene.visualizer.shader").value(SHADER));
 	}
 
 	@Test
@@ -260,14 +265,14 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 
 	@Test
 	void creationWhileCustomRenderingIsOffPersistsSourceWithoutReturningExecutableContent() throws Exception {
-		MvcResult result = this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
+		MvcResult result = this.mvc.perform(post("/api/scenes").with(explicitCustomSceneDocument()).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(this.json.writeValueAsString(Map.of(
 						"name", "New scene", "sceneData", Map.of("visualizer", Map.of("shader", SHADER))))))
 				.andExpect(status().isCreated()).andReturn();
 		JsonNode response = body(result);
 		assertSuppressed(response, "CUSTOM_RENDERING_DISABLED");
 		assertThat(this.scenes.findById(response.path("sceneId").asLong()).orElseThrow().getSceneData()
-				.path("visualizer").path("shader").asText()).isEqualTo(SHADER);
+				.path("scene").path("visualizer").path("shader").asText()).isEqualTo(SHADER);
 	}
 
 	@Test

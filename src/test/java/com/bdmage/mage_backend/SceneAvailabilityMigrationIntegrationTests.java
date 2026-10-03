@@ -49,7 +49,9 @@ class SceneAvailabilityMigrationIntegrationTests extends PostgresIntegrationTest
 			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
 					.locations("classpath:db/migration").load().migrate();
 
-			assertThat(this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id = 1")).isEqualTo(before);
+			var after = this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id = 1");
+			assertThat(after.remove("scene_mode")).isEqualTo(Scene.LEGACY_CUSTOM);
+			assertThat(after).isEqualTo(before);
 			assertThat(this.jdbc.queryForObject("SELECT count(*) FROM " + schema + ".scene_availability_controls", Long.class)).isZero();
 			assertThat(this.jdbc.queryForObject("SELECT enabled FROM " + schema + ".custom_rendering_control WHERE id = 1", Boolean.class)).isFalse();
 			assertThat(this.jdbc.queryForObject("SELECT changed_at IS NULL AND reason IS NULL AND changed_by_user_id IS NULL FROM "

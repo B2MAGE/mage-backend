@@ -367,7 +367,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$[0].name").value("Aurora Drift"))
 				.andExpect(jsonPath("$[0].description").value("Soft teal bloom with low-end drift."))
 				.andExpect(jsonPath("$[0].sceneData").doesNotExist())
-				.andExpect(jsonPath("$[0].availability.code").value("CUSTOM_RENDERING_DISABLED"))
+				.andExpect(jsonPath("$[0].availability.code").value("SCENE_UPGRADE_REQUIRED"))
 				.andExpect(jsonPath("$[0].createdAt").isNotEmpty())
 				.andExpect(jsonPath("$[1].ownerUserId").value(ownerUser.getId()))
 				.andExpect(jsonPath("$[1].creatorDisplayName").value("Scene Owner"))

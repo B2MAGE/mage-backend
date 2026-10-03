@@ -54,7 +54,8 @@ class ScenesTableMigrationIntegrationTests extends PostgresIntegrationTestSuppor
 					"scene_data",
 					"thumbnail_ref",
 					"created_at",
-					"description");
+					"description",
+					"scene_mode");
 		}
 	}
 

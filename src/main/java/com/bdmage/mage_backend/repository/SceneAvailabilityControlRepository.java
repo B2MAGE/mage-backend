@@ -24,7 +24,7 @@ public class SceneAvailabilityControlRepository {
 		if (sceneIds.isEmpty()) return List.of();
 		return this.jdbc.query("""
 				SELECT s.id AS scene_id, COALESCE(c.disabled, FALSE) AS disabled,
-				       c.changed_by_user_id, c.changed_at, c.reason
+				       c.changed_by_user_id, c.changed_at, c.reason, s.scene_mode
 				FROM scenes s LEFT JOIN scene_availability_controls c ON c.scene_id = s.id
 				WHERE s.id IN (:sceneIds)
 				""", Map.of("sceneIds", sceneIds), SceneAvailabilityControlRepository::mapControl);
@@ -51,6 +51,6 @@ public class SceneAvailabilityControlRepository {
 		var changedAt = row.getTimestamp("changed_at");
 		return new SceneAvailabilityControl(row.getLong("scene_id"), row.getBoolean("disabled"),
 				row.getObject("changed_by_user_id", Long.class),
-				changedAt == null ? null : changedAt.toInstant(), row.getString("reason"));
+				changedAt == null ? null : changedAt.toInstant(), row.getString("reason"), row.getString("scene_mode"));
 	}
 }

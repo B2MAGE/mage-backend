@@ -14,6 +14,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 import com.bdmage.mage_backend.validation.SceneLimits;
@@ -52,6 +53,8 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 					.build())
 			.build();
 	private static final ObjectMapper ERROR_JSON = new ObjectMapper();
+	private static final Set<String> CREATE_FIELDS = Set.of("name", "description", "sceneData", "thumbnailObjectKey", "playlistId");
+	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData");
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -83,7 +86,7 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 			} else {
 				body = wireBody;
 			}
-			validateJson(body);
+			validateJson(body, "POST".equals(request.getMethod()) ? CREATE_FIELDS : UPDATE_FIELDS);
 		} catch (SubmissionRejected ex) {
 			writeError(request, response, ex.status, ex.code, ex.getMessage(), ex.details);
 			return;
@@ -138,7 +141,7 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 		return output.toByteArray();
 	}
 
-	private static void validateJson(byte[] body) throws IOException {
+	private static void validateJson(byte[] body, Set<String> allowedFields) throws IOException {
 		int offset = body.length >= 3 && body[0] == (byte) 0xef && body[1] == (byte) 0xbb && body[2] == (byte) 0xbf ? 3 : 0;
 		// A Reader prevents Jackson's byte parser from auto-detecting UTF-16/32 as an alternate encoding.
 		var decoder = StandardCharsets.UTF_8.newDecoder()
@@ -149,7 +152,7 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 			if (parser.nextToken() != JsonToken.START_OBJECT) {
 				throw new IOException("Expected request object");
 			}
-			readValue(parser, 0, true, new KeyCount());
+			readValue(parser, 0, true, new KeyCount(allowedFields));
 			if (parser.nextToken() != null) {
 				throw new IOException("Trailing JSON value");
 			}
@@ -172,6 +175,11 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 			while (parser.nextToken() != JsonToken.END_OBJECT) {
 				if (parser.currentToken() != JsonToken.FIELD_NAME) {
 					throw new IOException("Expected field");
+				}
+				if (requestRoot && !counts.allowedFields.contains(parser.currentName())) {
+					String field = parser.currentName();
+					String safeField = field.length() <= 64 && field.matches("[A-Za-z][A-Za-z0-9_]*") ? field : "request";
+					throw invalid(safeField, "This field is not allowed in a scene submission.");
 				}
 				if (++objectKeys > SceneLimits.OBJECT_KEYS) {
 					throw invalid(sceneDepth > 0 ? "sceneData" : "request", "Objects must have at most " + SceneLimits.OBJECT_KEYS + " fields.");
@@ -228,9 +236,14 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 	}
 
 	private static final class KeyCount {
+		final Set<String> allowedFields;
 		int total;
 		int scene;
 		int sceneNodes;
+
+		KeyCount(Set<String> allowedFields) {
+			this.allowedFields = allowedFields;
+		}
 	}
 
 	private static final class SubmissionRejected extends IOException {

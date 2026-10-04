@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
-		"mage.scene-availability.operator-user-ids=900000011,900000012",
+		"mage.administration.user-ids=900000011,900000012",
 		"mage.scene-availability.custom-rendering-release-approved=true"
 })
 @Testcontainers

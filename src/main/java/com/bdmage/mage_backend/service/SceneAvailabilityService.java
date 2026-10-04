@@ -109,13 +109,13 @@ public class SceneAvailabilityService {
 
 	@Transactional(readOnly = true)
 	public CustomRenderingControlResponse customRenderingControl(Long actorId) {
-		this.operators.requireOperator(actorId);
+		this.operators.requireAdministrator(actorId);
 		return controlResponse(currentCustomControl());
 	}
 
 	@Transactional
 	public CustomRenderingControlResponse setCustomRenderingControl(boolean enabled, String reason, Long actorId) {
-		this.operators.requireOperator(actorId);
+		this.operators.requireAdministrator(actorId);
 		String normalizedReason = normalizeReason(reason);
 		if (enabled && !this.properties.customRenderingReleaseApproved()) {
 			throw new CustomRenderingReleaseRequiredException(

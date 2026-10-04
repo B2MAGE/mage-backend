@@ -1,38 +1,44 @@
 package com.bdmage.mage_backend.service;
 
 import java.util.Set;
-
-import com.bdmage.mage_backend.config.SceneAvailabilityProperties;
+import com.bdmage.mage_backend.config.AdministratorProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.OperatorAccessRequiredException;
+import com.bdmage.mage_backend.repository.ModeratorPermissionRepository;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class OperatorAccessServiceTests {
-
-	@Test
-	void deniesEveryoneWhenNoOperatorsAreConfigured() {
-		OperatorAccessService service = new OperatorAccessService(new SceneAvailabilityProperties(null, false));
-		assertThat(service.isOperator(1L)).isFalse();
-		assertThat(service.isOperator(null)).isFalse();
-		assertThatThrownBy(() -> service.requireOperator(1L)).isInstanceOf(OperatorAccessRequiredException.class);
-	}
-
-	@Test
-	void distinguishesMissingAuthenticationFromAnAuthenticatedNonOperator() {
-		OperatorAccessService service = new OperatorAccessService(new SceneAvailabilityProperties(Set.of(7L), false));
-		assertThatThrownBy(() -> service.requireOperator(null)).isInstanceOf(AuthenticationRequiredException.class);
-		assertThatThrownBy(() -> service.requireOperator(8L)).isInstanceOf(OperatorAccessRequiredException.class);
-	}
-
-	@Test
-	void allowsOnlyExplicitlyConfiguredAuthenticatedIds() {
-		OperatorAccessService service = new OperatorAccessService(new SceneAvailabilityProperties(Set.of(7L, 9L), false));
-		assertThat(service.isOperator(7L)).isTrue();
-		assertThatNoException().isThrownBy(() -> service.requireOperator(9L));
-		assertThat(service.isOperator(8L)).isFalse();
-	}
+    private final ModeratorPermissionRepository permissions = mock(ModeratorPermissionRepository.class);
+    @Test void deniesGuestsAndUnprivilegedAccounts() {
+        var service = new OperatorAccessService(new AdministratorProperties(null), permissions);
+        assertThat(service.isOperator(null)).isFalse();
+        assertThat(service.isOperator(1L)).isFalse();
+        assertThatThrownBy(() -> service.requireOperator(null)).isInstanceOf(AuthenticationRequiredException.class);
+        assertThatThrownBy(() -> service.requireAdministrator(null)).isInstanceOf(AuthenticationRequiredException.class);
+        assertThatThrownBy(() -> service.requireOperator(1L)).isInstanceOf(OperatorAccessRequiredException.class);
+        assertThatThrownBy(() -> service.requireAdministrator(1L)).isInstanceOf(OperatorAccessRequiredException.class);
+        assertThat(service.capabilities(1L).canManageModerators()).isFalse();
+    }
+    @Test void checksDatabaseAgainAfterRevocationWithoutGrantingAdministration() {
+        var service = new OperatorAccessService(new AdministratorProperties(Set.of()), permissions);
+        when(permissions.isModerator(7L)).thenReturn(true, false);
+        assertThatNoException().isThrownBy(() -> service.requireOperator(7L));
+        assertThatThrownBy(() -> service.requireOperator(7L)).isInstanceOf(OperatorAccessRequiredException.class);
+        assertThatThrownBy(() -> service.requireAdministrator(7L)).isInstanceOf(OperatorAccessRequiredException.class);
+        verify(permissions, times(2)).isModerator(7L);
+    }
+    @Test void explicitAdministratorHasAllCapabilitiesWithoutModeratorGrant() {
+        var service = new OperatorAccessService(new AdministratorProperties(Set.of(7L)), permissions);
+        var capabilities = service.capabilities(7L);
+        assertThat(capabilities.canManageModerators()).isTrue();
+        assertThat(capabilities.canModerateScenes()).isTrue();
+        assertThat(capabilities.canManageCustomRendering()).isTrue();
+        verifyNoInteractions(permissions);
+    }
+    @Test void administratorConfigurationDefaultsEmptyAndRejectsInvalidIds() {
+        assertThat(new AdministratorProperties(null).userIds()).isEmpty();
+        assertThatThrownBy(() -> new AdministratorProperties(Set.of(0L))).isInstanceOf(IllegalArgumentException.class);
+    }
 }

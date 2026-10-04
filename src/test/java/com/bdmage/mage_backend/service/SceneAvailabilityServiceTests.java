@@ -71,7 +71,7 @@ class SceneAvailabilityServiceTests {
 	void releaseGateRejectsEnableBeforeAnyPersistedWrite() {
 		assertThatThrownBy(() -> service(false).setCustomRenderingControl(true, "Checks passed", 7L))
 				.isInstanceOf(CustomRenderingReleaseRequiredException.class);
-		verify(this.operators).requireOperator(7L);
+		verify(this.operators).requireAdministrator(7L);
 		verifyNoInteractions(this.customControls, this.sceneControls, this.scenes);
 	}
 
@@ -256,6 +256,7 @@ class SceneAvailabilityServiceTests {
 	@Test
 	void unauthorizedActorCannotReadControlsOrMutateEvenWithInvalidInput() {
 		doThrow(new OperatorAccessRequiredException("Operator required")).when(this.operators).requireOperator(42L);
+		doThrow(new OperatorAccessRequiredException("Administrator required")).when(this.operators).requireAdministrator(42L);
 		SceneAvailabilityService service = service(true);
 		assertThatThrownBy(() -> service.sceneControl(23L, 42L)).isInstanceOf(OperatorAccessRequiredException.class);
 		assertThatThrownBy(() -> service.setSceneControl(23L, true, "Reason", 42L)).isInstanceOf(OperatorAccessRequiredException.class);

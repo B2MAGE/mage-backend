@@ -1,6 +1,8 @@
 package com.bdmage.mage_backend.service;
 
-import com.bdmage.mage_backend.config.SceneAvailabilityProperties;
+import com.bdmage.mage_backend.config.AdministratorProperties;
+import com.bdmage.mage_backend.dto.ModerationCapabilities;
+import com.bdmage.mage_backend.repository.ModeratorPermissionRepository;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.OperatorAccessRequiredException;
 import org.springframework.stereotype.Service;
@@ -8,14 +10,28 @@ import org.springframework.stereotype.Service;
 @Service
 public class OperatorAccessService {
 
-	private final SceneAvailabilityProperties properties;
+	private final AdministratorProperties administrators;
+	private final ModeratorPermissionRepository permissions;
 
-	public OperatorAccessService(SceneAvailabilityProperties properties) {
-		this.properties = properties;
+	public OperatorAccessService(AdministratorProperties administrators, ModeratorPermissionRepository permissions) {
+		this.administrators = administrators;
+		this.permissions = permissions;
 	}
 
 	public boolean isOperator(Long authenticatedUserId) {
-		return authenticatedUserId != null && this.properties.operatorUserIds().contains(authenticatedUserId);
+		return authenticatedUserId != null && (isAdministrator(authenticatedUserId) || this.permissions.isModerator(authenticatedUserId));
+	}
+
+	public boolean isAdministrator(Long id) { return id != null && this.administrators.userIds().contains(id); }
+
+	public void requireAdministrator(Long id) {
+		if (id == null) throw new AuthenticationRequiredException("Authentication is required.");
+		if (!isAdministrator(id)) throw new OperatorAccessRequiredException("Administrator access is required.");
+	}
+
+	public ModerationCapabilities capabilities(Long id) {
+		if (id == null) throw new AuthenticationRequiredException("Authentication is required.");
+		return new ModerationCapabilities(isOperator(id), isAdministrator(id), isAdministrator(id));
 	}
 
 	public void requireOperator(Long authenticatedUserId) {

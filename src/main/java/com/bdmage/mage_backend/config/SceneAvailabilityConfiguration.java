@@ -6,7 +6,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(SceneAvailabilityProperties.class)
+@EnableConfigurationProperties({SceneAvailabilityProperties.class, AdministratorProperties.class})
 public class SceneAvailabilityConfiguration implements WebMvcConfigurer {
 
 	@Override

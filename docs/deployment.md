@@ -49,7 +49,9 @@ The backend will fail fast if required datasource values, Google auth settings, 
 
 ## Scene availability rollout
 
-`MAGE_OPERATOR_USER_IDS` is an empty-by-default comma-separated allowlist of existing user IDs. `MAGE_CUSTOM_RENDERING_RELEASE_APPROVED` defaults to `false`. Custom rendering also requires an explicit operator enable in the database after PP-I03 approval. Both checked-in Compose deployment definitions forward these settings.
+`MAGE_ADMIN_USER_IDS` explicitly names existing administrator account IDs and defaults to empty. PP-R05 imports `MAGE_OPERATOR_USER_IDS` once into database scene-moderator grants; that old variable no longer grants runtime access or administrator privileges. Follow the [moderator deployment and recovery runbook](moderator-permissions.md) before the first PP-R05 startup, including coordinated instance replacement and a database backup.
+
+`MAGE_CUSTOM_RENDERING_RELEASE_APPROVED` defaults to `false`. Custom rendering also requires an explicit administrator enable in the database after PP-I03 approval. Both checked-in Compose deployment definitions forward these settings. Granting a scene moderator cannot enable custom rendering or alter release approval.
 
 With the default settings, all current legacy scene documents are withheld from playable responses. Coordinate deployment with PP-R03's frontend guards and unavailable-state display. Follow the [scene availability runbook](scene-availability.md) for release approval, emergency disablement, safe repair access, and cache handling.
 

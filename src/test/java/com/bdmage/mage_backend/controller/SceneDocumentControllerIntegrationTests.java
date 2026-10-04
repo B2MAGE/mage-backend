@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@SpringBootTest(properties = { "mage.scene-availability.operator-user-ids=900000002",
+@SpringBootTest(properties = { "mage.administration.user-ids=900000002",
 		"mage.scene-availability.custom-rendering-release-approved=true" })
 @AutoConfigureMockMvc
 @Testcontainers

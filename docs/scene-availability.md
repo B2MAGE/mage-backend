@@ -7,9 +7,9 @@ PP-R02 adds backend controls for disabling a scene for everyone and stopping all
 Custom rendering starts **disabled**. Both conditions must be met to enable it:
 
 1. PP-I03 isolation release checks have passed, and deployment configuration explicitly sets `MAGE_CUSTOM_RENDERING_RELEASE_APPROVED=true`.
-2. An authorized operator explicitly enables the persisted switch through the admin API.
+2. An explicitly configured administrator enables the persisted switch through the admin API.
 
-Setting the environment flag alone does not enable rendering. A missing environment flag, missing database switch row, or false value keeps it disabled. If an already-enabled deployment changes the release flag to false, public availability becomes disabled even though the admin response still shows the stored `enabled` value. Set the stored switch to false before restoring the release flag if a new operator enable should be required.
+Setting the environment flag alone does not enable rendering. A missing environment flag, missing database switch row, or false value keeps it disabled. If an already-enabled deployment changes the release flag to false, public availability becomes disabled even though the admin response still shows the stored `enabled` value. Set the stored switch to false before restoring the release flag if a new administrator enable should be required.
 
 PP-B02 adds a server-owned document classification. Existing scenes remain `legacy-custom` until an explicit validated owner save, with status `SCENE_UPGRADE_REQUIRED`. New custom documents require the global switch and release gate; validated catalog templates bypass only the custom switch. Client-supplied mode metadata cannot grant trust. Stored legacy content is preserved and remains owner-readable through repair access. See [scene documents and rollout](scene-documents.md).
 
@@ -17,11 +17,13 @@ Before rollout, coordinate the frontend release and remove any previously cached
 
 ## Configure authorized operators
 
-Set `MAGE_OPERATOR_USER_IDS` to a comma-separated list of existing numeric user IDs, for example `12,34`, and restart the backend instances. The default is empty: no account can manage these controls. Keep this list consistent across instances. Removing an ID takes effect on instances after their configuration reload/restart.
+PP-R05 separates scene moderation from administration. Set `MAGE_ADMIN_USER_IDS` to explicitly chosen existing numeric account IDs, consistently across instances. Administrators can grant/revoke scene moderators and operate the global switch. Moderators can disable/re-enable individual scenes only. Moderator grants live in PostgreSQL and revocation applies to subsequent requests using the same login token.
+
+`MAGE_OPERATOR_USER_IDS` is now a one-time migration input, never a continuing permission fallback. Its existing IDs become scene moderators, not administrators. See [moderator permissions](moderator-permissions.md) for the locked import, empty/invalid input behavior, API contract, and administrator recovery.
 
 Operators authenticate through the existing login flow and send `Authorization: Bearer <accessToken>`. Ownership alone never grants operator privileges. Actor IDs come from the validated token, never from request JSON. An operator account must still exist and authenticate normally.
 
-Both Compose deployment definitions forward the allowlist and release gate variables. `.env.example` documents their defaults. Neither is a public frontend setting.
+Both Compose deployment definitions forward explicit administrator IDs, the legacy import input, and the release gate. `.env.example` documents their empty/false defaults. None is a public frontend setting.
 
 ## API contract
 
@@ -32,10 +34,10 @@ All the following endpoints and scene/profile responses use `Cache-Control: no-s
 | `GET /api/scene-availability/{id}` | Public | Effective availability for one scene, without source or private audit |
 | `GET /api/scene-availability?ids=1,2` | Public | Availability for 1–100 positive IDs; duplicates collapsed in first-occurrence order |
 | `GET /api/rendering-status` | Public | Effective global custom-rendering state |
-| `GET /api/admin/scenes/{id}/availability` | Operator | Stored scene control with last-change audit |
-| `PUT /api/admin/scenes/{id}/availability` | Operator | Disable or re-enable the scene |
-| `GET /api/admin/rendering/custom` | Operator | Stored global switch, release approval, and last-change audit |
-| `PUT /api/admin/rendering/custom` | Operator | Enable or disable custom rendering |
+| `GET /api/admin/scenes/{id}/availability` | Scene moderator or administrator | Stored scene control with last-change audit |
+| `PUT /api/admin/scenes/{id}/availability` | Scene moderator or administrator | Disable or re-enable the scene |
+| `GET /api/admin/rendering/custom` | Administrator | Stored global switch, release approval, and last-change audit |
+| `PUT /api/admin/rendering/custom` | Administrator | Enable or disable custom rendering |
 | `GET /api/scenes/{id}/repair` | Scene owner | Explicit source access for editing, always `playable: false` |
 
 Public scene status:
@@ -75,7 +77,7 @@ Send `PUT /api/admin/rendering/custom` with:
 {"enabled": false, "reason": "Emergency pause while investigating rendering failures."}
 ```
 
-This immediately changes fresh server responses across instances sharing the database. Individual scene blocks remain intact. After isolation approval and incident resolution, an operator may use the same route with `enabled: true` and a reason. If the release flag is false, enabling returns HTTP 409 `CUSTOM_RENDERING_RELEASE_REQUIRED`.
+This immediately changes fresh server responses across instances sharing the database. Individual scene blocks remain intact. After isolation approval and incident resolution, an administrator may use the same route with `enabled: true` and a reason. If the release flag is false, enabling returns HTTP 409 `CUSTOM_RENDERING_RELEASE_REQUIRED`.
 
 After either action, verify `GET /api/rendering-status` and a relevant scene's public status. Repeated same-state updates preserve the last-change audit.
 
@@ -98,7 +100,7 @@ No server control can erase source already downloaded, exported, copied, or held
 ## Failure responses and verification
 
 - Missing or malformed bearer authentication: HTTP 401 `AUTHENTICATION_REQUIRED`; an expired or invalid token returns HTTP 401 `INVALID_AUTH_TOKEN`.
-- Authenticated account outside the operator allowlist: HTTP 403 `OPERATOR_ACCESS_REQUIRED`.
+- Authenticated account without the required current moderator or administrator capability: HTTP 403 `OPERATOR_ACCESS_REQUIRED`.
 - Non-owner repair request: HTTP 403 `SCENE_OWNERSHIP_REQUIRED`.
 - Missing scene on admin/repair routes: HTTP 404 `SCENE_NOT_FOUND`.
 - Invalid IDs, missing booleans, or invalid reasons: HTTP 400 `VALIDATION_ERROR`; unparseable request JSON returns HTTP 400 `MALFORMED_REQUEST`.

@@ -20,6 +20,16 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    @ExceptionHandler(ModeratorConflictException.class)
+    ResponseEntity<ApiErrorResponse> handleModeratorConflict(ModeratorConflictException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "MODERATOR_CONFLICT", ex.getMessage(), Map.of(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(ModeratorUserNotFoundException.class)
+    ResponseEntity<ApiErrorResponse> handleModeratorUserNotFound(ModeratorUserNotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", ex.getMessage(), Map.of(), request.getRequestURI());
+    }
+
 	@ExceptionHandler(OperatorAccessRequiredException.class)
 	ResponseEntity<ApiErrorResponse> handleOperatorAccessRequired(
 			OperatorAccessRequiredException ex,

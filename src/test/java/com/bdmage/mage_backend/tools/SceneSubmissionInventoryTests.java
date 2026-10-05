@@ -74,6 +74,26 @@ class SceneSubmissionInventoryTests {
 	}
 
 	@Test
+	void auditsBuilderTemplateCustomAndLegacyExportsWithTheirCorrectValidationBoundaries() throws Exception {
+		JsonNode records = this.mapper.readTree("""
+				[{"sceneId":"builder","sceneData":{"schemaVersion":1,"kind":"builder","builderVersion":1,"objects":[],
+				   "settings":{"bloom":{"enabled":true},"tint":{"enabled":true},"effects":{"passes":{"rgbShift":true,"outputPass":true}}}} },
+				 {"sceneId":"template","sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1}},
+				 {"sceneId":"custom","sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"PRIVATE_SOURCE"}}}},
+				 {"sceneId":"legacy","sceneData":{"visualizer":{"shader":"PRIVATE_SOURCE"}}}]
+				""");
+		JsonNode original = records.deepCopy();
+		assertThat(SceneSubmissionInventory.inspect(records)).containsEntry("validScenes", 4).containsEntry("invalidScenes", 0)
+				.containsEntry("maxEnabledEffectsExcludingOutput", 3);
+		assertThat(records).isEqualTo(original);
+		((com.fasterxml.jackson.databind.node.ObjectNode) records.get(0).path("sceneData")).put("builderVersion", 99);
+		JsonNode report = this.mapper.valueToTree(SceneSubmissionInventory.inspect(records));
+		assertThat(report.path("invalidScenes").asInt()).isEqualTo(1);
+		assertThat(report.path("failures").get(0).path("fields").get(0).asText()).isEqualTo("sceneData.builderVersion");
+		assertThat(report.toString()).doesNotContain("PRIVATE_SOURCE");
+	}
+
+	@Test
 	void invalidRecordsHaveBoundedIdentifiersAndFieldDetailsWithoutSource() throws Exception {
 		ArrayNode records = this.mapper.createArrayNode();
 		for (int index = 0; index < 105; index++) {

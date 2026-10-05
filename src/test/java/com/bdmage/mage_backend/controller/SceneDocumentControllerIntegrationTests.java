@@ -145,6 +145,107 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
+	void buildersPersistAndRoundTripThroughOwnerRepairWithoutAuthorizingPlayback() throws Exception {
+		ObjectNode document = builder();
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
+		assertThat(created.path("availability").path("code").asText()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
+		assertThat(created.path("sceneData").isNull() || created.path("sceneData").isMissingNode()).isTrue();
+		JsonNode saved = this.scenes.findById(id).orElseThrow().getSceneData().deepCopy();
+		assertThat(saved.path("objects").get(0).path("id").asText()).isEqualTo("persistent-shape");
+		assertThat(saved.path("objects").get(0).path("operation").path("radius").asDouble()).isEqualTo(1);
+		assertThat(saved.path("objects").get(0).path("transform").path("scale").path("x").asDouble()).isEqualTo(1);
+		assertThat(saved.findValues("shader")).isEmpty();
+		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.sceneMode").value("builder-v1"))
+				.andExpect(jsonPath("$.sceneData").doesNotExist())
+				.andExpect(jsonPath("$.availability.available").value(false));
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(false)).andReturn()).path("sceneData")).isEqualTo(saved);
+		this.mvc.perform(get("/api/scenes/{id}/repair", id)).andExpect(status().isUnauthorized());
+		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.strangerToken)))
+				.andExpect(status().isForbidden());
+
+		ObjectNode edited = (ObjectNode) saved.deepCopy();
+		((ObjectNode) edited.path("objects").get(0).path("operation")).put("radius", 2);
+		((ObjectNode) edited.path("objects").get(0)).withArray("bindings").addObject()
+				.put("target", "scale.x").put("source", "bass-hit").put("amount", 0.7).put("attack", 0.13).put("release", 0.73);
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.strangerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(edited).toString())).andExpect(status().isForbidden());
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(saved);
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(edited).toString()))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneMode").value("builder-v1"));
+		JsonNode after = this.scenes.findById(id).orElseThrow().getSceneData();
+		assertThat(after.path("objects").get(0).path("id").asText()).isEqualTo("persistent-shape");
+		assertThat(after.path("objects").get(0).path("operation").path("radius").asDouble()).isEqualTo(2);
+		assertThat(after.path("objects").get(0).path("bindings").get(0).path("release").asDouble()).isEqualTo(0.73);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(after);
+		this.mvc.perform(put("/api/admin/rendering/custom").header("Authorization", bearer(this.operatorToken))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"reason\":\"Does not release builder playback\"}"))
+				.andExpect(status().isOk());
+		this.mvc.perform(get("/api/scene-availability/{id}", id)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.code").value("BUILDER_RENDERING_UNAVAILABLE"));
+		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andExpect(jsonPath("$.sceneData").doesNotExist());
+	}
+
+	@Test
+	void blockedBuilderCanBeEditedAndExportedWithoutClearingModeration() throws Exception {
+		long id = create(builder()).path("sceneId").asLong();
+		this.mvc.perform(put("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"disabled\":true,\"reason\":\"Keep this block\"}"))
+				.andExpect(status().isOk());
+		ObjectNode edited = builder();
+		edited.putObject("parameters").put("speed", 0.3);
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(edited).put("description", "Updated while blocked").toString()))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.availability.code").value("SCENE_DISABLED"))
+				.andExpect(jsonPath("$.sceneData").doesNotExist());
+		this.mvc.perform(get("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken)))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.disabled").value(true))
+				.andExpect(jsonPath("$.reason").value("Keep this block"));
+		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(false))
+				.andExpect(jsonPath("$.sceneData.kind").value("builder"))
+				.andExpect(jsonPath("$.sceneData.parameters.speed").value(0.3))
+				.andExpect(jsonPath("$.description").value("Updated while blocked"));
+	}
+
+	@Test
+	void rejectsInvalidBuilderCreatesAndUpdatesBeforeAnyContentOrThumbnailMutation() throws Exception {
+		long id = create(builder()).path("sceneId").asLong();
+		JsonNode saved = this.scenes.findById(id).orElseThrow().getSceneData().deepCopy();
+		long count = this.scenes.count();
+		String[] payloads = {
+				"{\"schemaVersion\":1,\"kind\":\"builder\",\"builderVersion\":2,\"objects\":[]}",
+				"{\"schemaVersion\":1,\"kind\":\"builder\",\"builderVersion\":1,\"objects\":[],\"scene\":{\"visualizer\":{\"shader\":\"NEVER_EXECUTE\"}}}",
+				"{\"schemaVersion\":1,\"kind\":\"builder\",\"builderVersion\":1,\"objects\":[{\"id\":\"shape\",\"operation\":{\"type\":\"sphere\",\"radius\":0}}]}",
+				"{\"schemaVersion\":1,\"kind\":\"builder\",\"builderVersion\":1,\"objects\":[{\"id\":\"shape\",\"operation\":{\"type\":\"sphere\"},\"bindings\":[{\"target\":\"scale.x\",\"source\":\"fetch('NEVER_EXECUTE')\"}]}]}",
+		};
+		String[] paths = { "sceneData.builderVersion", "sceneData.scene", "sceneData.objects[0].operation.radius", "sceneData.objects[0].bindings[0].source" };
+		for (int index = 0; index < payloads.length; index++) {
+			ObjectNode rejected = request(this.json.readTree(payloads[index])).put("name", "Must not persist")
+					.put("thumbnailObjectKey", "pending/unfinalized.png");
+			this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
+					.contentType(MediaType.APPLICATION_JSON).content(rejected.toString()))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+					.andExpect(jsonPath("$.details['" + paths[index] + "']").exists());
+			rejected.remove("thumbnailObjectKey");
+			this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+					.contentType(MediaType.APPLICATION_JSON).content(rejected.toString()))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['" + paths[index] + "']").exists());
+		}
+		assertThat(this.scenes.count()).isEqualTo(count);
+		Scene unchanged = this.scenes.findById(id).orElseThrow();
+		assertThat(unchanged.getName()).isEqualTo("Contract scene");
+		assertThat(unchanged.getSceneData()).isEqualTo(saved);
+		assertThat(unchanged.getSceneMode()).isEqualTo(Scene.BUILDER_V1);
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
 	void invalidDocumentsAndForgedRequestFieldsNeverPartiallyPersistOrFinalizeThumbnails() throws Exception {
 		JsonNode original = template();
 		long id = create(original).path("sceneId").asLong();
@@ -229,6 +330,11 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 	private ObjectNode request(JsonNode document) { return this.json.createObjectNode().put("name", "Contract scene").set("sceneData", document); }
 	private JsonNode template() { return this.json.valueToTree(Map.of("schemaVersion", 1, "kind", "template", "templateId", "embedded-scene-0", "templateVersion", 1)); }
+	private ObjectNode builder() {
+		ObjectNode document = this.json.createObjectNode().put("schemaVersion", 1).put("kind", "builder").put("builderVersion", 1);
+		document.putArray("objects").addObject().put("id", "persistent-shape").putObject("operation").put("type", "sphere");
+		return document;
+	}
 	private JsonNode body(MvcResult result) throws Exception { return this.json.readTree(result.getResponse().getContentAsString()); }
 	private String bearer(String token) { return "Bearer " + token; }
 }

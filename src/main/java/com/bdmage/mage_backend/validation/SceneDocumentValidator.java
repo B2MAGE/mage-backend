@@ -35,7 +35,8 @@ public final class SceneDocumentValidator {
 		verifySchema(SCHEMA);
 		if (!SCHEMA.path("oneOf").equals(JSON.createArrayNode()
 				.add(JSON.createObjectNode().put("$ref", "#/$defs/template"))
-				.add(JSON.createObjectNode().put("$ref", "#/$defs/custom")))) {
+				.add(JSON.createObjectNode().put("$ref", "#/$defs/custom"))
+				.add(JSON.createObjectNode().put("$ref", "#/$defs/builder")))) {
 			throw new IllegalStateException("Unexpected scene document discriminators.");
 		}
 	}
@@ -72,7 +73,9 @@ public final class SceneDocumentValidator {
 		}
 		if (!document.has("kind")) invalid("sceneData.kind", "This field is required.");
 		String kind = document.path("kind").isTextual() ? document.path("kind").textValue() : "";
-		if (!kind.equals("template") && !kind.equals("custom")) invalid("sceneData.kind", "Must be template or custom.");
+		if (!kind.equals("template") && !kind.equals("custom") && !kind.equals("builder")) {
+			invalid("sceneData.kind", "Must be template, custom or builder.");
+		}
 		JsonNode normalized = validate(document, SCHEMA.path("$defs").path(kind), "sceneData");
 		if (kind.equals("template")) {
 			String pair = normalized.path("templateId").textValue() + ":" + normalized.path("templateVersion").intValue();

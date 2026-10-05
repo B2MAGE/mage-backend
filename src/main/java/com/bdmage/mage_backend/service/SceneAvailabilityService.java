@@ -158,6 +158,11 @@ public class SceneAvailabilityService {
 			} else if (Scene.LEGACY_CUSTOM.equals(mode)) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
 						"SCENE_UPGRADE_REQUIRED", "This scene needs an update from its creator before it can play."));
+			} else if (Scene.BUILDER_V1.equals(mode)) {
+				// SB-01 stores bounded builder data. SB-02 supplies its dedicated renderer;
+				// neither the custom switch nor a trusted template path can execute it yet.
+				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
+						"BUILDER_RENDERING_UNAVAILABLE", "Builder scene playback is not available yet."));
 			} else if (Scene.CUSTOM_V1.equals(mode) && !customEnabled) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
 						"CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));
@@ -169,11 +174,13 @@ public class SceneAvailabilityService {
 	}
 
 	private static String publicationMode(String mode) {
-		return Scene.CUSTOM_V1.equals(mode) || Scene.TEMPLATE_V1.equals(mode) ? mode : Scene.LEGACY_CUSTOM;
+		return Scene.CUSTOM_V1.equals(mode) || Scene.TEMPLATE_V1.equals(mode) || Scene.BUILDER_V1.equals(mode)
+				? mode : Scene.LEGACY_CUSTOM;
 	}
 
 	private static String restrictiveMode(String first, String second) {
 		if (Scene.LEGACY_CUSTOM.equals(first) || Scene.LEGACY_CUSTOM.equals(second)) return Scene.LEGACY_CUSTOM;
+		if (Scene.BUILDER_V1.equals(first) || Scene.BUILDER_V1.equals(second)) return Scene.BUILDER_V1;
 		return Scene.CUSTOM_V1.equals(first) || Scene.CUSTOM_V1.equals(second) ? Scene.CUSTOM_V1 : Scene.TEMPLATE_V1;
 	}
 

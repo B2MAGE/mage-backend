@@ -19,6 +19,7 @@ public class Scene {
 	public static final String LEGACY_CUSTOM = "legacy-custom";
 	public static final String CUSTOM_V1 = "custom-v1";
 	public static final String TEMPLATE_V1 = "template-v1";
+	public static final String BUILDER_V1 = "builder-v1";
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -103,11 +104,17 @@ public class Scene {
 		Objects.requireNonNull(document, "document must not be null");
 		if (document.path("schemaVersion").asInt() != 1
 				|| !("custom".equals(document.path("kind").asText())
-						|| "template".equals(document.path("kind").asText()))) {
+						|| "template".equals(document.path("kind").asText())
+						|| ("builder".equals(document.path("kind").asText())
+								&& document.path("builderVersion").asInt() == 1))) {
 			throw new IllegalArgumentException("Expected a validated version 1 scene document");
 		}
 		this.sceneData = document;
-		this.sceneMode = "template".equals(document.path("kind").asText()) ? TEMPLATE_V1 : CUSTOM_V1;
+		this.sceneMode = switch (document.path("kind").asText()) {
+			case "template" -> TEMPLATE_V1;
+			case "builder" -> BUILDER_V1;
+			default -> CUSTOM_V1;
+		};
 	}
 
 	public Instant getCreatedAt() {

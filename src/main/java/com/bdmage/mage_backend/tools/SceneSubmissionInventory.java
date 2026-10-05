@@ -2,6 +2,7 @@ package com.bdmage.mage_backend.tools;
 
 import com.bdmage.mage_backend.exception.InvalidSceneDataException;
 import com.bdmage.mage_backend.validation.SceneSubmissionValidator;
+import com.bdmage.mage_backend.validation.SceneDocumentValidator;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.StreamReadFeature;
@@ -85,6 +86,7 @@ public final class SceneSubmissionInventory {
 	static Map<String, Object> inspect(JsonNode records) throws IOException {
 		if (!records.isArray() || records.size() > MAX_SCENES) throw new IllegalArgumentException();
 		SceneSubmissionValidator validator = new SceneSubmissionValidator();
+		SceneDocumentValidator documents = new SceneDocumentValidator();
 		List<Map<String, Object>> failures = new ArrayList<>();
 		TreeSet<String> topLevelFields = new TreeSet<>();
 		int invalid = 0;
@@ -111,7 +113,12 @@ public final class SceneSubmissionInventory {
 				}
 			});
 			try {
-				validator.validate(sceneData);
+				if (sceneData.has("kind") || sceneData.has("schemaVersion") || sceneData.has("templateId") || sceneData.has("builderVersion")) {
+					documents.validateAndNormalize(sceneData);
+				} else {
+					// Historical bare-engine exports remain useful for read-only repair audits.
+					validator.validate(sceneData);
+				}
 			} catch (InvalidSceneDataException ex) {
 				invalid++;
 				if (failures.size() < MAX_FAILURE_DETAILS) {
@@ -149,10 +156,16 @@ public final class SceneSubmissionInventory {
 	}
 
 	private static int enabledEffects(JsonNode data) {
-		if ("template".equals(data.path("kind").asText())) {
+		if ("template".equals(data.path("kind").asText()) || "builder".equals(data.path("kind").asText())) {
 			JsonNode settings = data.path("settings");
-			return (settings.path("bloom").path("enabled").isBoolean() && settings.path("bloom").path("enabled").booleanValue() ? 1 : 0)
+			int count = (settings.path("bloom").path("enabled").isBoolean() && settings.path("bloom").path("enabled").booleanValue() ? 1 : 0)
 					+ (settings.path("tint").path("enabled").isBoolean() && settings.path("tint").path("enabled").booleanValue() ? 1 : 0);
+			var fields = settings.path("effects").path("passes").fields();
+			while (fields.hasNext()) {
+				var pass = fields.next();
+				if (!"outputPass".equals(pass.getKey()) && pass.getValue().isBoolean() && pass.getValue().booleanValue()) count++;
+			}
+			return count;
 		}
 		JsonNode fx = data.path("fx");
 		JsonNode bloom = fx.path("bloom").path("enabled");

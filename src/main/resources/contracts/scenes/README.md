@@ -3,10 +3,11 @@
 SB-01 adds `kind: "builder"` with explicit `builderVersion: 1`. See
 [the shared Builder format](builder-v1.md) for stable IDs, operations, settings,
 bindings, limits, migration policy and the storage-versus-rendering boundary.
-Builder playback stays unavailable until SB-02; owner repair/export remains
-available. The Builder format document is copied from the frontend repository.
+SB-02 adds `builder-rendering.v1.json`, applies its expanded workload policy at
+the API boundary, and authorizes validated `builder-v1` playback independently
+of the custom-source switch. The contract resources are copied from the frontend repository.
 
-`scene-v1.schema.json` and `template-catalog.v1.json` are exact copies of the
+`scene-v1.schema.json`, `template-catalog.v1.json`, and `builder-rendering.v1.json` are exact copies of the
 frontend's `contracts/scenes` resources. Shared conformance cases are copied to
 `src/test/resources/contracts/scenes/fixtures.json`. Keep these files synchronized
 when adding a supported schema or template version. The catalog contains IDs,

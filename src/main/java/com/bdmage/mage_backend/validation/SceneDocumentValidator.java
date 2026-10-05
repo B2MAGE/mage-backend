@@ -28,6 +28,7 @@ public final class SceneDocumentValidator {
 			"maxItems", "uniqueItems", "x-uniqueBy", "x-maxOptionalEffects");
 	private static final JsonNode SCHEMA = load("scene-v1.schema.json");
 	private static final JsonNode CATALOG = load("template-catalog.v1.json");
+	private static final JsonNode BUILDER_RENDERING = load("builder-rendering.v1.json");
 	private static final Set<String> TEMPLATE_PAIRS = catalogPairs();
 	private final SceneSubmissionValidator resources = new SceneSubmissionValidator();
 
@@ -38,6 +39,10 @@ public final class SceneDocumentValidator {
 				.add(JSON.createObjectNode().put("$ref", "#/$defs/custom"))
 				.add(JSON.createObjectNode().put("$ref", "#/$defs/builder")))) {
 			throw new IllegalStateException("Unexpected scene document discriminators.");
+		}
+		if (BUILDER_RENDERING.path("policyVersion").asInt() != 1
+				|| !BUILDER_RENDERING.path("limits").isObject() || !BUILDER_RENDERING.path("operationCosts").isObject()) {
+			throw new IllegalStateException("Unsupported Builder rendering policy.");
 		}
 	}
 
@@ -81,7 +86,30 @@ public final class SceneDocumentValidator {
 			String pair = normalized.path("templateId").textValue() + ":" + normalized.path("templateVersion").intValue();
 			if (!TEMPLATE_PAIRS.contains(pair)) invalid("sceneData.templateId", "Unknown template ID and version.");
 		}
+		if (kind.equals("builder")) validateBuilderRenderingBudget(normalized);
 		return normalized;
+	}
+
+	/** Current v1 has no copies or nesting; later expansion must contribute here before validation returns. */
+	private void validateBuilderRenderingBudget(JsonNode document) {
+		JsonNode objects = document.path("objects");
+		JsonNode costs = BUILDER_RENDERING.path("operationCosts");
+		int objectCount = objects.size();
+		int liveUniforms = 0;
+		for (JsonNode object : objects) liveUniforms += object.path("bindings").size() * costs.path("liveUniformPerBinding").intValue();
+		Map<String, Integer> workload = Map.of(
+				"expandedPrimitives", objectCount,
+				"compositionOperations", Math.max(0, objectCount - 1) * costs.path("compositionPerAdditionalObject").intValue(),
+				"transformOperations", objectCount * costs.path("transformPerObject").intValue(),
+				"materialOperations", objectCount * costs.path("materialPerObject").intValue(),
+				"liveUniforms", liveUniforms,
+				"optionalEffects", templateEffectCount(document.path("settings")));
+		for (var entry : workload.entrySet()) {
+			int maximum = BUILDER_RENDERING.path("limits").path(entry.getKey()).asInt(-1);
+			if (maximum < 0) throw new IllegalStateException("Incomplete Builder rendering policy.");
+			if (entry.getValue() > maximum) invalid("sceneData.objects",
+					entry.getKey() + " requires " + entry.getValue() + "; maximum is " + maximum + ".");
+		}
 	}
 
 	private JsonNode validate(JsonNode value, JsonNode rule, String path) {
@@ -178,15 +206,20 @@ public final class SceneDocumentValidator {
 
 	/** Template effects use the same workload limit without resolving any shader source. */
 	private void validateTemplateEffectBudget(JsonNode settings, int maximum, String path) {
+		int count = templateEffectCount(settings);
+		if (count > maximum) {
+			invalid(path + ".effects", "Enable at most " + maximum + " optional effects, including bloom and tint.");
+		}
+	}
+
+	private int templateEffectCount(JsonNode settings) {
 		int count = settings.path("bloom").path("enabled").asBoolean() ? 1 : 0;
 		if (settings.path("tint").path("enabled").asBoolean()) count++;
 		for (JsonNode flag : SceneLimits.policy().path("optionalEffectFlags")) {
 			if (!flag.asText().equals("colorify")
 					&& settings.path("effects").path("passes").path(flag.asText()).asBoolean()) count++;
 		}
-		if (count > maximum) {
-			invalid(path + ".effects", "Enable at most " + maximum + " optional effects, including bloom and tint.");
-		}
+		return count;
 	}
 
 	private static boolean matchesType(JsonNode value, String type) {

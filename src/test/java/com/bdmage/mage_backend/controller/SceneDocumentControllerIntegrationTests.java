@@ -145,13 +145,12 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
-	void buildersPersistAndRoundTripThroughOwnerRepairWithoutAuthorizingPlayback() throws Exception {
+	void buildersPersistRoundTripAndAuthorizeOnlyTheTrustedBuilderPlaybackPath() throws Exception {
 		ObjectNode document = builder();
 		JsonNode created = create(document);
 		long id = created.path("sceneId").asLong();
 		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
-		assertThat(created.path("availability").path("code").asText()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
-		assertThat(created.path("sceneData").isNull() || created.path("sceneData").isMissingNode()).isTrue();
+		assertThat(created.path("availability").path("code").asText()).isEqualTo("AVAILABLE");
 		JsonNode saved = this.scenes.findById(id).orElseThrow().getSceneData().deepCopy();
 		assertThat(saved.path("objects").get(0).path("id").asText()).isEqualTo("persistent-shape");
 		assertThat(saved.path("objects").get(0).path("operation").path("radius").asDouble()).isEqualTo(1);
@@ -159,10 +158,10 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		assertThat(saved.findValues("shader")).isEmpty();
 		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.sceneMode").value("builder-v1"))
-				.andExpect(jsonPath("$.sceneData").doesNotExist())
-				.andExpect(jsonPath("$.availability.available").value(false));
+				.andExpect(jsonPath("$.sceneData.kind").value("builder"))
+				.andExpect(jsonPath("$.availability.available").value(true));
 		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(false)).andReturn()).path("sceneData")).isEqualTo(saved);
+				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(true)).andReturn()).path("sceneData")).isEqualTo(saved);
 		this.mvc.perform(get("/api/scenes/{id}/repair", id)).andExpect(status().isUnauthorized());
 		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.strangerToken)))
 				.andExpect(status().isForbidden());
@@ -184,11 +183,11 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
 				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(after);
 		this.mvc.perform(put("/api/admin/rendering/custom").header("Authorization", bearer(this.operatorToken))
-				.contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"reason\":\"Does not release builder playback\"}"))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"reason\":\"Independent custom release\"}"))
 				.andExpect(status().isOk());
 		this.mvc.perform(get("/api/scene-availability/{id}", id)).andExpect(status().isOk())
-				.andExpect(jsonPath("$.code").value("BUILDER_RENDERING_UNAVAILABLE"));
-		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andExpect(jsonPath("$.sceneData").doesNotExist());
+				.andExpect(jsonPath("$.code").value("AVAILABLE"));
+		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.kind").value("builder"));
 	}
 
 	@Test

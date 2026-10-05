@@ -119,14 +119,14 @@ class SceneAvailabilityServiceTests {
 	}
 
 	@Test
-	void builderDocumentsRemainUnavailableRegardlessOfCustomReleaseAndOperatorSwitch() {
+	void builderDocumentsUseTrustedPlaybackRegardlessOfCustomReleaseAndOperatorSwitch() {
 		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
 				new SceneAvailabilityControl(23L, false, null, null, null, Scene.BUILDER_V1)));
 		for (boolean enabled : List.of(false, true)) {
 			when(this.customControls.findCurrent()).thenReturn(Optional.of(custom(enabled)));
 			for (boolean approved : List.of(false, true)) {
-				assertThat(service(approved).status(23L).available()).isFalse();
-				assertThat(service(approved).status(23L).code()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
+				assertThat(service(approved).status(23L).available()).isTrue();
+				assertThat(service(approved).status(23L).code()).isEqualTo("AVAILABLE");
 			}
 		}
 		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
@@ -141,15 +141,18 @@ class SceneAvailabilityServiceTests {
 		for (String existingMode : List.of(Scene.CUSTOM_V1, Scene.TEMPLATE_V1, Scene.BUILDER_V1)) {
 			when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
 					new SceneAvailabilityControl(23L, false, null, null, null, existingMode)));
-			assertThat(service(true).status(loadedScene(23L, Scene.BUILDER_V1)).code()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
+			assertThat(service(true).status(loadedScene(23L, Scene.BUILDER_V1)).code())
+					.isEqualTo(existingMode.equals(Scene.BUILDER_V1) ? "AVAILABLE" : "SCENE_UPGRADE_REQUIRED");
 			var snapshots = List.of(loadedScene(23L, existingMode), loadedScene(23L, Scene.BUILDER_V1));
-			assertThat(service(true).statuses(snapshots).get(23L).code()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
-			assertThat(service(true).statuses(snapshots.reversed()).get(23L).code()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
+			assertThat(service(true).statuses(snapshots).get(23L).code())
+					.isEqualTo(existingMode.equals(Scene.BUILDER_V1) ? "AVAILABLE" : "SCENE_UPGRADE_REQUIRED");
+			assertThat(service(true).statuses(snapshots.reversed()).get(23L).code())
+					.isEqualTo(existingMode.equals(Scene.BUILDER_V1) ? "AVAILABLE" : "SCENE_UPGRADE_REQUIRED");
 		}
 		when(this.sceneControls.findForExistingSceneIds(List.of(23L))).thenReturn(List.of(
 				new SceneAvailabilityControl(23L, false, null, null, null, Scene.BUILDER_V1)));
 		for (String loadedMode : List.of(Scene.CUSTOM_V1, Scene.TEMPLATE_V1)) {
-			assertThat(service(true).status(loadedScene(23L, loadedMode)).code()).isEqualTo("BUILDER_RENDERING_UNAVAILABLE");
+			assertThat(service(true).status(loadedScene(23L, loadedMode)).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
 		}
 		assertThat(service(true).status(loadedScene(23L, Scene.LEGACY_CUSTOM)).code()).isEqualTo("SCENE_UPGRADE_REQUIRED");
 	}

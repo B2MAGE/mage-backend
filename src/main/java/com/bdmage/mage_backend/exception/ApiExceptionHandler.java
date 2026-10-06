@@ -46,6 +46,14 @@ public class ApiExceptionHandler {
 				ex.getMessage(), Map.of(), request.getRequestURI());
 	}
 
+	@ExceptionHandler(CustomRenderingDisabledException.class)
+	ResponseEntity<ApiErrorResponse> handleCustomRenderingDisabled(
+			CustomRenderingDisabledException ex,
+			HttpServletRequest request) {
+		return buildResponse(HttpStatus.CONFLICT, "CUSTOM_RENDERING_DISABLED",
+				ex.getMessage(), Map.of(), request.getRequestURI());
+	}
+
 	@ExceptionHandler(InvalidSceneAvailabilityRequestException.class)
 	ResponseEntity<ApiErrorResponse> handleInvalidSceneAvailabilityRequest(
 			InvalidSceneAvailabilityRequestException ex,

@@ -19,6 +19,8 @@ import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.service.PasswordHashingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@SpringBootTest
+@SpringBootTest(properties = "mage.scene-availability.custom-rendering-release-approved=true")
 @AutoConfigureMockMvc
 @Testcontainers
 class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
@@ -76,6 +78,15 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@BeforeEach
+	@AfterEach
+	void disableCustomRendering() {
+		this.jdbcTemplate.update("""
+				INSERT INTO custom_rendering_control (id, enabled) VALUES (1, FALSE)
+				ON CONFLICT (id) DO UPDATE SET enabled = FALSE
+				""");
+	}
 
 	@Test
 	void sceneLimitsRejectCreateAndUpdateWithoutPartialPersistence() throws Exception {
@@ -134,6 +145,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createScenePersistsSceneForTokenAuthenticatedUser() throws Exception {
+		enableCustomRendering();
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "scene-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -167,8 +179,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.creatorDisplayName").value("Scene User"))
 				.andExpect(jsonPath("$.name").value("Aurora Drift"))
 				.andExpect(jsonPath("$.description").value("Soft teal bloom with low-end drift."))
-				.andExpect(jsonPath("$.sceneData").doesNotExist())
-				.andExpect(jsonPath("$.availability.code").value("CUSTOM_RENDERING_DISABLED"))
+				.andExpect(jsonPath("$.sceneData.scene.visualizer.shader").value("nebula"))
+				.andExpect(jsonPath("$.availability.code").value("AVAILABLE"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andReturn();
 
@@ -186,6 +198,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createSceneWithPlaylistIdPersistsScenePlaylistMembership() throws Exception {
+		enableCustomRendering();
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "scene-playlist-user-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -226,6 +239,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 	@Test
 	void createSceneWithAnotherUsersPlaylistIdReturnsNotFoundAndRollsBackScene() throws Exception {
+		enableCustomRendering();
 		String uniqueSuffix = String.valueOf(System.nanoTime());
 		String email = "scene-playlist-owner-" + uniqueSuffix + "@example.com";
 		String password = "password-" + uniqueSuffix;
@@ -489,7 +503,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{
 						  "name":" Updated Scene ",
 						  "description":" Updated description. ",
-						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
+						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.5}}
 						}
 						"""))
 				.andExpect(status().isOk())
@@ -502,7 +516,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		Scene updatedScene = this.sceneRepository.findById(savedScene.getId()).orElseThrow();
 		assertThat(updatedScene.getName()).isEqualTo("Updated Scene");
 		assertThat(updatedScene.getDescription()).isEqualTo("Updated description.");
-		assertThat(updatedScene.getSceneData().path("scene").path("visualizer").path("shader").asText()).isEqualTo("pulse");
+		assertThat(updatedScene.getSceneData().path("scene").path("visualizer").path("shader").asText()).isEqualTo("nebula");
 
 		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId() + "/tags").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
@@ -1249,5 +1263,16 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				"INSERT INTO scene_saves (scene_id, user_id) VALUES (?, ?)",
 				sceneId,
 				userId);
+	}
+
+	private void enableCustomRendering() {
+		this.jdbcTemplate.update("""
+				INSERT INTO custom_rendering_control (id, enabled, changed_at, reason)
+				VALUES (1, TRUE, CURRENT_TIMESTAMP, 'Enabled for custom scene endpoint test')
+				ON CONFLICT (id) DO UPDATE SET
+					enabled = TRUE,
+					changed_at = CURRENT_TIMESTAMP,
+					reason = 'Enabled for custom scene endpoint test'
+				""");
 	}
 }

@@ -130,18 +130,20 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
-	void explicitCustomSourceRoundTripsOnlyAfterOperatorEnablesCustomRendering() throws Exception {
+	void explicitCustomSourceRequiresOperatorEnabledCustomRendering() throws Exception {
 		JsonNode document = customDocument("{\"visualizer\":{\"shader\":\"sphere(0.5);\"}}");
-		JsonNode created = create(document);
-		long id = created.path("sceneId").asLong();
-		assertThat(created.path("sceneMode").asText()).isEqualTo("custom-v1");
-		assertThat(created.path("availability").path("code").asText()).isEqualTo("CUSTOM_RENDERING_DISABLED");
-		assertThat(created.path("sceneData").isNull() || created.path("sceneData").isMissingNode()).isTrue();
-		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(document);
+		this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(document).toString()))
+				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CUSTOM_RENDERING_DISABLED"));
 		this.mvc.perform(put("/api/admin/rendering/custom").header("Authorization", bearer(this.operatorToken))
 				.contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"reason\":\"Release tested\"}"))
 				.andExpect(status().isOk());
-		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(document);
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneMode").asText()).isEqualTo("custom-v1");
+		assertThat(created.path("availability").path("code").asText()).isEqualTo("AVAILABLE");
+		assertThat(created.path("sceneData")).isEqualTo(document);
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(document);
 	}
 
 	@Test
@@ -313,12 +315,14 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		this.mvc.perform(put("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken))
 				.contentType(MediaType.APPLICATION_JSON).content("{\"disabled\":true,\"reason\":\"Keep disabled\"}"))
 				.andExpect(status().isOk());
-		for (JsonNode document : List.of(template(), customDocument("{\"visualizer\":{\"shader\":\"sphere(0.2);\"}}"))) {
-			this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
-					.contentType(MediaType.APPLICATION_JSON).content(request(document).toString()))
-					.andExpect(status().isOk()).andExpect(jsonPath("$.availability.code").value("SCENE_DISABLED"))
-					.andExpect(jsonPath("$.sceneData").doesNotExist());
-		}
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(template()).toString()))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.availability.code").value("SCENE_DISABLED"))
+				.andExpect(jsonPath("$.sceneData").doesNotExist());
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request(customDocument("{\"visualizer\":{\"shader\":\"sphere(0.2);\"}}")).toString()))
+				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CUSTOM_RENDERING_DISABLED"));
 		this.mvc.perform(get("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken)))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.disabled").value(true)).andExpect(jsonPath("$.reason").value("Keep disabled"));
 	}

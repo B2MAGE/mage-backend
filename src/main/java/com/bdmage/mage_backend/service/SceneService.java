@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.CustomRenderingDisabledException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
 import com.bdmage.mage_backend.exception.SceneForbiddenException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
@@ -55,6 +56,7 @@ public class SceneService {
 	private final ThumbnailStorageService thumbnailStorageService;
 	private final ThumbnailStorageProperties thumbnailStorageProperties;
 	private final PlaylistService playlistService;
+	private final SceneAvailabilityService sceneAvailabilityService;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -80,6 +82,19 @@ public class SceneService {
 				thumbnailStorageService, thumbnailStorageProperties, null);
 	}
 
+	// Keep this constructor for tests that need playlists.
+	public SceneService(
+			SceneRepository sceneRepository,
+			TagRepository tagRepository,
+			SceneTagRepository sceneTagRepository,
+			UserRepository userRepository,
+			ThumbnailStorageService thumbnailStorageService,
+			ThumbnailStorageProperties thumbnailStorageProperties,
+			PlaylistService playlistService) {
+		this(sceneRepository, tagRepository, sceneTagRepository, userRepository,
+				thumbnailStorageService, thumbnailStorageProperties, playlistService, null);
+	}
+
 	// Spring uses this constructor in production.
 	@Autowired
 	public SceneService(
@@ -89,7 +104,8 @@ public class SceneService {
 			UserRepository userRepository,
 			ThumbnailStorageService thumbnailStorageService,
 			ThumbnailStorageProperties thumbnailStorageProperties,
-			PlaylistService playlistService) {
+			PlaylistService playlistService,
+			SceneAvailabilityService sceneAvailabilityService) {
 		this.sceneRepository = sceneRepository;
 		this.tagRepository = tagRepository;
 		this.sceneTagRepository = sceneTagRepository;
@@ -97,6 +113,7 @@ public class SceneService {
 		this.thumbnailStorageService = thumbnailStorageService;
 		this.thumbnailStorageProperties = thumbnailStorageProperties;
 		this.playlistService = playlistService;
+		this.sceneAvailabilityService = sceneAvailabilityService;
 	}
 
 	@Transactional
@@ -121,6 +138,7 @@ public class SceneService {
 		// All content-writing callers, including imports and future revisions, must
 		// pass this boundary before storage, thumbnail finalization, or attachments.
 		JsonNode normalizedDocument = SCENE_VALIDATOR.validateAndNormalize(sceneData);
+		requireCustomSourceWriteAllowed(normalizedDocument, null);
 
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
 		if (StringUtils.hasText(thumbnailObjectKey)) {
@@ -333,6 +351,7 @@ public class SceneService {
 	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description, JsonNode sceneData) {
 		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
 		JsonNode normalizedDocument = SCENE_VALIDATOR.validateAndNormalize(sceneData);
+		requireCustomSourceWriteAllowed(normalizedDocument, scene);
 		scene.updateDetails(name.trim(), normalizeOptionalText(description), normalizedDocument);
 		scene.updateValidatedDocument(normalizedDocument);
 
@@ -345,6 +364,31 @@ public class SceneService {
 
 	public static JsonNode sceneDataJson(Map<String, Object> sceneData) {
 		return JSON_OBJECT_MAPPER.valueToTree(sceneData);
+	}
+
+	private void requireCustomSourceWriteAllowed(JsonNode nextDocument, Scene existingScene) {
+		if (!"custom".equals(nextDocument.path("kind").asText())
+				|| this.sceneAvailabilityService == null
+				|| this.sceneAvailabilityService.customRenderingStatus().enabled()) {
+			return;
+		}
+		if (existingScene != null
+				&& (Scene.CUSTOM_V1.equals(existingScene.getSceneMode()) || Scene.LEGACY_CUSTOM.equals(existingScene.getSceneMode()))
+				&& sameShaderSource(existingScene.getSceneData(), nextDocument)) {
+			return;
+		}
+		throw new CustomRenderingDisabledException(
+				"Custom Code is disabled. Use a template or Builder scene, or keep the saved custom shader unchanged.");
+	}
+
+	private static boolean sameShaderSource(JsonNode existingDocument, JsonNode nextDocument) {
+		JsonNode existingScene = "custom".equals(existingDocument.path("kind").asText())
+				? existingDocument.path("scene") : existingDocument;
+		JsonNode nextScene = nextDocument.path("scene");
+		JsonNode existingShader = existingScene.path("visualizer").path("shader");
+		JsonNode nextShader = nextScene.path("visualizer").path("shader");
+		return existingShader.isTextual() && nextShader.isTextual()
+				&& existingShader.textValue().equals(nextShader.textValue());
 	}
 
 	private void requireAuthenticatedUser(Long authenticatedUserId) {

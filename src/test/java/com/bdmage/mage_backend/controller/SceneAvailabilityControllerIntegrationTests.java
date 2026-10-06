@@ -264,15 +264,14 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 	}
 
 	@Test
-	void creationWhileCustomRenderingIsOffPersistsSourceWithoutReturningExecutableContent() throws Exception {
-		MvcResult result = this.mvc.perform(post("/api/scenes").with(explicitCustomSceneDocument()).header("Authorization", bearer(this.ownerToken))
+	void creationWhileCustomRenderingIsOffRejectsExecutableContentWithoutPersistingIt() throws Exception {
+		long sceneCount = this.scenes.count();
+		this.mvc.perform(post("/api/scenes").with(explicitCustomSceneDocument()).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(this.json.writeValueAsString(Map.of(
 						"name", "New scene", "sceneData", Map.of("visualizer", Map.of("shader", SHADER))))))
-				.andExpect(status().isCreated()).andReturn();
-		JsonNode response = body(result);
-		assertSuppressed(response, "CUSTOM_RENDERING_DISABLED");
-		assertThat(this.scenes.findById(response.path("sceneId").asLong()).orElseThrow().getSceneData()
-				.path("scene").path("visualizer").path("shader").asText()).isEqualTo(SHADER);
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("CUSTOM_RENDERING_DISABLED"));
+		assertThat(this.scenes.count()).isEqualTo(sceneCount);
 	}
 
 	@Test

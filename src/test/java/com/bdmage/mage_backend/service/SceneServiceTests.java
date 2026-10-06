@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
+import com.bdmage.mage_backend.dto.CustomRenderingAvailabilityResponse;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
+import com.bdmage.mage_backend.exception.CustomRenderingDisabledException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
 import com.bdmage.mage_backend.exception.InvalidSceneDataException;
 import com.bdmage.mage_backend.exception.SceneForbiddenException;
@@ -23,6 +25,7 @@ import com.bdmage.mage_backend.repository.SceneRepository;
 import com.bdmage.mage_backend.repository.SceneTagRepository;
 import com.bdmage.mage_backend.repository.TagRepository;
 import com.bdmage.mage_backend.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +72,49 @@ class SceneServiceTests {
 		}
 		verify(repository, never()).saveAndFlush(any(Scene.class));
 		verifyNoInteractions(storage);
+	}
+
+	@Test
+	void disabledCustomRenderingRejectsNewOrChangedShaderButAllowsSavedSourceSettings() throws Exception {
+		SceneRepository repository = mock(SceneRepository.class);
+		UserRepository users = mock(UserRepository.class);
+		SceneAvailabilityService availability = mock(SceneAvailabilityService.class);
+		SceneService service = new SceneService(
+				repository,
+				mock(TagRepository.class),
+				mock(SceneTagRepository.class),
+				users,
+				null,
+				null,
+				null,
+				availability);
+		when(users.existsById(42L)).thenReturn(true);
+		when(availability.customRenderingStatus()).thenReturn(new CustomRenderingAvailabilityResponse(
+				false, "CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));
+
+		assertThatThrownBy(() -> service.createScene(
+				42L, "New custom", null, customDocument("{\"visualizer\":{\"shader\":\"new-source\"}}"), null))
+				.isInstanceOf(CustomRenderingDisabledException.class)
+				.hasMessageContaining("Custom Code is disabled");
+
+		JsonNode originalDocument = customDocument("{\"visualizer\":{\"shader\":\"saved-source\"}}");
+		Scene existing = new Scene(42L, "Saved custom", originalDocument);
+		existing.updateValidatedDocument(originalDocument);
+		ReflectionTestUtils.setField(existing, "id", 15L);
+		when(repository.findById(15L)).thenReturn(Optional.of(existing));
+
+		assertThatThrownBy(() -> service.updateScene(
+				42L, 15L, "Changed source", null,
+				customDocument("{\"visualizer\":{\"shader\":\"different-source\"}}")))
+				.isInstanceOf(CustomRenderingDisabledException.class);
+		assertThat(existing.getSceneData()).isEqualTo(originalDocument);
+
+		JsonNode settingsOnly = customDocument(
+				"{\"visualizer\":{\"shader\":\"saved-source\"},\"state\":{\"size\":0.5}}");
+		when(repository.saveAndFlush(existing)).thenReturn(existing);
+		Scene updated = service.updateScene(42L, 15L, "Settings changed", null, settingsOnly);
+		assertThat(updated.getSceneData()).isEqualTo(settingsOnly);
+		assertThat(updated.getName()).isEqualTo("Settings changed");
 	}
 
 	@Test

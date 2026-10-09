@@ -20,6 +20,13 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+	@ExceptionHandler(UnsupportedSceneDocumentException.class)
+	ResponseEntity<ApiErrorResponse> handleUnsupportedSceneDocument(
+			UnsupportedSceneDocumentException ex, HttpServletRequest request) {
+		return buildResponse(HttpStatus.CONFLICT, "SCENE_DOCUMENT_UNSUPPORTED",
+				ex.getMessage(), Map.of(), request.getRequestURI());
+	}
+
     @ExceptionHandler(ModeratorConflictException.class)
     ResponseEntity<ApiErrorResponse> handleModeratorConflict(ModeratorConflictException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.CONFLICT, "MODERATOR_CONFLICT", ex.getMessage(), Map.of(), request.getRequestURI());

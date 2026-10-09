@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.dto;
 
+import java.util.List;
 import java.util.Map;
 
 import jakarta.validation.constraints.NotBlank;
@@ -13,5 +14,7 @@ public record UpdateSceneRequest(
 		@Size(max = 1000, message = "description must be at most 1000 characters")
 		String description,
 		@NotNull(message = "sceneData must not be null")
-		Map<String, Object> sceneData) {
+		Map<String, Object> sceneData,
+		@NotNull(message = "tagIds must not be null")
+		List<@NotNull(message = "tagIds must not contain null") Long> tagIds) {
 }

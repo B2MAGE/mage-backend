@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.dto;
 
+import java.util.List;
 import java.util.Map;
 
 import jakarta.validation.constraints.NotBlank;
@@ -15,5 +16,7 @@ public record CreateSceneRequest(
 		@NotNull(message = "sceneData must not be null")
 		Map<String, Object> sceneData,
 		String thumbnailObjectKey,
-		Long playlistId) {
+		Long playlistId,
+		@NotNull(message = "tagIds must not be null")
+		List<@NotNull(message = "tagIds must not contain null") Long> tagIds) {
 }

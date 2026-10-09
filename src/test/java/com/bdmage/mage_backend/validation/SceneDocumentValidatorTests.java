@@ -41,7 +41,7 @@ class SceneDocumentValidatorTests {
 	@Test
 	void allCatalogPairsAreAcceptedAndOnlyCanonicalDataIsReturned() throws Exception {
 		JsonNode catalog = resource("/contracts/scenes/template-catalog.v1.json");
-		assertThat(catalog.path("templates")).hasSize(16);
+		assertThat(catalog.path("templates")).hasSize(14);
 		for (JsonNode row : catalog.path("templates")) {
 			ObjectNode document = template();
 			document.put("templateId", row.path("templateId").textValue());

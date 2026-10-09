@@ -185,7 +185,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		JsonNode originalControl = changeScene(true, PRIVATE_REASON);
 		String importedBody = this.json.writeValueAsString(Map.of(
 				"name", "Imported replacement", "description", "Edited",
-				"sceneData", Map.of("visualizer", Map.of("shader", "sphere(0.7);"))));
+				"tagIds", java.util.List.of(), "sceneData", Map.of("visualizer", Map.of("shader", "sphere(0.7);"))));
 		for (MockHttpServletRequestBuilder request : List.of(
 				put("/api/scenes/{id}", this.scene.getId()).with(explicitCustomSceneDocument()).content(importedBody),
 				patch("/api/scenes/{id}/description", this.scene.getId()).content("{\"description\":\"New description\",\"disabled\":false}"))) {
@@ -268,7 +268,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 		long sceneCount = this.scenes.count();
 		this.mvc.perform(post("/api/scenes").with(explicitCustomSceneDocument()).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(this.json.writeValueAsString(Map.of(
-						"name", "New scene", "sceneData", Map.of("visualizer", Map.of("shader", SHADER))))))
+						"name", "New scene", "tagIds", java.util.List.of(), "sceneData", Map.of("visualizer", Map.of("shader", SHADER))))))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("CUSTOM_RENDERING_DISABLED"));
 		assertThat(this.scenes.count()).isEqualTo(sceneCount);

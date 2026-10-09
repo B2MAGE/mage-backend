@@ -11,7 +11,7 @@ Custom rendering starts **disabled**. Both conditions must be met to enable it:
 
 Setting the environment flag alone does not enable rendering. A missing environment flag, missing database switch row, or false value keeps it disabled. If an already-enabled deployment changes the release flag to false, public availability becomes disabled even though the admin response still shows the stored `enabled` value. Set the stored switch to false before restoring the release flag if a new administrator enable should be required.
 
-PP-B02 adds a server-owned document classification. Existing scenes remain `legacy-custom` until an explicit validated owner save, with status `SCENE_UPGRADE_REQUIRED`. New custom documents require the global switch and release gate; validated catalog templates bypass only the custom switch. Client-supplied mode metadata cannot grant trust. Stored legacy content is preserved and remains owner-readable through repair access. See [scene documents and rollout](scene-documents.md).
+PP-B02 adds a server-owned document classification. Existing scenes remain `legacy-custom` until an explicit validated owner save, with status `SCENE_UPGRADE_REQUIRED`. New custom documents require the global switch and release gate; validated catalog templates bypass only the custom switch. Client-supplied mode metadata cannot grant trust. Stored historical content is preserved but is no longer returned by the owner editing endpoint. See [scene documents and rollout](scene-documents.md).
 
 Before rollout, coordinate the frontend release and remove any previously cached source-bearing API responses from the reverse proxy/CDN. Do not enable custom rendering merely to preserve old playback before isolation approval.
 
@@ -38,7 +38,7 @@ All the following endpoints and scene/profile responses use `Cache-Control: no-s
 | `PUT /api/admin/scenes/{id}/availability` | Scene moderator or administrator | Disable or re-enable the scene |
 | `GET /api/admin/rendering/custom` | Administrator | Stored global switch, release approval, and last-change audit |
 | `PUT /api/admin/rendering/custom` | Administrator | Enable or disable custom rendering |
-| `GET /api/scenes/{id}/repair` | Scene owner | Explicit source access for editing, always `playable: false` |
+| `GET /api/scenes/{id}/repair` | Scene owner | Current supported source for editing, always `playable: false` |
 
 Public scene status:
 
@@ -83,9 +83,11 @@ After either action, verify `GET /api/rendering-status` and a relevant scene's p
 
 ## Owner repair and persistence boundaries
 
-The owner can retrieve the original content through `GET /api/scenes/{id}/repair` using their bearer token. Its separate response includes source, metadata, current availability, and `playable: false`. The frontend must use this as editing data and must not feed it directly into a renderer. Operator status alone does not grant access to another owner's repair content.
+The owner can retrieve current supported content through `GET /api/scenes/{id}/repair` using their bearer token. Its separate response includes source, metadata, current availability, and `playable: false`. The frontend must use this as editing data and must not feed it directly into a renderer. Operator status alone does not grant access to another owner's repair content.
 
-Owners save repairs using existing scene update routes and existing submission validation. A separate availability table prevents content replacement, imported JSON, description changes, or thumbnail updates from clearing an operator block. Unknown request fields cannot set the control. An individually blocked scene requires an operator to re-enable that same ID before it becomes publicly playable. A scene paused only by the global switch instead awaits the global switch and release gate.
+Historical documents, retired templates, and retired audio formats return `409 SCENE_DOCUMENT_UNSUPPORTED` without source; reads never convert or rewrite stored data.
+
+Owners save edits using existing scene update routes and existing submission validation. A separate availability table prevents content replacement, imported JSON, description changes, or thumbnail updates from clearing an operator block. Unknown request fields cannot set the control. An individually blocked scene requires an operator to re-enable that same ID before it becomes publicly playable. A scene paused only by the global switch instead awaits the global switch and release gate.
 
 There are currently no server fork/restore endpoints. Future ones must use the shared response factory and preserve the control for an existing ID. Detecting copied source uploaded as a new scene ID is outside this story. Deletion removes the scene and its control; restoring a full database must restore control tables as well as scene content. Do not restore only scene rows into a running deployment.
 
@@ -95,7 +97,7 @@ Availability is read directly from PostgreSQL on each request, outside the manag
 
 PP-R03 clients should check status before starting a scene, poll active scenes in batches at most every 10 seconds, and recheck on reconnect/focus/resume. They must stop affected rendering within the story's 30-second online window and fail closed on unavailable, failed, or stale status. The backend exposes the fresh status contract; it cannot interrupt an already-running browser by itself.
 
-No server control can erase source already downloaded, exported, copied, or held offline. Previously cached local scenes must go through the frontend status guard when online playback resumes. Owner repair access is explicit and intentionally still exposes the owner's source.
+No server control can erase source already downloaded, exported, copied, or held offline. Previously cached local scenes must go through the frontend status guard when online playback resumes. Owner editing access is explicit and exposes only current supported documents.
 
 ## Failure responses and verification
 

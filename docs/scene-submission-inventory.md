@@ -36,11 +36,11 @@ The checked-in data snapshots under `src/test/resources/scene-corpus/` are regre
 
 | Corpus | Scenes | Largest scene JSON | Largest shader | Maximum container depth | Maximum enabled effects, excluding output |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| All PP-B01 version-one preset payloads | 16 | 6,267 bytes | 4,916 bytes | 4 | 0 |
+| Supported version-one preset payloads | 14 | 5,200 bytes | 3,871 bytes | 4 | 0 |
 | All quality-review demo variants | 100 | 3,351 bytes | 2,090 bytes | 4 | 1 |
 | Local API inventory observed 2026-10-02 | 21 | 13,082 bytes | 11,622 bytes | 4 | 2 |
 
-All 116 repository snapshots and all 21 observed local scenes passed the final Java validator without changes. Byte figures above use the Java inventory's compact serialization, which is also used for the stored-scene byte limit. The local observation was a read-only `GET /api/scenes`; its user scene data is deliberately not checked in. The repository snapshots include all 16 preset shaders and all 100 variations across the ten quality-review families. `provenance.json` records the frontend commit, source paths, fixture checksums, scene identifiers, and shader fingerprints. File checksums use UTF-8 with LF newlines. Tests recheck these fingerprints and validate all 116 snapshots against the actual Java validator.
+All 114 repository snapshots and all 21 observed local scenes passed the final Java validator without changes. Byte figures above use the Java inventory's compact serialization, which is also used for the stored-scene byte limit. The local observation was a read-only `GET /api/scenes`; its user scene data is deliberately not checked in. The repository snapshots include all 14 supported preset shaders and all 100 variations across the ten quality-review families. `provenance.json` records the frontend commit, source paths, fixture checksums, scene identifiers, and shader fingerprints. File checksums use UTF-8 with LF newlines. Tests recheck these fingerprints and validate all 114 snapshots against the actual Java validator.
 
 The 64 KiB source and 256 KiB scene budgets leave headroom above these samples. This is evidence for the initial policy, not a complete production inventory or a performance guarantee. Separately, inspection of the platform-owned version-one presets found a highest authored raymarch iteration setting of 198. The runtime policy therefore uses 200 rather than the original candidate 128. This inventory never scans submitted source for iteration calls; actual runtime enforcement belongs to PP-V02. Passing data validation cannot prove how long arbitrary source will execute or how much GPU work it performs.
 

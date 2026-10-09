@@ -5,8 +5,10 @@ import java.util.Locale;
 
 import com.bdmage.mage_backend.dto.TagResponse;
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
+import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.TagRepository;
+import com.bdmage.mage_backend.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,13 +19,18 @@ public class TagService {
 	private static final String DUPLICATE_TAG_MESSAGE = "A tag with this name already exists.";
 
 	private final TagRepository tagRepository;
+	private final UserRepository userRepository;
 
-	public TagService(TagRepository tagRepository) {
+	public TagService(TagRepository tagRepository, UserRepository userRepository) {
 		this.tagRepository = tagRepository;
+		this.userRepository = userRepository;
 	}
 
 	@Transactional
-	public Tag createTag(String name) {
+	public Tag createTag(Long authenticatedUserId, String name) {
+		if (authenticatedUserId == null || !this.userRepository.existsById(authenticatedUserId)) {
+			throw new AuthenticationRequiredException("Authentication is required.");
+		}
 		String normalizedName = normalizeName(name);
 
 		if (this.tagRepository.findByName(normalizedName).isPresent()) {

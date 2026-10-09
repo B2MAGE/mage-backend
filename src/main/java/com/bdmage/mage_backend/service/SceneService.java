@@ -9,6 +9,7 @@ import com.bdmage.mage_backend.config.ThumbnailStorageProperties;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.CustomRenderingDisabledException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
+import com.bdmage.mage_backend.exception.InvalidSceneDataException;
 import com.bdmage.mage_backend.exception.SceneForbiddenException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
 import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
@@ -122,23 +123,15 @@ public class SceneService {
 			String name,
 			String description,
 			JsonNode sceneData,
-			String thumbnailObjectKey) {
-		return createScene(authenticatedUserId, name, description, sceneData, thumbnailObjectKey, null);
-	}
-
-	@Transactional
-	public Scene createScene(
-			Long authenticatedUserId,
-			String name,
-			String description,
-			JsonNode sceneData,
 			String thumbnailObjectKey,
-			Long playlistId) {
+			Long playlistId,
+			List<Long> tagIds) {
 		requireAuthenticatedUser(authenticatedUserId);
 		// All content-writing callers, including imports and future revisions, must
 		// pass this boundary before storage, thumbnail finalization, or attachments.
 		JsonNode normalizedDocument = SCENE_VALIDATOR.validateAndNormalize(sceneData);
 		requireCustomSourceWriteAllowed(normalizedDocument, null);
+		List<Long> selectedTagIds = validateTagIds(tagIds);
 
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = null;
 		if (StringUtils.hasText(thumbnailObjectKey)) {
@@ -162,6 +155,7 @@ public class SceneService {
 			if (playlistId != null) {
 				requirePlaylistService().attachSceneToPlaylist(authenticatedUserId, savedScene, playlistId);
 			}
+			persistSceneTags(savedScene.getId(), selectedTagIds);
 			return savedScene;
 		} catch (RuntimeException ex) {
 			if (finalizedThumbnail != null) {
@@ -249,12 +243,11 @@ public class SceneService {
 	@Transactional
 	public List<SceneTag> replaceSceneTags(Long authenticatedUserId, Long sceneId, List<Long> tagIds) {
 		requireOwnedScene(authenticatedUserId, sceneId);
-		List<Long> uniqueTagIds = normalizeTagIds(tagIds);
+		List<Long> uniqueTagIds = validateTagIds(tagIds);
+		return persistSceneTags(sceneId, uniqueTagIds);
+	}
 
-		for (Long tagId : uniqueTagIds) {
-			requireTagExists(tagId);
-		}
-
+	private List<SceneTag> persistSceneTags(Long sceneId, List<Long> uniqueTagIds) {
 		List<SceneTag> existingSceneTags = this.sceneTagRepository.findAllBySceneId(sceneId);
 		if (!existingSceneTags.isEmpty()) {
 			this.sceneTagRepository.deleteAll(existingSceneTags);
@@ -348,14 +341,17 @@ public class SceneService {
 	}
 
 	@Transactional
-	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description, JsonNode sceneData) {
+	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description,
+			JsonNode sceneData, List<Long> tagIds) {
 		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
 		JsonNode normalizedDocument = SCENE_VALIDATOR.validateAndNormalize(sceneData);
 		requireCustomSourceWriteAllowed(normalizedDocument, scene);
+		List<Long> selectedTagIds = validateTagIds(tagIds);
 		scene.updateDetails(name.trim(), normalizeOptionalText(description), normalizedDocument);
 		scene.updateValidatedDocument(normalizedDocument);
 
 		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
+		persistSceneTags(sceneId, selectedTagIds);
 		if (this.entityManager != null) {
 			this.entityManager.refresh(savedScene);
 		}
@@ -373,7 +369,7 @@ public class SceneService {
 			return;
 		}
 		if (existingScene != null
-				&& (Scene.CUSTOM_V1.equals(existingScene.getSceneMode()) || Scene.LEGACY_CUSTOM.equals(existingScene.getSceneMode()))
+				&& Scene.CUSTOM_V1.equals(existingScene.getSceneMode())
 				&& sameShaderSource(existingScene.getSceneData(), nextDocument)) {
 			return;
 		}
@@ -382,8 +378,7 @@ public class SceneService {
 	}
 
 	private static boolean sameShaderSource(JsonNode existingDocument, JsonNode nextDocument) {
-		JsonNode existingScene = "custom".equals(existingDocument.path("kind").asText())
-				? existingDocument.path("scene") : existingDocument;
+		JsonNode existingScene = existingDocument.path("scene");
 		JsonNode nextScene = nextDocument.path("scene");
 		JsonNode existingShader = existingScene.path("visualizer").path("shader");
 		JsonNode nextShader = nextScene.path("visualizer").path("shader");
@@ -419,9 +414,9 @@ public class SceneService {
 		return scene;
 	}
 
-	private List<Long> normalizeTagIds(List<Long> tagIds) {
+	private List<Long> validateTagIds(List<Long> tagIds) {
 		if (tagIds == null) {
-			return List.of();
+			throw new InvalidSceneDataException(Map.of("tagIds", "tagIds must not be null"));
 		}
 
 		LinkedHashSet<Long> uniqueTagIds = new LinkedHashSet<>();
@@ -432,6 +427,9 @@ public class SceneService {
 			uniqueTagIds.add(tagId);
 		}
 
+		for (Long tagId : uniqueTagIds) {
+			requireTagExists(tagId);
+		}
 		return List.copyOf(uniqueTagIds);
 	}
 

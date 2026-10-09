@@ -1,5 +1,9 @@
 # Local scene quality review
 
+Historical workflow. For the current portfolio catalog and a deliberate,
+reproducible reset, use [the demo fixtures workflow](demo/README.md). This older
+source-import workflow is not a prerequisite for current demo data.
+
 This workflow creates ten accounts, ten scenes per account, captured thumbnails,
 and conversations with varied engagement and publication dates over the past year.
 It is restricted to the local API on port 8080 and the named PostgreSQL volume

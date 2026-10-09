@@ -1,4 +1,4 @@
-# Scene documents and legacy upgrades (PP-B02)
+# Current scene documents
 
 `POST /api/scenes` and `PUT /api/scenes/{id}` require an explicit version-one
 document in `sceneData`. Bare engine objects are no longer accepted for writes.
@@ -11,14 +11,14 @@ entity mutation, thumbnail finalization, or playlist attachment.
 Custom source remains untrusted, regardless of creator role or shader similarity:
 
 ```json
-{"name":"My scene","sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"sphere(0.5);"}}}}
+{"name":"My scene","tagIds":[],"sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"sphere(0.5);"}}}}
 ```
 
-Templates refer only to the 16 immutable catalog entries; source is not accepted
+Templates refer only to the 14 supported catalog entries; source is not accepted
 in a template document:
 
 ```json
-{"name":"My template","sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1,"parameters":{"scale":10,"speed":1}}}
+{"name":"My template","tagIds":[],"sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1,"parameters":{"scale":10,"speed":1}}}
 ```
 
 The exact schema and catalog live in `src/main/resources/contracts/scenes/`.
@@ -49,8 +49,11 @@ and the checked-in rendering policy for exact bounds. No database migration or
 new audio behavior is part of this change. Deploy the API support before relying
 on the editor's expanded documents being saved successfully.
 
-Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`, and
-`playlistId`; replacement accepts only `name`, `description`, and `sceneData`.
+Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`,
+`playlistId`, and `tagIds`; replacement accepts only `name`, `description`,
+`sceneData`, and `tagIds`. Both require the complete `tagIds` array; `[]` clears
+the selection. The scene and validated tag assignments commit atomically,
+including rollback when a database write fails after the scene is flushed.
 Client fields such as `sceneMode`, `disabled`, `availability`, or owner IDs are
 rejected. Operator controls remain independent and survive every content edit.
 
@@ -67,7 +70,7 @@ The original document remains in JSONB. Migration V19 adds one server-owned
 
 | Value | Meaning |
 | --- | --- |
-| `legacy-custom` | Existing/unvalidated content; owner repair required |
+| `legacy-custom` | Existing/unvalidated content; unsupported and withheld |
 | `custom-v1` | Validated custom envelope; still untrusted source |
 | `template-v1` | Validated reference to an exact platform template version |
 | `builder-v1` | Validated editable document using the trusted Builder compiler |
@@ -87,33 +90,23 @@ Validated templates bypass only that custom switch at the API layer. Source
 publication also checks the loaded document's classification to avoid a
 concurrent replacement exposing an older custom payload as a template.
 
-The frontend in this story deliberately retains its conservative global guard.
-Template selection/editing and template playback release work remain PP-B03 and
-the isolation stories. A server template response does not enable that UI or
-authorize arbitrary source execution.
+## Owner editing and coordinated deployment
 
-## Owner repair and deployment order
+`GET /api/scenes/{id}/repair` remains an authenticated owner-only read for current
+supported documents, including scenes blocked from playback by operator controls.
+It returns `playable:false`; obtaining editable source does not authorize playback.
+Historical raw documents, retired templates, and documents rejected by the current
+schema return `409 SCENE_DOCUMENT_UNSUPPORTED` without source. No conversion or
+upgrade adapter runs on read or write. Owners may replace a scene with a complete,
+valid current document; operator disablement stays in place.
 
-1. Keep custom rendering disabled. Deploy the compatible frontend, which wraps
-   new editor saves as custom documents, unwraps validated custom documents for
-   editing, and understands unavailable/upgrade-required responses. While the
-   old backend is still serving, new saves can fail validation; use a short
-   write-maintenance window for the coordinated cutover.
-2. Drain old backend writers, deploy this backend and run V19 on the existing
-   database. Do not run old and new content writers together. Invalidate cached
-   source-bearing responses and verify readiness plus availability endpoints.
-3. Existing owners use `GET /api/scenes/{id}/repair` to retrieve original source
-   with `playable:false`, including unsupported old data. The editor can repair
-   supported raw scenes and resubmit an explicit custom envelope. Unsupported
-   fields must be repaired before saving; the original remains readable for
-   export. There is no bulk conversion or automatic execution.
-4. A successful owner save upgrades only that scene's document/mode. It does
-   not clear operator disablement or enable global custom rendering. Template
-   documents stay read-only in the current editor until PP-B03.
+Original music response keeps its `legacy` wire identifier and Selective keeps
+`mapped-v1`. The abandoned `transient-v1` response and `reaction-rings-v1` /
+`reaction-lantern-v1` templates are rejected. These are schema restrictions;
+existing JSONB rows are neither rewritten nor deleted.
 
-Rollback must keep rendering and content writes disabled until both frontend and
-backend understand the same document contract. Leave V19 and original documents
-in place; do not strip envelopes, drop the mode column, or rewrite legacy rows
-to make an old binary accept them. The database check blocks common mismatched
-old-writer updates but cannot replace coordinated deployment. Take the normal
-database backup before rollout; no destructive migration or reseed is required.
+Deploy frontend and backend contracts together, including required `tagIds` on
+scene writes. Keep custom rendering disabled until the isolation release checks
+and operator enable are complete. Retain existing database migrations and stored
+rows; rollback must use a matching frontend/backend contract rather than stripping
+envelopes or rewriting historical data.

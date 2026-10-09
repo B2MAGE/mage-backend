@@ -27,13 +27,15 @@ This repository currently provides the backend foundations for:
 
 ## Getting Started
 
+For a populated, repeatable portfolio demo, use the [current demo fixtures](scripts/demo/README.md).
+Its explicit reset command targets a separate Docker project. Normal startup preserves data.
+
 The default local workflow uses Docker Compose.
 
 Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
@@ -41,7 +43,6 @@ macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
@@ -103,7 +104,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `PUT /api/users/me/password`                | Bearer token | Change the authenticated user's local password                                              |
 | `GET /api/profiles/{handle}`                | Public       | Return a public profile and its scenes by handle                                            |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
-| `POST /api/tags`                            | Public       | Create a tag                                                                               |
+| `POST /api/tags`                            | Bearer token | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene with optional description and optionally finalize a staged thumbnail       |
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before scene creation                                   |
 | `GET /api/scenes`                          | Public       | List scenes, optionally filtered by tag                                                   |
@@ -117,7 +118,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Scene Contract
 
-Scene responses include `availability` and server-owned `sceneMode`, returning `sceneData: null` while unavailable. **Custom rendering defaults to disabled** until isolation release approval and an explicit operator enable. Old documents remain intact and require an owner save through the explicit template/custom contract before playback. See [scene documents and deployment order](docs/scene-documents.md) and the [scene availability runbook](docs/scene-availability.md). Frontend management and live-stop integration is tracked by PP-R03.
+Scene responses include `availability` and server-owned `sceneMode`, returning `sceneData: null` while unavailable. **Custom rendering defaults to disabled** until isolation release approval and an explicit operator enable. Historical documents remain intact but unsupported; the owner editor accepts current template, Builder, and custom documents. See [scene documents and deployment order](docs/scene-documents.md) and the [scene availability runbook](docs/scene-availability.md). Frontend management and live-stop integration is tracked by PP-R03.
 
 Scene creation and content replacement enforce the checked-in
 [submission limits policy](docs/scene-submission-limits.md) before persistence.
@@ -130,6 +131,19 @@ Scene lists from `GET /api/scenes` (including tag-filtered results), `GET /api/u
 Discovery responses include the creator display name, handle, avatar-gradient colors, real engagement metrics, and attached tag names. Attached tags are loaded in one batch for a scene collection. `GET /api/tags` returns stable name-ordered entries containing `tagId`, `name`, and the real attached `sceneCount`; `?attachedOnly=true` excludes unused tags while the default catalogue retains them for the editor.
 
 `POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value. Owners can add, edit, or clear the description after creation with `PATCH /api/scenes/{id}/description`.
+
+Scene create (`POST /api/scenes`) and full replacement (`PUT /api/scenes/{id}`)
+require `tagIds`, an array of existing numeric tag IDs. The scene and its complete
+tag selection commit in one transaction: `[]` saves no tags or clears all existing
+assignments; duplicates are collapsed. Invalid content, missing tags, ownership
+failures, or database write failures leave the previous scene and tags intact;
+a failed creation leaves no scene or assignments. Missing/null `tagIds` and null
+entries return `400 VALIDATION_ERROR`; unknown tag IDs return `404 TAG_NOT_FOUND`.
+The editor sends one save request, without a subsequent tag replacement request.
+
+Tag catalogue reads stay public. Creating tags and attaching, replacing, or removing
+scene tags require a valid bearer token; scene-tag changes also require ownership.
+Public scene/profile reads remain public and account routes remain authenticated.
 
 ## Auth And Profile Contract
 

@@ -63,10 +63,11 @@ public class SceneController {
 				request.description(),
 				SceneService.sceneDataJson(request.sceneData()),
 				request.thumbnailObjectKey(),
-				request.playlistId());
+				request.playlistId(),
+				request.tagIds());
 
 		return ResponseEntity.status(HttpStatus.CREATED)
-				.body(this.sceneResponseFactory.from(scene));
+				.body(this.sceneResponseFactory.from(scene, this.sceneService.getTagNamesForScene(scene.getId())));
 	}
 
 	@PostMapping("/thumbnail/presign")
@@ -99,8 +100,9 @@ public class SceneController {
 				id,
 				request.name(),
 				request.description(),
-				SceneService.sceneDataJson(request.sceneData()));
-		return ResponseEntity.ok(this.sceneResponseFactory.from(scene));
+				SceneService.sceneDataJson(request.sceneData()),
+				request.tagIds());
+		return ResponseEntity.ok(this.sceneResponseFactory.from(scene, this.sceneService.getTagNamesForScene(scene.getId())));
 	}
 
 	@PostMapping("/{id}/tags")

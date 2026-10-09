@@ -53,8 +53,8 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 					.build())
 			.build();
 	private static final ObjectMapper ERROR_JSON = new ObjectMapper();
-	private static final Set<String> CREATE_FIELDS = Set.of("name", "description", "sceneData", "thumbnailObjectKey", "playlistId");
-	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData");
+	private static final Set<String> CREATE_FIELDS = Set.of("name", "description", "sceneData", "thumbnailObjectKey", "playlistId", "tagIds");
+	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData", "tagIds");
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {

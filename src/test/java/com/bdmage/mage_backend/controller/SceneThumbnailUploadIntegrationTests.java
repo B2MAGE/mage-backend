@@ -222,7 +222,7 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 				.content("""
 						{
 						  "name":"Aurora Drift",
-						  "sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1},
+						  "tagIds":[],"sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1},
 						  "thumbnailObjectKey":"scenes/pending/%d/thumbnails/stub-thumb.png"
 						}
 						""".formatted(owner.getId())))

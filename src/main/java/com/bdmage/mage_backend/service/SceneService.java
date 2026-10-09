@@ -369,7 +369,7 @@ public class SceneService {
 			return;
 		}
 		if (existingScene != null
-				&& (Scene.CUSTOM_V1.equals(existingScene.getSceneMode()) || Scene.LEGACY_CUSTOM.equals(existingScene.getSceneMode()))
+				&& Scene.CUSTOM_V1.equals(existingScene.getSceneMode())
 				&& sameShaderSource(existingScene.getSceneData(), nextDocument)) {
 			return;
 		}
@@ -378,8 +378,7 @@ public class SceneService {
 	}
 
 	private static boolean sameShaderSource(JsonNode existingDocument, JsonNode nextDocument) {
-		JsonNode existingScene = "custom".equals(existingDocument.path("kind").asText())
-				? existingDocument.path("scene") : existingDocument;
+		JsonNode existingScene = existingDocument.path("scene");
 		JsonNode nextScene = nextDocument.path("scene");
 		JsonNode existingShader = existingScene.path("visualizer").path("shader");
 		JsonNode nextShader = nextScene.path("visualizer").path("shader");

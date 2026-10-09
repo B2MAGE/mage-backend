@@ -32,7 +32,7 @@ class SceneSubmissionValidatorTests {
 				}
 			}
 		}
-		assertThat(checked).isEqualTo(116);
+		assertThat(checked).isEqualTo(114);
 	}
 
 	@Test
@@ -72,6 +72,16 @@ class SceneSubmissionValidatorTests {
 				}
 				""");
 		assertThatCode(() -> this.validator.validate(scene)).doesNotThrowAnyException();
+	}
+
+	@Test
+	void preservesOriginalAndSelectiveAudioAndRejectsAbandonedTransientResponse() {
+		for (String mode : List.of("legacy", "mapped-v1")) {
+			ObjectNode document = scene("sphere(1)").put("audioResponse", mode);
+			assertThatCode(() -> this.validator.validate(document)).doesNotThrowAnyException();
+		}
+		assertThatThrownBy(() -> this.validator.validate(scene("sphere(1)").put("audioResponse", "transient-v1")))
+				.isInstanceOf(InvalidSceneDataException.class);
 	}
 
 	@Test

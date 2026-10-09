@@ -1,14 +1,17 @@
 {
   "formatVersion": 1,
-  "frontendCommit": "2ee2e3ae24dfa068e7bae2bc08a96b3624396ead",
+  "frontendCommit": "5642384d9d552fb77428f13e5950a92759c9d897",
+  "frontendTemplateSourcesModified": true,
   "templateDefinitionsPath": "src/modules/player/templates/versions/v1/definitions.ts",
+  "templateDefinitionsSha256": "fdc5f35fcc2c416c40866ac605669bc4a7e991c750efc09c14d4783a7294d88b",
+  "templateCatalogSha256": "6a2d1a60c3dd9d387b4c128939e47a1c1e7efaf52d438edbf080b44beef45f0a",
   "templateDefaultsPath": "src/modules/player/templates/resolveScene.ts",
   "demoDefinitionsPath": "scripts/quality-scene-catalog.mjs",
   "demoDefinitionsSha256": "4c634f4a3f4af900761330505758c06328677451caf9c36406d6c50170d93e30",
   "fixtures": {
     "builtin-presets.json": {
-      "scenes": 16,
-      "fileSha256": "2d8886026ea11751c511c763946633e87545c01ec0504dd5fde305ede7edf5a9",
+      "scenes": 14,
+      "fileSha256": "d0da5731ce665fbae64ef580bfb5bd2eb4b537950d3380ae2e92d206d0f50802",
       "records": [
         {
           "sceneId": "template:embedded-scene-0@1",
@@ -79,16 +82,6 @@
           "sceneId": "template:embedded-scene-13@1",
           "sceneSha256": "be1bed15ffdd1f9a0934b34594f28bc7136d6f6a7dd2e74f4aae75170cb71102",
           "shaderSha256": "2ce68933b3aa9a36b56a1222bc6e9d4c5d39dcf0ace4387565ed052cff5ab85a"
-        },
-        {
-          "sceneId": "template:reaction-rings-v1@1",
-          "sceneSha256": "bddd041dfbe3d78ae568cec7fcf0dd2a7a0146770dcf1de9d1550a31e37be86e",
-          "shaderSha256": "66bfd1b6d7eda9e051b79c01389e5fe2a16efc123837cd6f1535cf5f19a37bf8"
-        },
-        {
-          "sceneId": "template:reaction-lantern-v1@1",
-          "sceneSha256": "227d222ab594abe9ec84d5e6cc368fd97adf8555d817da5f383eecda34b24264",
-          "shaderSha256": "644c07142d501f37ecfdfabb6064b22816f785ac5dbbc880d075bcadfcfd0bd6"
         }
       ]
     },

@@ -118,6 +118,24 @@ class SceneServiceTests {
 	}
 
 	@Test
+	void historicalSourceCannotBypassDisabledCustomRenderingByKeepingTheSameShader() throws Exception {
+		SceneRepository repository = mock(SceneRepository.class);
+		UserRepository users = mock(UserRepository.class);
+		SceneAvailabilityService availability = mock(SceneAvailabilityService.class);
+		SceneService service = new SceneService(repository, mock(TagRepository.class), mock(SceneTagRepository.class),
+				users, null, null, null, availability);
+		when(users.existsById(42L)).thenReturn(true);
+		when(availability.customRenderingStatus()).thenReturn(new CustomRenderingAvailabilityResponse(
+				false, "CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));
+		Scene historical = new Scene(42L, "Historical", this.objectMapper.readTree("{\"visualizer\":{\"shader\":\"same-source\"}}"));
+		when(repository.findById(15L)).thenReturn(Optional.of(historical));
+		assertThatThrownBy(() -> service.updateScene(42L, 15L, "Replacement", null,
+				customDocument("{\"visualizer\":{\"shader\":\"same-source\"}}"), List.of()))
+				.isInstanceOf(CustomRenderingDisabledException.class);
+		verify(repository, never()).saveAndFlush(any(Scene.class));
+	}
+
+	@Test
 	void createSceneTrimsFieldsAndPersistsForAuthenticatedUser() throws Exception {
 		SceneRepository sceneRepository = mock(SceneRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);

@@ -15,6 +15,8 @@ import com.bdmage.mage_backend.dto.SceneControlResponse;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.CustomRenderingReleaseRequiredException;
 import com.bdmage.mage_backend.exception.InvalidSceneAvailabilityRequestException;
+import com.bdmage.mage_backend.exception.InvalidSceneDataException;
+import com.bdmage.mage_backend.exception.UnsupportedSceneDocumentException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
 import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
 import com.bdmage.mage_backend.model.CustomRenderingControl;
@@ -23,11 +25,13 @@ import com.bdmage.mage_backend.model.SceneAvailabilityControl;
 import com.bdmage.mage_backend.repository.CustomRenderingControlRepository;
 import com.bdmage.mage_backend.repository.SceneAvailabilityControlRepository;
 import com.bdmage.mage_backend.repository.SceneRepository;
+import com.bdmage.mage_backend.validation.SceneDocumentValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SceneAvailabilityService {
+	private static final SceneDocumentValidator DOCUMENT_VALIDATOR = new SceneDocumentValidator();
 
 	public static final int MAX_STATUS_IDS = 100;
 	private static final CustomRenderingControl DISABLED_CUSTOM_RENDERING =
@@ -125,7 +129,7 @@ public class SceneAvailabilityService {
 		return controlResponse(currentCustomControl());
 	}
 
-	// Raw content is only exposed through the explicit owner repair path. Editing
+	// Current document content is only exposed through the owner repair path. Editing
 	// the separate scene record never touches its operator availability control.
 	@Transactional(readOnly = true)
 	public Scene repairScene(Long sceneId, Long requesterId) {
@@ -135,6 +139,14 @@ public class SceneAvailabilityService {
 				.orElseThrow(() -> new SceneNotFoundException("Scene not found."));
 		if (!scene.getOwnerUserId().equals(requesterId)) {
 			throw new SceneOwnershipRequiredException("Scene ownership is required.");
+		}
+		if (Scene.LEGACY_CUSTOM.equals(scene.getSceneMode())) {
+			throw new UnsupportedSceneDocumentException();
+		}
+		try {
+			DOCUMENT_VALIDATOR.validateAndNormalize(scene.getSceneData());
+		} catch (InvalidSceneDataException ex) {
+			throw new UnsupportedSceneDocumentException();
 		}
 		return scene;
 	}
@@ -157,7 +169,7 @@ public class SceneAvailabilityService {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false, "SCENE_DISABLED", "This scene is unavailable."));
 			} else if (Scene.LEGACY_CUSTOM.equals(mode)) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
-						"SCENE_UPGRADE_REQUIRED", "This scene needs an update from its creator before it can play."));
+						"SCENE_UPGRADE_REQUIRED", "This historical scene format is no longer supported."));
 			} else if (Scene.CUSTOM_V1.equals(mode) && !customEnabled) {
 				statuses.put(sceneId, new SceneAvailabilityResponse(sceneId, false,
 						"CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));

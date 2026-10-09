@@ -118,7 +118,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 
 ## Scene Contract
 
-Scene responses include `availability` and server-owned `sceneMode`, returning `sceneData: null` while unavailable. **Custom rendering defaults to disabled** until isolation release approval and an explicit operator enable. Old documents remain intact and require an owner save through the explicit template/custom contract before playback. See [scene documents and deployment order](docs/scene-documents.md) and the [scene availability runbook](docs/scene-availability.md). Frontend management and live-stop integration is tracked by PP-R03.
+Scene responses include `availability` and server-owned `sceneMode`, returning `sceneData: null` while unavailable. **Custom rendering defaults to disabled** until isolation release approval and an explicit operator enable. Historical documents remain intact but unsupported; the owner editor accepts current template, Builder, and custom documents. See [scene documents and deployment order](docs/scene-documents.md) and the [scene availability runbook](docs/scene-availability.md). Frontend management and live-stop integration is tracked by PP-R03.
 
 Scene creation and content replacement enforce the checked-in
 [submission limits policy](docs/scene-submission-limits.md) before persistence.

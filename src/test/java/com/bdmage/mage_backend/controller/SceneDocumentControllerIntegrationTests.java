@@ -359,7 +359,26 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
-	void legacyReadsKeepStoredJsonExactAndOnlyOwnerCanExplicitlyUpgrade() throws Exception {
+	void ownerEditingRejectsRetiredAudioAndTemplateDocumentsWithoutChangingStoredData() throws Exception {
+		for (String retired : List.of("transient-v1", "reaction-rings-v1", "reaction-lantern-v1")) {
+			ObjectNode document = (ObjectNode) template();
+			if (retired.equals("transient-v1")) document.putObject("settings").put("audioResponse", retired);
+			else document.put("templateId", retired);
+			Scene stored = new Scene(this.owner.getId(), "Retired", document);
+			stored.updateValidatedDocument(document);
+			stored = this.scenes.saveAndFlush(stored);
+			this.mvc.perform(get("/api/scenes/{id}/repair", stored.getId()).header("Authorization", bearer(this.ownerToken)))
+					.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SCENE_DOCUMENT_UNSUPPORTED"))
+					.andExpect(jsonPath("$.sceneData").doesNotExist());
+			assertThat(this.scenes.findById(stored.getId()).orElseThrow().getSceneData()).isEqualTo(document);
+			this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
+					.contentType(MediaType.APPLICATION_JSON).content(request(document).toString()))
+					.andExpect(status().isBadRequest());
+		}
+	}
+
+	@Test
+	void historicalReadsWithholdSourceAndOnlyOwnerCanReplaceWithCurrentContent() throws Exception {
 		JsonNode legacy = this.json.readTree("{\"visualizer\":{\"shader\":\"old source\"},\"privateLegacyKey\":\"preserve me\"}");
 		Scene saved = this.scenes.saveAndFlush(new Scene(this.owner.getId(), "Legacy", legacy));
 		long id = saved.getId();
@@ -367,8 +386,9 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 				.andExpect(jsonPath("$.sceneMode").value("legacy-custom"))
 				.andExpect(jsonPath("$.availability.code").value("SCENE_UPGRADE_REQUIRED"))
 				.andExpect(jsonPath("$.sceneData").doesNotExist());
-		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(false)).andReturn()).path("sceneData")).isEqualTo(legacy);
+		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SCENE_DOCUMENT_UNSUPPORTED"))
+				.andExpect(jsonPath("$.sceneData").doesNotExist());
 		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(legacy);
 		this.mvc.perform(get("/api/scenes/{id}/repair", id)).andExpect(status().isUnauthorized());
 		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.strangerToken))).andExpect(status().isForbidden());
@@ -381,7 +401,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
-	void upgradingLegacyOrSwitchingDocumentKindsNeverReenablesAnOperatorDisabledScene() throws Exception {
+	void replacingHistoricalOrSwitchingDocumentKindsNeverReenablesAnOperatorDisabledScene() throws Exception {
 		Scene legacy = this.scenes.saveAndFlush(new Scene(this.owner.getId(), "Legacy", this.json.readTree("{\"visualizer\":{\"shader\":\"old\"}}")));
 		long id = legacy.getId();
 		this.mvc.perform(put("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken))

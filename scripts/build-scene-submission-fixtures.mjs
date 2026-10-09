@@ -33,12 +33,12 @@ function readDefinitions(node) {
   ts.forEachChild(node, readDefinitions);
 }
 readDefinitions(ast);
-assert.equal(shaders.size, 16);
+assert.equal(shaders.size, catalog.templates.length);
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const passOrder = ['glitchPass', 'bloom', 'RGBShift', 'dotShader', 'technicolorShader',
   'luminosityShader', 'afterImagePass', 'sobelShader', 'colorifyShader', 'halftonePass',
   'gammaCorrectionShader', 'kaleidoShader', 'copyShader', 'bleachBypassShader', 'toonShader', 'outputPass'];
-// PP-B01 version-one default engine payload. This literal is a compatibility
+// Version-one template default engine payload. This literal is a data-limits
 // fixture only; the backend neither renders it nor resolves template source.
 const defaultPayload = shader => ({
   visualizer: { shader, scale: 10, skyboxPreset: 6 },
@@ -79,7 +79,11 @@ const fixtures = { 'builtin-presets.json': builtins, 'demo-quality.json': demos 
 const provenance = {
   formatVersion: 1,
   frontendCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frontend, encoding: 'utf8' }).trim(),
+  frontendTemplateSourcesModified: Boolean(execFileSync('git', ['status', '--porcelain', '--', definitionPath,
+    'contracts/scenes/template-catalog.v1.json'], { cwd: frontend, encoding: 'utf8' }).trim()),
   templateDefinitionsPath: definitionPath,
+  templateDefinitionsSha256: sha256(source),
+  templateCatalogSha256: sha256(await readFile(resolve(frontend, 'contracts/scenes/template-catalog.v1.json'))),
   templateDefaultsPath: 'src/modules/player/templates/resolveScene.ts',
   demoDefinitionsPath: 'scripts/quality-scene-catalog.mjs',
   demoDefinitionsSha256: sha256(await readFile(resolve(repo, 'scripts/quality-scene-catalog.mjs'))),

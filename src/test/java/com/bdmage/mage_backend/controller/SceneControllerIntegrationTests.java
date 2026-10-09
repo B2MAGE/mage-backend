@@ -483,6 +483,8 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"nebula"}}
 						""")));
+		savedScene.updateValidatedDocument(com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument(savedScene.getSceneData()));
+		this.sceneRepository.saveAndFlush(savedScene);
 		Tag ambientTag = this.tagRepository.saveAndFlush(new Tag("ambient-update-" + uniqueSuffix));
 		Tag showcaseTag = this.tagRepository.saveAndFlush(new Tag("showcase-update-" + uniqueSuffix));
 		Tag focusTag = this.tagRepository.saveAndFlush(new Tag("focus-update-" + uniqueSuffix));

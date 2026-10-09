@@ -338,8 +338,9 @@ class SceneAvailabilityServiceTests {
 	}
 
 	@Test
-	void onlyOwnerCanReadRawRepairContentWithoutChangingControls() throws Exception {
-		Scene scene = scene("{\"visualizer\":{\"shader\":\"private repair source\"}}");
+	void onlyOwnerCanReadCurrentRepairContentWithoutChangingControls() throws Exception {
+		Scene scene = scene("{\"schemaVersion\":1,\"kind\":\"custom\",\"scene\":{\"visualizer\":{\"shader\":\"private repair source\"}}}");
+		scene.updateValidatedDocument(scene.getSceneData());
 		when(this.scenes.findById(23L)).thenReturn(Optional.of(scene));
 		SceneAvailabilityService service = service(false);
 		assertThat(service.repairScene(23L, 42L)).isSameAs(scene);

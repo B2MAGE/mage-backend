@@ -30,8 +30,8 @@ class SceneSubmissionInventoryTests {
 		Map<String, Object> presets = SceneSubmissionInventory.inspect(fixture("builtin-presets.json"));
 		Map<String, Object> demos = SceneSubmissionInventory.inspect(fixture("demo-quality.json"));
 
-		assertThat(presets).containsEntry("scenes", 16).containsEntry("validScenes", 16)
-				.containsEntry("invalidScenes", 0).containsEntry("maxShaderUtf8Bytes", 4916)
+		assertThat(presets).containsEntry("scenes", 14).containsEntry("validScenes", 14)
+				.containsEntry("invalidScenes", 0).containsEntry("maxShaderUtf8Bytes", 3871)
 				.containsEntry("maxContainerDepth", 4).containsEntry("maxEnabledEffectsExcludingOutput", 0);
 		assertThat(demos).containsEntry("scenes", 100).containsEntry("validScenes", 100)
 				.containsEntry("invalidScenes", 0).containsEntry("maxSceneUtf8Bytes", 3351)

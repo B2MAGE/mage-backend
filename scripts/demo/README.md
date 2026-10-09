@@ -64,8 +64,8 @@ runs this workflow automatically.
 
 Edit the current document directly in `catalog.json`; account, discussion and
 engagement links use stable fixture keys. Keep **Original** and **Selective** as
-supported creative choices. The current template collection uses Original;
-the validator and current contracts also support Selective. Do not convert
+supported creative choices. Rose Reverie demonstrates Selective with a saved
+bass-hit mapping; the other examples use Original. Do not convert
 examples merely because Original's internal identifier is `legacy`.
 
 After a visual change, use Create a scene to preview it and capture a fresh PNG.

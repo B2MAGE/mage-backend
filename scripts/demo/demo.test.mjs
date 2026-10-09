@@ -7,6 +7,8 @@ test('committed catalog has valid account/scene references and actual captured P
   const {catalog,thumbnails}=await loadFixtures();
   assert.equal(thumbnails.size,catalog.scenes.length);
   assert.equal(new Set(catalog.scenes.map(scene=>scene.sceneData.templateId)).size,14);
+  const modes = new Set(catalog.scenes.map(scene => scene.sceneData.settings.audioResponse ?? 'legacy'));
+  assert.deepEqual(modes, new Set(['legacy', 'mapped-v1']));
 });
 test('bad ownership, duplicate engagement, embedded credentials and escaped thumbnail paths fail preflight',async()=>{
   const {catalog}=await loadFixtures();

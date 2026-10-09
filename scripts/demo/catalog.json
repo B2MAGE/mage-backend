@@ -1199,7 +1199,7 @@
       "key": "rose-reverie",
       "owner": "maya",
       "name": "Rose Reverie",
-      "description": "Rose Circuit with slow metallic turns, soft highlights, and a fine chromatic fringe around the rings.",
+      "description": "Rose Circuit with slow metallic turns, soft highlights, and a fine chromatic fringe around the rings. Selective music response gently follows bass hits.",
       "sceneData": {
         "kind": "template",
         "settings": {
@@ -1263,6 +1263,20 @@
               "y": 3.3677786976552215e-16,
               "z": 5.5
             }
+          },
+          "audioResponse": "mapped-v1",
+          "audioResponseConfig": {
+            "version": 1,
+            "sensitivity": 1.2,
+            "mappings": [
+              {
+                "target": "size",
+                "source": "bass-hit",
+                "amount": 0.45,
+                "attack": 0.02,
+                "release": 0.4
+              }
+            ]
           }
         },
         "parameters": {

@@ -27,13 +27,15 @@ This repository currently provides the backend foundations for:
 
 ## Getting Started
 
+For a populated, repeatable portfolio demo, use the [current demo fixtures](scripts/demo/README.md).
+Its explicit reset command targets a separate Docker project. Normal startup preserves data.
+
 The default local workflow uses Docker Compose.
 
 Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
@@ -41,7 +43,6 @@ macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 

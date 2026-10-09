@@ -1,0 +1,1297 @@
+{
+  "version": 1,
+  "users": [
+    {
+      "key": "peter",
+      "firstName": "Peter",
+      "lastName": "Demo",
+      "displayName": "Peter",
+      "handle": "peter_demo",
+      "email": "peter.demo@example.test"
+    },
+    {
+      "key": "ari",
+      "firstName": "Ari",
+      "lastName": "Demo",
+      "displayName": "Ari",
+      "handle": "ari_demo",
+      "email": "ari.demo@example.test"
+    },
+    {
+      "key": "maya",
+      "firstName": "Maya",
+      "lastName": "Demo",
+      "displayName": "Maya",
+      "handle": "maya_demo",
+      "email": "maya.demo@example.test"
+    },
+    {
+      "key": "theo",
+      "firstName": "Theo",
+      "lastName": "Demo",
+      "displayName": "Theo",
+      "handle": "theo_demo",
+      "email": "theo.demo@example.test"
+    }
+  ],
+  "scenes": [
+    {
+      "key": "prism-afterglow",
+      "owner": "peter",
+      "name": "Prism Afterglow",
+      "description": "Prism Core slowed down into a soft wash of reflected color, with a fine prismatic split at the edges.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": false,
+            "strength": 0.32,
+            "threshold": 0.7
+          },
+          "camera": {
+            "fov": 75,
+            "autoRotate": true,
+            "orbitSpeed": 0.12
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0,
+                "amount": 0.0012
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.65
+        },
+        "templateId": "embedded-scene-0",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/prism-afterglow.png",
+      "tags": [
+        "Prism",
+        "Ambient",
+        "Geometry"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Prism Afterglow makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 2
+    },
+    {
+      "key": "midnight-lattice",
+      "owner": "peter",
+      "name": "Midnight Lattice",
+      "description": "Steel Lattice with a cool, restrained glow. A short trail softens the moving frames without losing their structure.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.22,
+            "threshold": 0.7
+          },
+          "camera": {
+            "fov": 75,
+            "autoRotate": true,
+            "orbitSpeed": 0.08
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "afterImage": {
+                "damp": 0.72
+              }
+            },
+            "passes": {
+              "afterImage": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.9
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.55
+        },
+        "templateId": "embedded-scene-1",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/midnight-lattice.png",
+      "tags": [
+        "Geometry",
+        "Ambient",
+        "Frames"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Midnight Lattice makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari",
+        "maya"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 3
+    },
+    {
+      "key": "aqua-echo",
+      "owner": "peter",
+      "name": "Aqua Echo",
+      "description": "Aqua Static drifting through a gentle chromatic fringe. The distortion stays visible beneath a light bloom.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.28,
+            "threshold": 0.7
+          },
+          "camera": {
+            "fov": 75,
+            "autoRotate": true,
+            "orbitSpeed": 0.1
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0,
+                "amount": 0.0015
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.6
+        },
+        "templateId": "embedded-scene-2",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/aqua-echo.png",
+      "tags": [
+        "Aqua",
+        "Abstract",
+        "Reactive"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Aqua Echo makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari",
+        "maya",
+        "theo"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 4
+    },
+    {
+      "key": "verdant-drift",
+      "owner": "peter",
+      "name": "Verdant Drift",
+      "description": "Green edges, open frames, and an unhurried orbit. Subtle trails leave just enough of the previous moment behind.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.3,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.020000000000000007,
+            "time": 0,
+            "currAudio": 0.020000000000000004,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.07
+          },
+          "motion": {
+            "base_speed": 0.2,
+            "easing_speed": 0.62,
+            "power_factor": 8.532608695652176,
+            "minimizing_factor": 0.8752173913043478,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 3,
+          "effects": {
+            "params": {
+              "afterImage": {
+                "damp": 0.74
+              }
+            },
+            "passes": {
+              "afterImage": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": 0.000001196700442356322,
+              "y": 1.3768924935825733,
+              "z": 6.875679455851826e-7
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.5
+        },
+        "templateId": "embedded-scene-3",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/verdant-drift.png",
+      "tags": [
+        "Green",
+        "Ambient",
+        "Frames"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Verdant Drift makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 5
+    },
+    {
+      "key": "crimson-pulse",
+      "owner": "peter",
+      "name": "Crimson Pulse",
+      "description": "Crimson Reactor with warm highlights and a small color separation, keeping the central structure crisp.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.35,
+            "threshold": 0.7
+          },
+          "camera": {
+            "fov": 75,
+            "autoRotate": true,
+            "orbitSpeed": 0.12
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0,
+                "amount": 0.001
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.8
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.7
+        },
+        "templateId": "embedded-scene-4",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/crimson-pulse.png",
+      "tags": [
+        "Red",
+        "Energy",
+        "Geometry"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Crimson Pulse makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari",
+        "maya"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 2
+    },
+    {
+      "key": "alloy-moon",
+      "owner": "peter",
+      "name": "Alloy Moon",
+      "description": "Alloy Capsule traced into a softly glowing metallic silhouette, with a slow orbit and a dark, cinematic finish.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.35,
+            "enabled": true,
+            "strength": 0.7,
+            "threshold": 0.15
+          },
+          "state": {
+            "size": 0.12,
+            "time": 20,
+            "currAudio": 0,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 1.5
+          },
+          "camera": {
+            "fov": 45,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.06
+          },
+          "motion": {
+            "base_speed": 0.6,
+            "easing_speed": 0.6,
+            "power_factor": 6,
+            "minimizing_factor": 0.65,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 5,
+          "effects": {
+            "params": {},
+            "passes": {
+              "sobel": true,
+              "outputPass": true
+            },
+            "passOrder": [
+              "sobelShader",
+              "bloom",
+              "outputPass"
+            ],
+            "toneMapping": {
+              "method": 4,
+              "exposure": 1.1
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": 0,
+              "y": 0.8,
+              "z": 4.8
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.45
+        },
+        "templateId": "embedded-scene-5",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/alloy-moon.png",
+      "tags": [
+        "Metallic",
+        "Ambient",
+        "Orbit"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Alloy Moon makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari",
+        "maya",
+        "theo"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 3
+    },
+    {
+      "key": "redline-haze",
+      "owner": "peter",
+      "name": "Redline Haze",
+      "description": "Redline Core with a restrained glow and short motion echoes. Built to keep its shape while the details drift.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.3,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.09172296591820518,
+            "time": 140.22319999996873,
+            "currAudio": 0.0917108195028693,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.1
+          },
+          "motion": {
+            "base_speed": 0.9,
+            "easing_speed": 0.9,
+            "power_factor": 8,
+            "minimizing_factor": 0.45,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "afterImage": {
+                "damp": 0.7
+              }
+            },
+            "passes": {
+              "afterImage": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.82
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": -0.016619890702160967,
+              "y": 0,
+              "z": 0.06317154534688298
+            },
+            "position0": {
+              "x": 18.865397507433098,
+              "y": -3.2340842994852554,
+              "z": 17.83181273072377
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.65
+        },
+        "templateId": "embedded-scene-6",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/redline-haze.png",
+      "tags": [
+        "Red",
+        "Abstract",
+        "Reactive"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Redline Haze makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 4
+    },
+    {
+      "key": "violet-reverie",
+      "owner": "peter",
+      "name": "Violet Reverie",
+      "description": "Violet Matrix softened into a quiet purple glow, with a fine chromatic edge around the moving geometry.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.38,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.020000000000000004,
+            "time": 0,
+            "currAudio": 0.020000000000000004,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.08
+          },
+          "motion": {
+            "base_speed": 0.2,
+            "easing_speed": 0.6,
+            "power_factor": 8,
+            "minimizing_factor": 0.8,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0.4,
+                "amount": 0.0011
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0.06713708407424535,
+              "y": 0.023142497338799996,
+              "z": 0.017744669691579645
+            },
+            "position0": {
+              "x": -0.9411000310617716,
+              "y": 0.11631028626548252,
+              "z": 0.33310309217985934
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.5
+        },
+        "templateId": "embedded-scene-7",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/violet-reverie.png",
+      "tags": [
+        "Violet",
+        "Ambient",
+        "Geometry"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Violet Reverie makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari",
+        "maya"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 5
+    },
+    {
+      "key": "mint-aurora",
+      "owner": "peter",
+      "name": "Mint Aurora",
+      "description": "Mint Halo with a luminous center and a light echo of its orbit. Bright, airy, and deliberately unhurried.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.32,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.03800000000000001,
+            "time": 0,
+            "currAudio": 0.038000000000000006,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.09
+          },
+          "motion": {
+            "base_speed": 0.38,
+            "easing_speed": 0.6,
+            "power_factor": 8,
+            "minimizing_factor": 0.8,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "afterImage": {
+                "damp": 0.73
+              }
+            },
+            "passes": {
+              "afterImage": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0.00931475292101619,
+              "y": 0.03315429926156276,
+              "z": -0.034551797623101184
+            },
+            "position0": {
+              "x": -1.3255580276491425,
+              "y": -2.000634054517641,
+              "z": 1.9323516893788344
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.55
+        },
+        "templateId": "embedded-scene-8",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/mint-aurora.png",
+      "tags": [
+        "Mint",
+        "Orbit",
+        "Ambient"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Mint Aurora makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "ari",
+        "maya",
+        "theo"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 2
+    },
+    {
+      "key": "ember-afterhours",
+      "owner": "ari",
+      "name": "Ember Afterhours",
+      "description": "The warm frame of Ember Grid, gently blooming against space. A slight color split gives the edges some texture.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.3,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.0023594407838916616,
+            "time": 0,
+            "currAudio": 0.002359440783891661,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.1
+          },
+          "motion": {
+            "base_speed": 0.02359440783891661,
+            "easing_speed": 0.8218644324422438,
+            "power_factor": 6.62,
+            "minimizing_factor": 0.57,
+            "pointerDownMultiplier": 0.21463630117874077
+          },
+          "skybox": 10,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0.4,
+                "amount": 0.0009
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.82
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": 0.00000549446028664005,
+              "y": -7.875850295784366,
+              "z": -0.0000056431762720237634
+            }
+          }
+        },
+        "parameters": {
+          "scale": 75.84,
+          "speed": 0.6
+        },
+        "templateId": "embedded-scene-9",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/ember-afterhours.png",
+      "tags": [
+        "Ember",
+        "Geometry",
+        "Ambient"
+      ],
+      "discussion": {
+        "author": "maya",
+        "text": "The movement in Ember Afterhours makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "peter"
+      ],
+      "savedBy": [
+        "peter"
+      ],
+      "views": 3
+    },
+    {
+      "key": "emerald-orbit",
+      "owner": "maya",
+      "name": "Emerald Orbit",
+      "description": "Emerald Ring turning slowly through soft highlights, with a touch of richer color around its open geometry.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.26,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.017387793394207963,
+            "time": 136.96480000001546,
+            "currAudio": 0.01738779339420796,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.07
+          },
+          "motion": {
+            "base_speed": 0.17445652173913043,
+            "easing_speed": 0.6,
+            "power_factor": 4.46,
+            "minimizing_factor": 0.5,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 5,
+          "effects": {
+            "params": {},
+            "passes": {
+              "outputPass": true,
+              "technicolor": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": -0.00004459732786114684,
+              "y": -45.05000802219578,
+              "z": 0.000007023116108756063
+            }
+          }
+        },
+        "parameters": {
+          "scale": 200,
+          "speed": 0.45
+        },
+        "templateId": "embedded-scene-10",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/emerald-orbit.png",
+      "tags": [
+        "Emerald",
+        "Orbit",
+        "Geometry"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Emerald Orbit makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "peter",
+        "ari"
+      ],
+      "savedBy": [
+        "peter"
+      ],
+      "views": 4
+    },
+    {
+      "key": "spectrum-drift",
+      "owner": "theo",
+      "name": "Spectrum Drift",
+      "description": "Spectrum Relay in shifting iridescent color, with a subtle prismatic edge and a slow, hypnotic rhythm.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": false,
+            "strength": 0.25,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.06,
+            "time": 12,
+            "currAudio": 0,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0.8
+          },
+          "camera": {
+            "fov": 25,
+            "tilt": 0,
+            "autoRotate": false,
+            "orbitSpeed": 0
+          },
+          "motion": {
+            "base_speed": 0.3,
+            "easing_speed": 0.6,
+            "power_factor": 6,
+            "minimizing_factor": 0.7,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 10,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0.4,
+                "amount": 0.0013
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": -4,
+              "y": -4,
+              "z": -4
+            }
+          }
+        },
+        "parameters": {
+          "scale": 5,
+          "speed": 0.65
+        },
+        "templateId": "embedded-scene-11",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/spectrum-drift.png",
+      "tags": [
+        "Spectrum",
+        "Color",
+        "Abstract"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Spectrum Drift makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "peter",
+        "ari",
+        "maya"
+      ],
+      "savedBy": [
+        "peter"
+      ],
+      "views": 5
+    },
+    {
+      "key": "chroma-kaleidoscope",
+      "owner": "ari",
+      "name": "Chroma Kaleidoscope",
+      "description": "Chroma Storm folded into six mirrored facets, with etched outlines, a subtle color split, and slow rippling motion.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": false,
+            "strength": 0.2,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.08,
+            "time": 12,
+            "currAudio": 0,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0.8
+          },
+          "camera": {
+            "fov": 25,
+            "tilt": 0,
+            "autoRotate": false,
+            "orbitSpeed": 0
+          },
+          "motion": {
+            "base_speed": 0.3,
+            "easing_speed": 0.6,
+            "power_factor": 6,
+            "minimizing_factor": 0.7,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "kaleid": {
+                "angle": 0.12,
+                "sides": 6
+              },
+              "rgbShift": {
+                "angle": 0,
+                "amount": 0.0015
+              }
+            },
+            "passes": {
+              "kaleid": true,
+              "rgbShift": true,
+              "outputPass": true,
+              "sobel": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 1.2
+            },
+            "passOrder": [
+              "sobelShader",
+              "RGBShift",
+              "kaleidoShader",
+              "outputPass"
+            ]
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": -10,
+              "y": -10,
+              "z": -10
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.4
+        },
+        "templateId": "embedded-scene-12",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/chroma-kaleidoscope.png",
+      "tags": [
+        "Kaleidoscope",
+        "Color",
+        "Abstract"
+      ],
+      "discussion": {
+        "author": "maya",
+        "text": "The movement in Chroma Kaleidoscope makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "peter"
+      ],
+      "savedBy": [
+        "peter"
+      ],
+      "views": 2
+    },
+    {
+      "key": "rose-reverie",
+      "owner": "maya",
+      "name": "Rose Reverie",
+      "description": "Rose Circuit with slow metallic turns, soft highlights, and a fine chromatic fringe around the rings.",
+      "sceneData": {
+        "kind": "template",
+        "settings": {
+          "tint": {
+            "color": "#ffffff",
+            "enabled": false
+          },
+          "bloom": {
+            "radius": 0.25,
+            "enabled": true,
+            "strength": 0.28,
+            "threshold": 0.7
+          },
+          "state": {
+            "size": 0.020000000000000004,
+            "time": 0,
+            "currAudio": 0.020000000000000004,
+            "pointerDown": 0,
+            "currPointerDown": 0,
+            "volume_multiplier": 0
+          },
+          "camera": {
+            "fov": 75,
+            "tilt": 0,
+            "autoRotate": true,
+            "orbitSpeed": 0.08
+          },
+          "motion": {
+            "base_speed": 0.2,
+            "easing_speed": 0.6,
+            "power_factor": 8,
+            "minimizing_factor": 0.8,
+            "pointerDownMultiplier": 0
+          },
+          "skybox": 6,
+          "effects": {
+            "params": {
+              "rgbShift": {
+                "angle": 0.4,
+                "amount": 0.001
+              }
+            },
+            "passes": {
+              "rgbShift": true,
+              "outputPass": true
+            },
+            "toneMapping": {
+              "method": 4,
+              "exposure": 0.85
+            }
+          },
+          "controls": {
+            "zoom0": 1,
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "position0": {
+              "x": 0,
+              "y": 3.3677786976552215e-16,
+              "z": 5.5
+            }
+          }
+        },
+        "parameters": {
+          "scale": 10,
+          "speed": 0.55
+        },
+        "templateId": "embedded-scene-13",
+        "schemaVersion": 1,
+        "templateVersion": 1
+      },
+      "thumbnail": "thumbnails/rose-reverie.png",
+      "tags": [
+        "Rose",
+        "Metallic",
+        "Orbit"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The movement in Rose Reverie makes a great starting point for a remix.",
+        "reply": "Try adding a local song to explore its music response."
+      },
+      "likedBy": [
+        "peter",
+        "ari"
+      ],
+      "savedBy": [
+        "peter"
+      ],
+      "views": 3
+    }
+  ]
+}

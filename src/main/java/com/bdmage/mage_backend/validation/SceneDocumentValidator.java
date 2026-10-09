@@ -90,18 +90,39 @@ public final class SceneDocumentValidator {
 		return normalized;
 	}
 
-	/** Current v1 has no copies or nesting; later expansion must contribute here before validation returns. */
+	/** Count the fully expanded Builder workload before authorizing trusted playback. */
 	private void validateBuilderRenderingBudget(JsonNode document) {
 		JsonNode objects = document.path("objects");
 		JsonNode costs = BUILDER_RENDERING.path("operationCosts");
-		int objectCount = objects.size();
+		int expandedPrimitives = 0;
 		int liveUniforms = 0;
-		for (JsonNode object : objects) liveUniforms += object.path("bindings").size() * costs.path("liveUniformPerBinding").intValue();
+		int modifierOperations = 0;
+		int arrangementOperations = 0;
+		int animationOperations = 0;
+		for (JsonNode object : objects) {
+			int copies = 1;
+			for (JsonNode arrangement : object.path("arrangements")) copies *= arrangement.path("count").intValue();
+			expandedPrimitives += copies;
+			arrangementOperations += Math.max(0, copies - 1) * costs.path("arrangementPerAdditionalCopy").intValue();
+			for (JsonNode modifier : object.path("modifiers")) {
+				String type = modifier.path("type").asText();
+				String cost = type.equals("expand") ? "expandModifier"
+						: type.equals("shell") ? "shellModifier" : "twistModifier";
+				modifierOperations += copies * costs.path(cost).intValue();
+			}
+			if (object.path("motion").path("type").asText().equals("spin")) {
+				animationOperations += copies * costs.path("spinPerPrimitive").intValue();
+			}
+			liveUniforms += object.path("bindings").size() * costs.path("liveUniformPerBinding").intValue();
+		}
 		Map<String, Integer> workload = Map.of(
-				"expandedPrimitives", objectCount,
-				"compositionOperations", Math.max(0, objectCount - 1) * costs.path("compositionPerAdditionalObject").intValue(),
-				"transformOperations", objectCount * costs.path("transformPerObject").intValue(),
-				"materialOperations", objectCount * costs.path("materialPerObject").intValue(),
+				"expandedPrimitives", expandedPrimitives,
+				"compositionOperations", Math.max(0, expandedPrimitives - 1) * costs.path("compositionPerAdditionalObject").intValue(),
+				"transformOperations", expandedPrimitives * costs.path("transformPerObject").intValue(),
+				"materialOperations", expandedPrimitives * costs.path("materialPerObject").intValue(),
+				"modifierOperations", modifierOperations,
+				"arrangementOperations", arrangementOperations,
+				"animationOperations", animationOperations,
 				"liveUniforms", liveUniforms,
 				"optionalEffects", templateEffectCount(document.path("settings")));
 		for (var entry : workload.entrySet()) {
@@ -115,6 +136,13 @@ public final class SceneDocumentValidator {
 	private JsonNode validate(JsonNode value, JsonNode rule, String path) {
 		if (rule.has("$ref")) return validate(value, resolve(rule.path("$ref").textValue()), path);
 		if (rule.has("anyOf")) {
+			if (value.isObject() && value.path("type").isTextual()) {
+				for (JsonNode alternative : rule.path("anyOf")) {
+					if (sameValue(value.path("type"), alternative.path("properties").path("type").path("const"))) {
+						return validate(value, alternative, path);
+					}
+				}
+			}
 			InvalidSceneDataException deepest = null;
 			for (JsonNode alternative : rule.path("anyOf")) {
 				try { return validate(value, alternative, path); }

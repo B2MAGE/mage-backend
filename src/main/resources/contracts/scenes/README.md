@@ -5,13 +5,26 @@ SB-01 adds `kind: "builder"` with explicit `builderVersion: 1`. See
 bindings, limits, migration policy and the storage-versus-rendering boundary.
 SB-02 adds `builder-rendering.v1.json`, applies its expanded workload policy at
 the API boundary, and authorizes validated `builder-v1` playback independently
-of the custom-source switch. The contract resources are copied from the frontend repository.
+of the custom-source switch. SB-04 validates bounded Expand/Shell/Twist modifiers, nested Line/Ring
+arrangements and per-object spin, then counts their fully expanded workload at
+the API boundary. The contract resources are copied from the frontend repository.
 
 `scene-v1.schema.json`, `template-catalog.v1.json`, and `builder-rendering.v1.json` are exact copies of the
 frontend's `contracts/scenes` resources. Shared conformance cases are copied to
 `src/test/resources/contracts/scenes/fixtures.json`. Keep these files synchronized
 when adding a supported schema or template version. The catalog contains IDs,
 versions, and source checksums; the API does not need or execute template shaders.
+
+`src/test/resources/contracts/scenes/current-round-trips.json` is also copied from
+the frontend contract directory. Unlike the structural fixture set, these cases
+exercise the full write boundary for template, custom and Builder documents:
+normalized defaults, serialized reopen, required custom fields and expanded
+Builder limits. Its optional `renderingWorkload` expectation is checked by the
+frontend compiler and is not a client-supplied API field. Run the frontend's
+contract-copy check against this checkout when changing either fixture set:
+`node scripts/check-scene-contracts.mjs <backend-checkout>` from the frontend
+checkout. This also compares the schema, catalog, rendering policy and submission
+limits without modifying either repository.
 
 `SceneDocumentValidator.validateAndNormalize` is the write boundary. It rejects
 legacy bare engine data for new submissions, validates the explicit template, builder or

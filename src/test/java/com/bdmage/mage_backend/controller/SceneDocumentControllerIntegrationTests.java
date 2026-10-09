@@ -149,6 +149,10 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	@Test
 	void buildersPersistRoundTripAndAuthorizeOnlyTheTrustedBuilderPlaybackPath() throws Exception {
 		ObjectNode document = builder();
+		ObjectNode authoredObject = (ObjectNode) document.path("objects").get(0);
+		authoredObject.putArray("modifiers").addObject().put("type", "twist").put("axis", "y").put("amount", 1.5);
+		authoredObject.putArray("arrangements").addObject().put("type", "linear").put("axis", "x").put("count", 3).put("spacing", 1.5);
+		authoredObject.putObject("motion").put("type", "spin").put("axis", "y").put("speed", 0.5);
 		JsonNode created = create(document);
 		long id = created.path("sceneId").asLong();
 		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
@@ -157,13 +161,16 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		assertThat(saved.path("objects").get(0).path("id").asText()).isEqualTo("persistent-shape");
 		assertThat(saved.path("objects").get(0).path("operation").path("radius").asDouble()).isEqualTo(1);
 		assertThat(saved.path("objects").get(0).path("transform").path("scale").path("x").asDouble()).isEqualTo(1);
+		assertThat(saved.path("objects").get(0).path("arrangements").get(0).path("count").asInt()).isEqualTo(3);
+		assertThat(saved.path("objects").get(0).path("modifiers").get(0).path("type").asText()).isEqualTo("twist");
+		assertThat(saved.path("objects").get(0).path("motion").path("speed").asDouble()).isEqualTo(0.5);
 		assertThat(saved.findValues("shader")).isEmpty();
 		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.sceneMode").value("builder-v1"))
 				.andExpect(jsonPath("$.sceneData.kind").value("builder"))
 				.andExpect(jsonPath("$.availability.available").value(true));
 		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(true)).andReturn()).path("sceneData")).isEqualTo(saved);
+				.andExpect(status().isOk()).andExpect(jsonPath("$.playable").value(false)).andReturn()).path("sceneData")).isEqualTo(saved);
 		this.mvc.perform(get("/api/scenes/{id}/repair", id)).andExpect(status().isUnauthorized());
 		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.strangerToken)))
 				.andExpect(status().isForbidden());
@@ -190,6 +197,71 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		this.mvc.perform(get("/api/scene-availability/{id}", id)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value("AVAILABLE"));
 		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.kind").value("builder"));
+	}
+
+	@Test
+	void builderUpdatesPreserveOrderedStagesAndRejectExpandedOverloadsBeforePersistence() throws Exception {
+		ObjectNode document = builder();
+		ObjectNode object = (ObjectNode) document.path("objects").get(0);
+		object.putArray("modifiers")
+				.addObject().put("type", "expand").put("amount", 0.2);
+		object.withArray("modifiers").addObject().put("type", "shell").put("thickness", 0.1);
+		object.withArray("modifiers").addObject().put("type", "twist").put("axis", "y").put("amount", -1.5);
+		object.putArray("arrangements").addObject().put("type", "linear").put("axis", "x").put("count", 2).put("spacing", 1);
+		object.withArray("arrangements").addObject().put("type", "radial").put("axis", "z").put("count", 8).put("radius", 3);
+		object.putObject("motion").put("type", "spin").put("axis", "z").put("speed", -4);
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		ObjectNode edited = (ObjectNode) created.path("sceneData").deepCopy();
+		ObjectNode editedObject = (ObjectNode) edited.path("objects").get(0);
+		editedObject.putArray("modifiers").addObject().put("type", "shell").put("thickness", 0.2);
+		editedObject.withArray("modifiers").addObject().put("type", "expand").put("amount", -0.1);
+		((ObjectNode) editedObject.path("motion")).put("speed", 2);
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(edited).toString()))
+				.andExpect(status().isOk()).andReturn()).path("sceneData");
+		assertThat(updated).isEqualTo(edited);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData"))
+				.isEqualTo(edited);
+
+		ObjectNode overloaded = edited.deepCopy();
+		((ObjectNode) overloaded.path("objects").get(0).path("arrangements").get(0)).put("count", 3);
+		long sceneCount = this.scenes.count();
+		this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(overloaded).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects']").exists());
+		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(overloaded).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects']").exists());
+		assertThat(this.scenes.count()).isEqualTo(sceneCount);
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(edited);
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
+	void currentSharedDocumentsSurviveApiCreateUpdateAndReadWithoutContractDrift() throws Exception {
+		JsonNode fixtures;
+		try (var input = getClass().getResourceAsStream("/contracts/scenes/current-round-trips.json")) {
+			assertThat(input).isNotNull();
+			fixtures = this.json.readTree(input);
+		}
+		this.mvc.perform(put("/api/admin/rendering/custom").header("Authorization", bearer(this.operatorToken))
+				.contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true,\"reason\":\"Current contract verification\"}"))
+				.andExpect(status().isOk());
+		for (JsonNode row : fixtures.path("cases")) {
+			if (!row.path("valid").asBoolean()) continue;
+			JsonNode created = create(row.path("input"));
+			long id = created.path("sceneId").asLong();
+			JsonNode expected = row.path("normalized");
+			assertThat(created.path("sceneData")).as(row.path("name").asText()).isEqualTo(expected);
+			JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+					.contentType(MediaType.APPLICATION_JSON).content(request(expected).toString()))
+					.andExpect(status().isOk()).andReturn());
+			assertThat(updated.path("sceneData")).isEqualTo(expected);
+			assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(expected);
+			assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData"))
+					.isEqualTo(expected);
+		}
 	}
 
 	@Test

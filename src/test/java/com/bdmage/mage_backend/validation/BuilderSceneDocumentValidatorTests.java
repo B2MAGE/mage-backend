@@ -53,11 +53,45 @@ class BuilderSceneDocumentValidatorTests {
 				""");
 		JsonNode original = document.deepCopy();
 		JsonNode normalized = this.validator.validateAndNormalize(document);
-		assertThat(normalized.path("objects")).isEqualTo(document.path("objects"));
+		JsonNode normalizedObject = normalized.path("objects").get(0);
+		assertThat(normalizedObject.path("id").asText()).isEqualTo("persistent-id");
+		assertThat(normalizedObject.path("transform")).isEqualTo(document.path("objects").get(0).path("transform"));
+		assertThat(normalizedObject.path("material")).isEqualTo(document.path("objects").get(0).path("material"));
+		assertThat(normalizedObject.path("bindings")).isEqualTo(document.path("objects").get(0).path("bindings"));
+		assertThat(normalizedObject.path("modifiers")).isEmpty();
+		assertThat(normalizedObject.path("arrangements")).isEmpty();
+		assertThat(normalizedObject.path("motion").path("type").asText()).isEqualTo("none");
 		assertThat(normalized.path("parameters")).isEqualTo(document.path("parameters"));
 		assertThat(normalized.path("settings").path("camera").path("fov").intValue()).isEqualTo(90);
 		assertThat(normalized.path("settings").path("bloom").path("strength").asDouble()).isEqualTo(0.4);
 		assertThat(document).isEqualTo(original);
+	}
+
+	@Test
+	void validatesModifiersNestedArrangementsMotionAndExpandedBudgets() throws Exception {
+		ObjectNode document = (ObjectNode) this.json.readTree("""
+				{"schemaVersion":1,"kind":"builder","builderVersion":1,"objects":[
+				 {"id":"arranged","operation":{"type":"sphere"},
+				  "modifiers":[{"type":"twist","axis":"y","amount":1.5},{"type":"expand","amount":0.2},{"type":"shell","thickness":0.1}],
+				  "arrangements":[{"type":"linear","axis":"x","count":2,"spacing":1.5},
+				                  {"type":"radial","axis":"y","count":3,"radius":2}],
+				  "motion":{"type":"spin","axis":"z","speed":1.25}}]}
+				""");
+		JsonNode normalized = this.validator.validateAndNormalize(document);
+		assertThat(normalized.path("objects").get(0).path("arrangements")).hasSize(2);
+		assertThat(normalized.path("objects").get(0).path("motion").path("speed").asDouble()).isEqualTo(1.25);
+
+		ObjectNode atLimit = builder();
+		for (int index = 0; index < 2; index++) {
+			ObjectNode object = atLimit.withArray("objects").addObject().put("id", "shape-" + index);
+			object.putObject("operation").put("type", "sphere");
+			object.putArray("arrangements").addObject().put("type", "linear").put("axis", "x").put("count", 8).put("spacing", 1);
+		}
+		assertThat(this.validator.validateAndNormalize(atLimit).path("objects")).hasSize(2);
+
+		ObjectNode overBudget = atLimit.deepCopy();
+		overBudget.withArray("objects").addObject().put("id", "shape-2").putObject("operation").put("type", "sphere");
+		assertInvalid(overBudget, "sceneData.objects");
 	}
 
 	@Test

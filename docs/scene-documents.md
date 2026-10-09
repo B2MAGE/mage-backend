@@ -38,6 +38,17 @@ unique audio mapping targets and the shared four-effect budget, including bloom 
 Deploy this backend before the frontend exposes the expanded controls; the old validator
 rejects new fields, and older frontends must refresh before editing expanded documents.
 
+SB-04 completes API support for the Builder fields already exposed by the editor:
+ordered Expand/Shell/Twist modifiers, up to two nested Line/Ring arrangement stages,
+and bounded per-object spin. Array order and authored values survive create,
+replace and reopen. The API counts expanded copies and their modifier, animation,
+transform and material costs before persistence; two arrangements with counts 2
+and 8 use the entire 16-primitive budget even though the document has one object.
+See [the Builder contract](../src/main/resources/contracts/scenes/builder-v1.md)
+and the checked-in rendering policy for exact bounds. No database migration or
+new audio behavior is part of this change. Deploy the API support before relying
+on the editor's expanded documents being saved successfully.
+
 Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`, and
 `playlistId`; replacement accepts only `name`, `description`, and `sceneData`.
 Client fields such as `sceneMode`, `disabled`, `availability`, or owner IDs are
@@ -59,6 +70,7 @@ The original document remains in JSONB. Migration V19 adds one server-owned
 | `legacy-custom` | Existing/unvalidated content; owner repair required |
 | `custom-v1` | Validated custom envelope; still untrusted source |
 | `template-v1` | Validated reference to an exact platform template version |
+| `builder-v1` | Validated editable document using the trusted Builder compiler |
 
 Every pre-existing row starts as `legacy-custom`, even if its JSON already
 claims to be a template. Migration does not inspect, rewrite, delete, or execute

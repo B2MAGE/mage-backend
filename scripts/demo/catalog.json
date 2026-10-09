@@ -86,9 +86,9 @@
       },
       "thumbnail": "thumbnails/prism-afterglow.png",
       "tags": [
-        "Prism",
-        "Ambient",
-        "Geometry"
+        "prism",
+        "ambient",
+        "geometry"
       ],
       "discussion": {
         "author": "ari",
@@ -153,9 +153,9 @@
       },
       "thumbnail": "thumbnails/midnight-lattice.png",
       "tags": [
-        "Geometry",
-        "Ambient",
-        "Frames"
+        "geometry",
+        "ambient",
+        "frames"
       ],
       "discussion": {
         "author": "ari",
@@ -222,9 +222,9 @@
       },
       "thumbnail": "thumbnails/aqua-echo.png",
       "tags": [
-        "Aqua",
-        "Abstract",
-        "Reactive"
+        "aqua",
+        "abstract",
+        "reactive"
       ],
       "discussion": {
         "author": "ari",
@@ -320,9 +320,9 @@
       },
       "thumbnail": "thumbnails/verdant-drift.png",
       "tags": [
-        "Green",
-        "Ambient",
-        "Frames"
+        "green",
+        "ambient",
+        "frames"
       ],
       "discussion": {
         "author": "ari",
@@ -388,9 +388,9 @@
       },
       "thumbnail": "thumbnails/crimson-pulse.png",
       "tags": [
-        "Red",
-        "Energy",
-        "Geometry"
+        "red",
+        "energy",
+        "geometry"
       ],
       "discussion": {
         "author": "ari",
@@ -486,9 +486,9 @@
       },
       "thumbnail": "thumbnails/alloy-moon.png",
       "tags": [
-        "Metallic",
-        "Ambient",
-        "Orbit"
+        "metallic",
+        "ambient",
+        "orbit"
       ],
       "discussion": {
         "author": "ari",
@@ -584,9 +584,9 @@
       },
       "thumbnail": "thumbnails/redline-haze.png",
       "tags": [
-        "Red",
-        "Abstract",
-        "Reactive"
+        "red",
+        "abstract",
+        "reactive"
       ],
       "discussion": {
         "author": "ari",
@@ -681,9 +681,9 @@
       },
       "thumbnail": "thumbnails/violet-reverie.png",
       "tags": [
-        "Violet",
-        "Ambient",
-        "Geometry"
+        "violet",
+        "ambient",
+        "geometry"
       ],
       "discussion": {
         "author": "ari",
@@ -778,9 +778,9 @@
       },
       "thumbnail": "thumbnails/mint-aurora.png",
       "tags": [
-        "Mint",
-        "Orbit",
-        "Ambient"
+        "mint",
+        "orbit",
+        "ambient"
       ],
       "discussion": {
         "author": "ari",
@@ -877,9 +877,9 @@
       },
       "thumbnail": "thumbnails/ember-afterhours.png",
       "tags": [
-        "Ember",
-        "Geometry",
-        "Ambient"
+        "ember",
+        "geometry",
+        "ambient"
       ],
       "discussion": {
         "author": "maya",
@@ -969,9 +969,9 @@
       },
       "thumbnail": "thumbnails/emerald-orbit.png",
       "tags": [
-        "Emerald",
-        "Orbit",
-        "Geometry"
+        "emerald",
+        "orbit",
+        "geometry"
       ],
       "discussion": {
         "author": "ari",
@@ -1067,9 +1067,9 @@
       },
       "thumbnail": "thumbnails/spectrum-drift.png",
       "tags": [
-        "Spectrum",
-        "Color",
-        "Abstract"
+        "spectrum",
+        "color",
+        "abstract"
       ],
       "discussion": {
         "author": "ari",
@@ -1178,9 +1178,9 @@
       },
       "thumbnail": "thumbnails/chroma-kaleidoscope.png",
       "tags": [
-        "Kaleidoscope",
-        "Color",
-        "Abstract"
+        "kaleidoscope",
+        "color",
+        "abstract"
       ],
       "discussion": {
         "author": "maya",
@@ -1275,9 +1275,9 @@
       },
       "thumbnail": "thumbnails/rose-reverie.png",
       "tags": [
-        "Rose",
-        "Metallic",
-        "Orbit"
+        "rose",
+        "metallic",
+        "orbit"
       ],
       "discussion": {
         "author": "ari",

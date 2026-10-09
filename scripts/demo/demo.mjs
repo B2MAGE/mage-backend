@@ -22,13 +22,20 @@ function compose(args) {
   if (result.error || result.status !== 0) throw new Error(`Demo Docker operation failed: ${args[0]}`);
 }
 async function api(route, { method = 'GET', token, body } = {}) {
-  const response = await fetch(new URL(route, base), {
-    method, redirect: 'error', signal: AbortSignal.timeout(30_000),
-    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`${method} ${route}: HTTP ${response.status}`);
-  return response.status === 204 ? null : response.json();
+  const controller = new AbortController();
+  // Keep the CLI alive while a freshly started server opens its connections.
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(new URL(route, base), {
+      method, redirect: 'error', signal: controller.signal,
+      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`${method} ${route}: HTTP ${response.status}`);
+    return response.status === 204 ? null : await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 async function waitForApi() {
   for (let attempt = 0; attempt < 90; attempt++) {
@@ -119,4 +126,7 @@ async function main() {
   if(command==='reset'||command==='seed') await seed(fixtures,password);
   await verify(fixtures);
 }
-if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) main().catch(error=>{console.error(error.message);process.exitCode=1;});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { await main(); }
+  catch (error) { console.error(error.message); process.exitCode = 1; }
+}

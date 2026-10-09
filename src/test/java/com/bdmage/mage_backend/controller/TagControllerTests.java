@@ -1,6 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
 import com.bdmage.mage_backend.dto.TagResponse;
+import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
 import com.bdmage.mage_backend.model.Tag;
@@ -52,9 +53,10 @@ class TagControllerTests {
 		Tag tag = new Tag("ambient");
 		ReflectionTestUtils.setField(tag, "id", 15L);
 
-		when(this.tagService.createTag("Ambient")).thenReturn(tag);
+		when(this.tagService.createTag(42L, "Ambient")).thenReturn(tag);
 
 		this.mockMvc.perform(post("/api/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 42L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"Ambient"}
@@ -97,6 +99,7 @@ class TagControllerTests {
 	@Test
 	void createTagRejectsInvalidRequestBody() throws Exception {
 		this.mockMvc.perform(post("/api/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 42L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":" "}
@@ -108,10 +111,11 @@ class TagControllerTests {
 
 	@Test
 	void createTagReturnsConflictWhenTagAlreadyExists() throws Exception {
-		when(this.tagService.createTag("Ambient"))
+		when(this.tagService.createTag(42L, "Ambient"))
 				.thenThrow(new TagAlreadyExistsException("A tag with this name already exists."));
 
 		this.mockMvc.perform(post("/api/tags")
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 42L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"Ambient"}

@@ -100,7 +100,7 @@ class SceneControllerTests {
 						{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						"""),
 				null,
-				null))
+				null, List.of()))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
@@ -111,7 +111,7 @@ class SceneControllerTests {
 						{
 						  "name":"Aurora Drift",
 						  "description":"A glassy nebula drift.",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						}
 						"""))
 				.andExpect(status().isCreated())
@@ -147,7 +147,7 @@ class SceneControllerTests {
 		String requestBody = this.objectMapper.writeValueAsString(Map.of(
 				"name", "Aurora Drift",
 				"description", "a".repeat(1001),
-				"sceneData", Map.of("visualizer", Map.of("shader", "nebula"))));
+				"tagIds", java.util.List.of(), "sceneData", Map.of("visualizer", Map.of("shader", "nebula"))));
 
 		this.mockMvc.perform(post("/api/scenes")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
@@ -252,7 +252,7 @@ class SceneControllerTests {
 				" Updated description. ",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
-						""")))
+						"""), List.of()))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
@@ -263,7 +263,7 @@ class SceneControllerTests {
 						{
 						  "name":" Updated Scene ",
 						  "description":" Updated description. ",
-						  "sceneData":{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
 						}
 						"""))
 				.andExpect(status().isOk())
@@ -301,7 +301,7 @@ class SceneControllerTests {
 				"Updated description.",
 				this.objectMapper.readTree("""
 						{"visualizer":{"shader":"pulse"}}
-						""")))
+						"""), List.of()))
 				.thenThrow(new SceneOwnershipRequiredException("Scene ownership is required."));
 
 		this.mockMvc.perform(put("/api/scenes/15")
@@ -311,7 +311,7 @@ class SceneControllerTests {
 						{
 						  "name":"Updated Scene",
 						  "description":"Updated description.",
-						  "sceneData":{"visualizer":{"shader":"pulse"}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"pulse"}}
 						}
 						"""))
 				.andExpect(status().isForbidden())
@@ -339,7 +339,7 @@ class SceneControllerTests {
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				"scenes/pending/77/thumbnails/abc123.png",
-				null))
+				null, List.of()))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
@@ -349,7 +349,7 @@ class SceneControllerTests {
 				.content("""
 						{
 						  "name":"Aurora Drift",
-						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"}},
 						  "thumbnailObjectKey":"scenes/pending/77/thumbnails/abc123.png"
 						}
 						"""))
@@ -378,7 +378,7 @@ class SceneControllerTests {
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				null,
-				99L))
+				99L, List.of()))
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
@@ -388,7 +388,7 @@ class SceneControllerTests {
 				.content("""
 						{
 						  "name":"Aurora Drift",
-						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"}},
 						  "playlistId":99
 						}
 						"""))
@@ -407,7 +407,7 @@ class SceneControllerTests {
 						{"visualizer":{"shader":"nebula"}}
 						"""),
 				null,
-				null))
+				null, List.of()))
 				.thenThrow(new AuthenticationRequiredException("Authentication is required."));
 
 		this.mockMvc.perform(post("/api/scenes")
@@ -415,7 +415,7 @@ class SceneControllerTests {
 				.content("""
 						{
 						  "name":"Aurora Drift",
-						  "sceneData":{"visualizer":{"shader":"nebula"}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"}}
 						}
 						"""))
 				.andExpect(status().isUnauthorized())

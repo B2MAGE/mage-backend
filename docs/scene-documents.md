@@ -11,14 +11,14 @@ entity mutation, thumbnail finalization, or playlist attachment.
 Custom source remains untrusted, regardless of creator role or shader similarity:
 
 ```json
-{"name":"My scene","sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"sphere(0.5);"}}}}
+{"name":"My scene","tagIds":[],"sceneData":{"schemaVersion":1,"kind":"custom","scene":{"visualizer":{"shader":"sphere(0.5);"}}}}
 ```
 
 Templates refer only to the 16 immutable catalog entries; source is not accepted
 in a template document:
 
 ```json
-{"name":"My template","sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1,"parameters":{"scale":10,"speed":1}}}
+{"name":"My template","tagIds":[],"sceneData":{"schemaVersion":1,"kind":"template","templateId":"embedded-scene-0","templateVersion":1,"parameters":{"scale":10,"speed":1}}}
 ```
 
 The exact schema and catalog live in `src/main/resources/contracts/scenes/`.
@@ -49,8 +49,11 @@ and the checked-in rendering policy for exact bounds. No database migration or
 new audio behavior is part of this change. Deploy the API support before relying
 on the editor's expanded documents being saved successfully.
 
-Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`, and
-`playlistId`; replacement accepts only `name`, `description`, and `sceneData`.
+Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`,
+`playlistId`, and `tagIds`; replacement accepts only `name`, `description`,
+`sceneData`, and `tagIds`. Both require the complete `tagIds` array; `[]` clears
+the selection. The scene and validated tag assignments commit atomically,
+including rollback when a database write fails after the scene is flushed.
 Client fields such as `sceneMode`, `disabled`, `availability`, or owner IDs are
 rejected. Operator controls remain independent and survive every content edit.
 

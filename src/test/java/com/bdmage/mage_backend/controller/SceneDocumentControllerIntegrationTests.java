@@ -403,7 +403,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		return body(this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(document).toString())).andExpect(status().isCreated()).andReturn());
 	}
-	private ObjectNode request(JsonNode document) { return this.json.createObjectNode().put("name", "Contract scene").set("sceneData", document); }
+	private ObjectNode request(JsonNode document) { return this.json.createObjectNode().put("name", "Contract scene").<ObjectNode>set("tagIds", this.json.createArrayNode()).set("sceneData", document); }
 	private JsonNode template() { return this.json.valueToTree(Map.of("schemaVersion", 1, "kind", "template", "templateId", "embedded-scene-0", "templateVersion", 1)); }
 	private ObjectNode builder() {
 		ObjectNode document = this.json.createObjectNode().put("schemaVersion", 1).put("kind", "builder").put("builderVersion", 1);

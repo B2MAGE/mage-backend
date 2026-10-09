@@ -63,9 +63,9 @@ class SceneServiceTests {
 				"{\"visualizer\":{\"shader\":\"" + "x".repeat(65537) + "\"}}")) {
 			var data = customDocument(invalid);
 			var createError = assertThrows(InvalidSceneDataException.class, () -> service.createScene(
-					42L, "New", null, data, "scenes/pending/42/thumbnails/test.png"));
+					42L, "New", null, data, "scenes/pending/42/thumbnails/test.png", null, List.of()));
 			var updateError = assertThrows(InvalidSceneDataException.class, () -> service.updateScene(
-					42L, 15L, "Changed", "Changed", data));
+					42L, 15L, "Changed", "Changed", data, List.of()));
 			assertThat(createError.getDetails()).isEqualTo(updateError.getDetails());
 			assertThat(original.getName()).isEqualTo("Original");
 			assertThat(original.getSceneData()).isEqualTo(originalData);
@@ -93,7 +93,7 @@ class SceneServiceTests {
 				false, "CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));
 
 		assertThatThrownBy(() -> service.createScene(
-				42L, "New custom", null, customDocument("{\"visualizer\":{\"shader\":\"new-source\"}}"), null))
+				42L, "New custom", null, customDocument("{\"visualizer\":{\"shader\":\"new-source\"}}"), null, null, List.of()))
 				.isInstanceOf(CustomRenderingDisabledException.class)
 				.hasMessageContaining("Custom Code is disabled");
 
@@ -105,14 +105,14 @@ class SceneServiceTests {
 
 		assertThatThrownBy(() -> service.updateScene(
 				42L, 15L, "Changed source", null,
-				customDocument("{\"visualizer\":{\"shader\":\"different-source\"}}")))
+				customDocument("{\"visualizer\":{\"shader\":\"different-source\"}}"), List.of()))
 				.isInstanceOf(CustomRenderingDisabledException.class);
 		assertThat(existing.getSceneData()).isEqualTo(originalDocument);
 
 		JsonNode settingsOnly = customDocument(
 				"{\"visualizer\":{\"shader\":\"saved-source\"},\"state\":{\"size\":0.5}}");
 		when(repository.saveAndFlush(existing)).thenReturn(existing);
-		Scene updated = service.updateScene(42L, 15L, "Settings changed", null, settingsOnly);
+		Scene updated = service.updateScene(42L, 15L, "Settings changed", null, settingsOnly, List.of());
 		assertThat(updated.getSceneData()).isEqualTo(settingsOnly);
 		assertThat(updated.getName()).isEqualTo("Settings changed");
 	}
@@ -133,7 +133,7 @@ class SceneServiceTests {
 				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				null);
+				null, null, List.of());
 
 		ArgumentCaptor<Scene> sceneCaptor = ArgumentCaptor.forClass(Scene.class);
 		verify(sceneRepository).saveAndFlush(sceneCaptor.capture());
@@ -170,7 +170,7 @@ class SceneServiceTests {
 				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				null);
+				null, null, List.of());
 
 		ArgumentCaptor<Scene> sceneCaptor = ArgumentCaptor.forClass(Scene.class);
 		verify(sceneRepository).saveAndFlush(sceneCaptor.capture());
@@ -192,7 +192,7 @@ class SceneServiceTests {
 				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				null))
+				null, null, List.of()))
 				.isInstanceOf(AuthenticationRequiredException.class)
 				.hasMessage("Authentication is required.");
 
@@ -221,7 +221,7 @@ class SceneServiceTests {
 				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				"scenes/pending/42/thumbnails/abc123.png");
+				"scenes/pending/42/thumbnails/abc123.png", null, List.of());
 
 		ArgumentCaptor<Scene> sceneCaptor = ArgumentCaptor.forClass(Scene.class);
 		verify(sceneRepository).saveAndFlush(sceneCaptor.capture());
@@ -255,7 +255,7 @@ class SceneServiceTests {
 				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				"scenes/pending/42/thumbnails/abc123.png"))
+				"scenes/pending/42/thumbnails/abc123.png", null, List.of()))
 				.isInstanceOf(RuntimeException.class)
 				.hasMessage("db down");
 
@@ -277,7 +277,7 @@ class SceneServiceTests {
 				customDocument("""
 						{"visualizer":{"shader":"nebula"}}
 						"""),
-				null))
+				null, null, List.of()))
 				.isInstanceOf(AuthenticationRequiredException.class)
 				.hasMessage("Authentication is required.");
 
@@ -848,7 +848,7 @@ class SceneServiceTests {
 				" Updated description. ",
 				customDocument("""
 						{"visualizer":{"shader":"pulse"},"state":{"size":0.5}}
-						"""));
+						"""), List.of());
 
 		assertThat(result).isSameAs(scene);
 		assertThat(scene.getName()).isEqualTo("Updated Scene");
@@ -874,7 +874,7 @@ class SceneServiceTests {
 				15L,
 				"Updated Scene",
 				"Updated description.",
-				this.objectMapper.createObjectNode()))
+				this.objectMapper.createObjectNode(), List.of()))
 				.isInstanceOf(SceneOwnershipRequiredException.class)
 				.hasMessage("Scene ownership is required.");
 

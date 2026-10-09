@@ -61,6 +61,7 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
 
 	private static boolean isOptionalAuthenticationRequest(HttpServletRequest request) {
 		return isPublicSceneReadRequest(request)
+				|| (HttpMethod.GET.matches(request.getMethod()) && "/api/tags".equals(pathWithinApplication(request)))
 				|| isPublicAvailabilityReadRequest(request)
 				|| isPublicProfileReadRequest(request)
 				|| isPublicSceneViewRequest(request);

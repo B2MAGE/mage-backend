@@ -104,7 +104,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `PUT /api/users/me/password`                | Bearer token | Change the authenticated user's local password                                              |
 | `GET /api/profiles/{handle}`                | Public       | Return a public profile and its scenes by handle                                            |
 | `GET /api/tags`                             | Public       | List available tags                                                                        |
-| `POST /api/tags`                            | Public       | Create a tag                                                                               |
+| `POST /api/tags`                            | Bearer token | Create a tag                                                                               |
 | `POST /api/scenes`                         | Bearer token | Create a scene with optional description and optionally finalize a staged thumbnail       |
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presign a staged thumbnail upload before scene creation                                   |
 | `GET /api/scenes`                          | Public       | List scenes, optionally filtered by tag                                                   |
@@ -131,6 +131,19 @@ Scene lists from `GET /api/scenes` (including tag-filtered results), `GET /api/u
 Discovery responses include the creator display name, handle, avatar-gradient colors, real engagement metrics, and attached tag names. Attached tags are loaded in one batch for a scene collection. `GET /api/tags` returns stable name-ordered entries containing `tagId`, `name`, and the real attached `sceneCount`; `?attachedOnly=true` excludes unused tags while the default catalogue retains them for the editor.
 
 `POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value. Owners can add, edit, or clear the description after creation with `PATCH /api/scenes/{id}/description`.
+
+Scene create (`POST /api/scenes`) and full replacement (`PUT /api/scenes/{id}`)
+require `tagIds`, an array of existing numeric tag IDs. The scene and its complete
+tag selection commit in one transaction: `[]` saves no tags or clears all existing
+assignments; duplicates are collapsed. Invalid content, missing tags, ownership
+failures, or database write failures leave the previous scene and tags intact;
+a failed creation leaves no scene or assignments. Missing/null `tagIds` and null
+entries return `400 VALIDATION_ERROR`; unknown tag IDs return `404 TAG_NOT_FOUND`.
+The editor sends one save request, without a subsequent tag replacement request.
+
+Tag catalogue reads stay public. Creating tags and attaching, replacing, or removing
+scene tags require a valid bearer token; scene-tag changes also require ownership.
+Public scene/profile reads remain public and account routes remain authenticated.
 
 ## Auth And Profile Contract
 

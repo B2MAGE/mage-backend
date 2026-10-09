@@ -1,6 +1,7 @@
 package com.bdmage.mage_backend.controller;
 
 import com.bdmage.mage_backend.model.Scene;
+import com.bdmage.mage_backend.service.AuthenticationTokenService;
 import com.bdmage.mage_backend.model.SceneTag;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.model.User;
@@ -52,12 +53,19 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	@Autowired
 	private UserRepository userRepository;
 
+	@Autowired
+	private AuthenticationTokenService authenticationTokens;
+
+	private String token;
+
 	@BeforeEach
 	void clearTags() {
 		this.sceneTagRepository.deleteAll();
 		this.sceneRepository.deleteAll();
 		this.tagRepository.deleteAll();
 		this.userRepository.deleteAll();
+		User writer = this.userRepository.saveAndFlush(new User("tag-writer@example.com", "hashed-password", "Tag Writer"));
+		this.token = this.authenticationTokens.issueToken(writer);
 	}
 
 	@Test
@@ -74,6 +82,7 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	@Test
 	void createTagPersistsNormalizedTag() throws Exception {
 		this.mockMvc.perform(post("/api/tags")
+				.header("Authorization", "Bearer " + this.token)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"  Chillwave  "}
@@ -93,6 +102,7 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		this.tagRepository.saveAndFlush(new Tag("ambient"));
 
 		this.mockMvc.perform(post("/api/tags")
+				.header("Authorization", "Bearer " + this.token)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":"  AMBIENT  "}
@@ -107,6 +117,7 @@ class TagControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	@Test
 	void createTagRejectsInvalidRequestBody() throws Exception {
 		this.mockMvc.perform(post("/api/tags")
+				.header("Authorization", "Bearer " + this.token)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"name":" "}

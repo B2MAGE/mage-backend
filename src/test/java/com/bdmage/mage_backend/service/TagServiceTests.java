@@ -4,8 +4,10 @@ import java.util.Optional;
 
 import com.bdmage.mage_backend.dto.TagResponse;
 import com.bdmage.mage_backend.exception.TagAlreadyExistsException;
+import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.model.Tag;
 import com.bdmage.mage_backend.repository.TagRepository;
+import com.bdmage.mage_backend.repository.UserRepository;
 import com.bdmage.mage_backend.repository.TagUsageProjection;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,18 +20,33 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class TagServiceTests {
 
 	@Test
+	void createTagRequiresAnExistingAuthenticatedUserBeforeWriting() {
+		TagRepository tags = mock(TagRepository.class);
+		UserRepository users = mock(UserRepository.class);
+		TagService service = new TagService(tags, users);
+		assertThatThrownBy(() -> service.createTag(null, "ambient"))
+				.isInstanceOf(AuthenticationRequiredException.class);
+		assertThatThrownBy(() -> service.createTag(42L, "ambient"))
+				.isInstanceOf(AuthenticationRequiredException.class);
+		verifyNoInteractions(tags);
+	}
+
+	@Test
 	void createTagNormalizesNameAndPersistsTag() {
 		TagRepository tagRepository = mock(TagRepository.class);
-		TagService tagService = new TagService(tagRepository);
+		UserRepository users = mock(UserRepository.class);
+		when(users.existsById(42L)).thenReturn(true);
+		TagService tagService = new TagService(tagRepository, users);
 
 		when(tagRepository.findByName("ambient")).thenReturn(Optional.empty());
 		when(tagRepository.saveAndFlush(any(Tag.class))).thenAnswer(invocation -> invocation.getArgument(0, Tag.class));
 
-		Tag createdTag = tagService.createTag("  Ambient  ");
+		Tag createdTag = tagService.createTag(42L, "  Ambient  ");
 
 		ArgumentCaptor<Tag> tagCaptor = ArgumentCaptor.forClass(Tag.class);
 		verify(tagRepository).saveAndFlush(tagCaptor.capture());
@@ -42,11 +59,13 @@ class TagServiceTests {
 	@Test
 	void createTagRejectsDuplicateNormalizedName() {
 		TagRepository tagRepository = mock(TagRepository.class);
-		TagService tagService = new TagService(tagRepository);
+		UserRepository users = mock(UserRepository.class);
+		when(users.existsById(42L)).thenReturn(true);
+		TagService tagService = new TagService(tagRepository, users);
 
 		when(tagRepository.findByName("ambient")).thenReturn(Optional.of(new Tag("ambient")));
 
-		assertThatThrownBy(() -> tagService.createTag("  Ambient  "))
+		assertThatThrownBy(() -> tagService.createTag(42L, "  Ambient  "))
 				.isInstanceOf(TagAlreadyExistsException.class)
 				.hasMessage("A tag with this name already exists.");
 
@@ -57,12 +76,14 @@ class TagServiceTests {
 	@Test
 	void createTagTranslatesDatabaseDuplicateViolations() {
 		TagRepository tagRepository = mock(TagRepository.class);
-		TagService tagService = new TagService(tagRepository);
+		UserRepository users = mock(UserRepository.class);
+		when(users.existsById(42L)).thenReturn(true);
+		TagService tagService = new TagService(tagRepository, users);
 
 		when(tagRepository.findByName("ambient")).thenReturn(Optional.empty());
 		when(tagRepository.saveAndFlush(any(Tag.class))).thenThrow(new DataIntegrityViolationException("duplicate"));
 
-		assertThatThrownBy(() -> tagService.createTag("Ambient"))
+		assertThatThrownBy(() -> tagService.createTag(42L, "Ambient"))
 				.isInstanceOf(TagAlreadyExistsException.class)
 				.hasMessage("A tag with this name already exists.");
 	}
@@ -70,7 +91,9 @@ class TagServiceTests {
 	@Test
 	void getTagsMapsSceneCountsWithoutChangingRepositoryOrder() {
 		TagRepository tagRepository = mock(TagRepository.class);
-		TagService tagService = new TagService(tagRepository);
+		UserRepository users = mock(UserRepository.class);
+		when(users.existsById(42L)).thenReturn(true);
+		TagService tagService = new TagService(tagRepository, users);
 		TagUsageProjection ambient = usage(15L, "ambient", 8);
 		TagUsageProjection unused = usage(16L, "unused", 0);
 
@@ -84,7 +107,9 @@ class TagServiceTests {
 	@Test
 	void getAttachedTagsUsesFilteredAggregateQuery() {
 		TagRepository tagRepository = mock(TagRepository.class);
-		TagService tagService = new TagService(tagRepository);
+		UserRepository users = mock(UserRepository.class);
+		when(users.existsById(42L)).thenReturn(true);
+		TagService tagService = new TagService(tagRepository, users);
 		TagUsageProjection ambient = usage(15L, "ambient", 8);
 
 		when(tagRepository.findAllWithSceneCounts(true)).thenReturn(java.util.List.of(ambient));

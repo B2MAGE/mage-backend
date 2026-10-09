@@ -107,7 +107,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				"{\"visualizer\":{\"shader\":\"source\"},\"fx\":{\"passes\":{\"rgbShift\":true,\"dot\":true,\"technicolor\":true,\"sobel\":true,\"glitch\":true}}}",
 				"{\"visualizer\":{\"shader\":\"do-not-echo-source\",\"imports\":[\"https://example.com/code.js\"]}}",
 				"{\"visualizer\":{\"shader\":\"" + "é".repeat(32769) + "\"}}")) {
-			String body = "{\"name\":\"Changed\",\"description\":\"Changed\",\"sceneData\":" + invalid + "}";
+			String body = "{\"name\":\"Changed\",\"description\":\"Changed\",\"tagIds\":[],\"sceneData\":" + invalid + "}";
 			var createResult = this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
@@ -135,7 +135,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.content("""
 						{
 						  "name":"Aurora Drift",
-						  "sceneData":{"visualizer":{"shader":"nebula"}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"}}
 						}
 						"""))
 				.andExpect(status().isUnauthorized())
@@ -171,7 +171,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{
 						  "name":" Aurora Drift ",
 						  "description":" Soft teal bloom with low-end drift. ",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.92}}
 						}
 						"""))
 				.andExpect(status().isCreated())
@@ -222,7 +222,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.content("""
 						{
 						  "name":" Playlist Scene ",
-						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"}},
 						  "playlistId":%d
 						}
 						""".formatted(playlist.getId())))
@@ -267,7 +267,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.content("""
 						{
 						  "name":"Cross User Playlist Scene",
-						  "sceneData":{"visualizer":{"shader":"nebula"}},
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"}},
 						  "playlistId":%d
 						}
 						""".formatted(otherPlaylist.getId())))
@@ -302,7 +302,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 		String requestBody = this.objectMapper.writeValueAsString(java.util.Map.of(
 				"name", "Aurora Drift",
 				"description", "a".repeat(1001),
-				"sceneData", java.util.Map.of("visualizer", java.util.Map.of("shader", "nebula"))));
+				"tagIds", java.util.List.of(), "sceneData", java.util.Map.of("visualizer", java.util.Map.of("shader", "nebula"))));
 
 		this.mockMvc.perform(post("/api/scenes").with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
@@ -503,7 +503,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{
 						  "name":" Updated Scene ",
 						  "description":" Updated description. ",
-						  "sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.5}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"nebula"},"state":{"size":0.5}}
 						}
 						"""))
 				.andExpect(status().isOk())
@@ -578,7 +578,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 						{
 						  "name":"Unauthorized update",
 						  "description":"Unauthorized description.",
-						  "sceneData":{"visualizer":{"shader":"pulse"}}
+						  "tagIds":[],"sceneData":{"visualizer":{"shader":"pulse"}}
 						}
 						"""))
 				.andExpect(status().isForbidden())

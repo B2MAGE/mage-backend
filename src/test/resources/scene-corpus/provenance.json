@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
-  "frontendCommit": "5642384d9d552fb77428f13e5950a92759c9d897",
-  "frontendTemplateSourcesModified": true,
+  "frontendCommit": "4eaa26966f4cfb33772c1f5153899cebe7fb4a74",
+  "frontendTemplateSourcesModified": false,
   "templateDefinitionsPath": "src/modules/player/templates/versions/v1/definitions.ts",
   "templateDefinitionsSha256": "fdc5f35fcc2c416c40866ac605669bc4a7e991c750efc09c14d4783a7294d88b",
   "templateCatalogSha256": "6a2d1a60c3dd9d387b4c128939e47a1c1e7efaf52d438edbf080b44beef45f0a",

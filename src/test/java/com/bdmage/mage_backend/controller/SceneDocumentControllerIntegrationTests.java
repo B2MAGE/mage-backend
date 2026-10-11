@@ -201,6 +201,51 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
+	void groupedBuildersSaveReopenReorderAndExportWithoutLosingTheirComposition() throws Exception {
+		ObjectNode document = builder();
+		document.withArray("objects").addObject().put("id", "box").putObject("operation").put("type", "box");
+		((ObjectNode) document.path("objects").get(0)).set("frame", this.json.readTree("""
+				{"position":{"x":2},"rotation":{"y":0.2},"scale":1.2}
+				"""));
+		document.set("composition", this.json.readTree("""
+				{"version":1,"roots":["outer"],"groups":[
+				 {"id":"pair","name":"Soft pair","children":["persistent-shape","box"],
+				  "operation":{"type":"smooth-union","blend":0.4},
+				  "transform":{"rotation":{"z":0.3},"scale":1.5},"material":{"color":"#123456"}},
+				 {"id":"outer","children":["pair"],"material":{"color":"#abcdef","metalness":0.8}}]}
+				"""));
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		JsonNode canonical = created.path("sceneData");
+		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
+		assertThat(created.path("availability").path("available").asBoolean()).isTrue();
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(canonical);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(canonical);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(canonical);
+
+		ObjectNode updated = (ObjectNode) this.json.readTree(this.json.writeValueAsBytes(canonical));
+		ObjectNode pair = (ObjectNode) updated.path("composition").path("groups").get(0);
+		pair.putArray("children").add("box").add("persistent-shape");
+		((ObjectNode) pair.path("operation")).put("blend", 0);
+		JsonNode response = body(this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(updated).toString()))
+				.andExpect(status().isOk()).andReturn());
+		assertThat(response.path("sceneData")).isEqualTo(updated);
+		assertThat(response.path("revision").asLong()).isGreaterThan(created.path("revision").asLong());
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(updated);
+
+		ObjectNode invalid = updated.deepCopy();
+		((ObjectNode) invalid.path("composition").path("groups").get(0)).withArray("children").add("outer");
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.composition.groups[0].children[2]']").exists());
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(updated);
+		assertThat(this.scenes.findById(id).orElseThrow().getRevision()).isEqualTo(response.path("revision").asLong());
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
 	void builderUpdatesPreserveOrderedStagesAndRejectExpandedOverloadsBeforePersistence() throws Exception {
 		ObjectNode document = builder();
 		ObjectNode object = (ObjectNode) document.path("objects").get(0);

@@ -28,6 +28,17 @@ are neither coerced nor clamped. Shared PP-B01 fixtures exercise the same
 contract on both sides; custom engine content must additionally pass PP-V01.
 Whole-document size/depth budgets include the envelope and normalized defaults.
 
+Builder documents remain `kind: "builder", builderVersion: 1`. SB-09 adds the
+optional `composition: { version: 1, roots: [...], groups: [...] }` extension for
+ordered nested groups, shared transforms, hard/smooth union, and group material
+overrides. Optional object `frame` transforms preserve geometry when ungrouping.
+Existing documents without this extension keep their flat object union. The
+API rejects unknown references, cycles, duplicate ownership, unreachable nodes,
+unsupported versions and excess nesting/expanded work. See the
+[Builder contract](../src/main/resources/contracts/scenes/builder-v1.md) for the
+exact fields and evaluation order. No database migration is required: these
+documents retain the existing `builder-v1` classification and JSONB storage.
+
 PP-B03 extends template settings with bounded controls for camera position/orientation, motion,
 initial state, music-response mappings, built-in effects and effect order. Existing camera,
 bloom, tint and parameter fields remain canonical. The new fields are optional, and absent

@@ -28,6 +28,9 @@ public class Scene {
 	@Column(name = "owner_user_id", nullable = false)
 	private Long ownerUserId;
 
+	@Column(name = "revision", nullable = false)
+	private long revision;
+
 	@Column(name = "name", nullable = false, length = 100)
 	private String name;
 
@@ -74,6 +77,11 @@ public class Scene {
 	public Long getId() {
 		return this.id;
 	}
+
+	public long getRevision() { return this.revision; }
+
+	/** Called under the scene row lock when editable content changes. */
+	public void advanceRevision() { this.revision = Math.addExact(this.revision, 1); }
 
 	public Long getOwnerUserId() {
 		return this.ownerUserId;

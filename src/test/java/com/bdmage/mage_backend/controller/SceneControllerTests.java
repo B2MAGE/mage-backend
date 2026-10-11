@@ -34,6 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.expectedSceneRevision;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -247,7 +248,7 @@ class SceneControllerTests {
 
 		when(this.sceneService.updateScene(
 				77L,
-				15L,
+				15L, 0L,
 				" Updated Scene ",
 				" Updated description. ",
 				this.objectMapper.readTree("""
@@ -256,7 +257,7 @@ class SceneControllerTests {
 				.thenReturn(scene);
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
-		this.mockMvc.perform(put("/api/scenes/15")
+		this.mockMvc.perform(put("/api/scenes/15").with(expectedSceneRevision(0))
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -278,7 +279,7 @@ class SceneControllerTests {
 
 	@Test
 	void updateSceneRejectsInvalidRequestBody() throws Exception {
-		this.mockMvc.perform(put("/api/scenes/15")
+		this.mockMvc.perform(put("/api/scenes/15").with(expectedSceneRevision(0))
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -296,7 +297,7 @@ class SceneControllerTests {
 	void updateSceneReturnsForbiddenWhenCallerIsNotOwner() throws Exception {
 		when(this.sceneService.updateScene(
 				88L,
-				15L,
+				15L, 0L,
 				"Updated Scene",
 				"Updated description.",
 				this.objectMapper.readTree("""
@@ -304,7 +305,7 @@ class SceneControllerTests {
 						"""), List.of()))
 				.thenThrow(new SceneOwnershipRequiredException("Scene ownership is required."));
 
-		this.mockMvc.perform(put("/api/scenes/15")
+		this.mockMvc.perform(put("/api/scenes/15").with(expectedSceneRevision(0))
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 88L)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""

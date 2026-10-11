@@ -24,7 +24,8 @@ public record SceneDetailResponse(
 		List<String> tags,
 		SceneEngagementResponse engagement,
 		SceneAvailabilityResponse availability,
-		String sceneMode) {
+		String sceneMode,
+		long revision) {
 
 	private static final ObjectMapper JSON_OBJECT_MAPPER = new ObjectMapper();
 	private static final TypeReference<Map<String, Object>> SCENE_DATA_TYPE = new TypeReference<>() {};
@@ -50,6 +51,6 @@ public record SceneDetailResponse(
 				scene.getName(), scene.getDescription(),
 				availability.available() ? JSON_OBJECT_MAPPER.convertValue(scene.getSceneData(), SCENE_DATA_TYPE) : null,
 				scene.getThumbnailRef(), scene.getCreatedAt(), List.copyOf(tags),
-				engagement != null ? engagement : SceneEngagementResponse.empty(), availability, scene.getSceneMode());
+				engagement != null ? engagement : SceneEngagementResponse.empty(), availability, scene.getSceneMode(), scene.getRevision());
 	}
 }

@@ -46,7 +46,10 @@ class SceneModeMigrationIntegrationTests extends PostgresIntegrationTestSupport 
 			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
 					.locations("classpath:db/migration").load().migrate();
 			var after = this.jdbc.queryForList("SELECT * FROM " + schema + ".scenes ORDER BY id");
-			after.forEach(row -> assertThat(row.remove("scene_mode")).isEqualTo("legacy-custom"));
+			after.forEach(row -> {
+				assertThat(row.remove("scene_mode")).isEqualTo("legacy-custom");
+				assertThat(row.remove("revision")).isEqualTo(0L);
+			});
 			assertThat(after).isEqualTo(before);
 
 			// An old writer cannot leave a trusted marker attached to a replacement raw document.

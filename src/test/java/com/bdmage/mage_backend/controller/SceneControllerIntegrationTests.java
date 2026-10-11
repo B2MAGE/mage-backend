@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.currentSceneRevision;
 import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
 
 import java.util.regex.Matcher;
@@ -112,7 +113,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 					.andExpect(jsonPath("$.details").isMap()).andReturn();
-			var updateResult = this.mockMvc.perform(put("/api/scenes/" + existing.getId()).with(explicitCustomSceneDocument())
+			var updateResult = this.mockMvc.perform(put("/api/scenes/" + existing.getId()).with(currentSceneRevision(this.sceneRepository)).with(explicitCustomSceneDocument())
 					.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 					.andExpect(jsonPath("$.details").isMap()).andReturn();
@@ -498,7 +499,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId()).with(explicitCustomSceneDocument())
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId()).with(currentSceneRevision(this.sceneRepository)).with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -573,7 +574,7 @@ class SceneControllerIntegrationTests extends PostgresIntegrationTestSupport {
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn());
 
-		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId()).with(explicitCustomSceneDocument())
+		this.mockMvc.perform(put("/api/scenes/" + savedScene.getId()).with(currentSceneRevision(this.sceneRepository)).with(explicitCustomSceneDocument())
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""

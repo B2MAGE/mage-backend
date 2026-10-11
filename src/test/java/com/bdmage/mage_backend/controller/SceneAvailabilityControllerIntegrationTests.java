@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.controller;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.currentSceneRevision;
 import static com.bdmage.mage_backend.support.SceneDocumentFixtures.explicitCustomSceneDocument;
 import static com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument;
 import com.bdmage.mage_backend.validation.SceneDocumentValidator;
@@ -187,7 +188,7 @@ class SceneAvailabilityControllerIntegrationTests extends PostgresIntegrationTes
 				"name", "Imported replacement", "description", "Edited",
 				"tagIds", java.util.List.of(), "sceneData", Map.of("visualizer", Map.of("shader", "sphere(0.7);"))));
 		for (MockHttpServletRequestBuilder request : List.of(
-				put("/api/scenes/{id}", this.scene.getId()).with(explicitCustomSceneDocument()).content(importedBody),
+				put("/api/scenes/{id}", this.scene.getId()).with(currentSceneRevision(this.scenes)).with(explicitCustomSceneDocument()).content(importedBody),
 				patch("/api/scenes/{id}/description", this.scene.getId()).content("{\"description\":\"New description\",\"disabled\":false}"))) {
 			MvcResult result = this.mvc.perform(request.header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();

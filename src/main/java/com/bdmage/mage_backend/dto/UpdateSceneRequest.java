@@ -4,10 +4,14 @@ import java.util.List;
 import java.util.Map;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record UpdateSceneRequest(
+		@NotNull(message = "expectedRevision must not be null")
+		@PositiveOrZero(message = "expectedRevision must not be negative")
+		Long expectedRevision,
 		@NotBlank(message = "name must not be blank")
 		@Size(max = 100, message = "name must be at most 100 characters")
 		String name,

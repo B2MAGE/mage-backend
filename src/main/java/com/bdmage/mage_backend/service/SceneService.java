@@ -10,6 +10,7 @@ import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.CustomRenderingDisabledException;
 import com.bdmage.mage_backend.exception.InvalidThumbnailException;
 import com.bdmage.mage_backend.exception.InvalidSceneDataException;
+import com.bdmage.mage_backend.exception.SceneEditConflictException;
 import com.bdmage.mage_backend.exception.SceneForbiddenException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
 import com.bdmage.mage_backend.exception.SceneOwnershipRequiredException;
@@ -27,6 +28,7 @@ import com.bdmage.mage_backend.validation.SceneDocumentValidator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -224,13 +226,15 @@ public class SceneService {
 
 	@Transactional
 	public SceneTag attachTagToScene(Long authenticatedUserId, Long sceneId, Long tagId) {
-		requireOwnedScene(authenticatedUserId, sceneId);
+		Scene scene = requireOwnedSceneForEdit(authenticatedUserId, sceneId);
 		requireTagExists(tagId);
 
 		if (this.sceneTagRepository.existsBySceneIdAndTagId(sceneId, tagId)) {
 			throw new SceneTagAlreadyExistsException(SCENE_TAG_ALREADY_EXISTS_MESSAGE);
 		}
 
+		scene.advanceRevision();
+		this.sceneRepository.saveAndFlush(scene);
 		try {
 			return this.sceneTagRepository.saveAndFlush(new SceneTag(sceneId, tagId));
 		} catch (DataIntegrityViolationException ex) {
@@ -242,8 +246,10 @@ public class SceneService {
 
 	@Transactional
 	public List<SceneTag> replaceSceneTags(Long authenticatedUserId, Long sceneId, List<Long> tagIds) {
-		requireOwnedScene(authenticatedUserId, sceneId);
+		Scene scene = requireOwnedSceneForEdit(authenticatedUserId, sceneId);
 		List<Long> uniqueTagIds = validateTagIds(tagIds);
+		scene.advanceRevision();
+		this.sceneRepository.saveAndFlush(scene);
 		return persistSceneTags(sceneId, uniqueTagIds);
 	}
 
@@ -265,11 +271,13 @@ public class SceneService {
 
 	@Transactional
 	public void removeTagFromScene(Long authenticatedUserId, Long sceneId, Long tagId) {
-		requireOwnedScene(authenticatedUserId, sceneId);
+		Scene scene = requireOwnedSceneForEdit(authenticatedUserId, sceneId);
 		requireTagExists(tagId);
 
 		SceneTagId sceneTagId = new SceneTagId(sceneId, tagId);
 		if (this.sceneTagRepository.existsById(sceneTagId)) {
+			scene.advanceRevision();
+			this.sceneRepository.saveAndFlush(scene);
 			this.sceneTagRepository.deleteById(sceneTagId);
 			this.sceneTagRepository.flush();
 		}
@@ -306,12 +314,7 @@ public class SceneService {
 
 	@Transactional
 	public Scene finalizeThumbnailUpload(Long authenticatedUserId, Long sceneId, String objectKey) {
-		requireAuthenticatedUser(authenticatedUserId);
-
-		Scene scene = this.sceneRepository.findById(sceneId)
-				.orElseThrow(() -> new SceneNotFoundException(SCENE_NOT_FOUND_MESSAGE));
-
-		requireSceneOwnership(scene, authenticatedUserId);
+		Scene scene = requireOwnedSceneForEdit(authenticatedUserId, sceneId);
 
 		String previousThumbnailRef = scene.getThumbnailRef();
 		ThumbnailStorageService.FinalizedThumbnail finalizedThumbnail = requireThumbnailStorageService()
@@ -330,8 +333,9 @@ public class SceneService {
 
 	@Transactional
 	public Scene updateDescription(Long authenticatedUserId, Long sceneId, String description) {
-		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		Scene scene = requireOwnedSceneForEdit(authenticatedUserId, sceneId);
 		scene.updateDescription(normalizeOptionalText(description));
+		scene.advanceRevision();
 
 		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
 		if (this.entityManager != null) {
@@ -341,14 +345,16 @@ public class SceneService {
 	}
 
 	@Transactional
-	public Scene updateScene(Long authenticatedUserId, Long sceneId, String name, String description,
+	public Scene updateScene(Long authenticatedUserId, Long sceneId, long expectedRevision, String name, String description,
 			JsonNode sceneData, List<Long> tagIds) {
-		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		Scene scene = requireOwnedSceneForEdit(authenticatedUserId, sceneId);
+		if (scene.getRevision() != expectedRevision) throw new SceneEditConflictException();
 		JsonNode normalizedDocument = SCENE_VALIDATOR.validateAndNormalize(sceneData);
 		requireCustomSourceWriteAllowed(normalizedDocument, scene);
 		List<Long> selectedTagIds = validateTagIds(tagIds);
 		scene.updateDetails(name.trim(), normalizeOptionalText(description), normalizedDocument);
 		scene.updateValidatedDocument(normalizedDocument);
+		scene.advanceRevision();
 
 		Scene savedScene = this.sceneRepository.saveAndFlush(scene);
 		persistSceneTags(sceneId, selectedTagIds);
@@ -402,6 +408,14 @@ public class SceneService {
 		if (!this.tagRepository.existsById(tagId)) {
 			throw new TagNotFoundException(TAG_NOT_FOUND_MESSAGE);
 		}
+	}
+
+	private Scene requireOwnedSceneForEdit(Long authenticatedUserId, Long sceneId) {
+		Scene scene = requireOwnedScene(authenticatedUserId, sceneId);
+		// Refresh after acquiring the row lock: a concurrent save may have completed
+		// between the ownership lookup and this transaction obtaining the lock.
+		if (this.entityManager != null) this.entityManager.refresh(scene, LockModeType.PESSIMISTIC_WRITE);
+		return scene;
 	}
 
 	private Scene requireOwnedScene(Long authenticatedUserId, Long sceneId) {

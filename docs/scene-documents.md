@@ -51,7 +51,7 @@ on the editor's expanded documents being saved successfully.
 
 Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`,
 `playlistId`, and `tagIds`; replacement accepts only `name`, `description`,
-`sceneData`, and `tagIds`. Both require the complete `tagIds` array; `[]` clears
+`sceneData`, `tagIds`, and `expectedRevision`. Both require the complete `tagIds` array; `[]` clears
 the selection. The scene and validated tag assignments commit atomically,
 including rollback when a database write fails after the scene is flushed.
 Client fields such as `sceneMode`, `disabled`, `availability`, or owner IDs are
@@ -106,7 +106,39 @@ Original music response keeps its `legacy` wire identifier and Selective keeps
 existing JSONB rows are neither rewritten nor deleted.
 
 Deploy frontend and backend contracts together, including required `tagIds` on
-scene writes. Keep custom rendering disabled until the isolation release checks
+scene writes and `expectedRevision` on replacements. Keep custom rendering disabled until the isolation release checks
 and operator enable are complete. Retain existing database migrations and stored
 rows; rollback must use a matching frontend/backend contract rather than stripping
 envelopes or rewriting historical data.
+
+
+## Saving an editor draft without overwriting a newer save
+
+Scene list, detail, create/update, description, thumbnail and owner repair responses
+include a nonnegative integer `revision`. Migration V22 initializes it to `0`
+without changing existing scene documents. It is envelope metadata, not a field
+inside `sceneData`; exported/imported Builder documents retain their object IDs
+and bindings independently of the revision of the scene that contains them.
+
+`PUT /api/scenes/{id}` requires `expectedRevision` from the editor's original read
+or last confirmed save. The backend locks that scene row, compares revisions,
+validates the replacement, and atomically saves name, description, document,
+complete tag selection and the incremented revision. A stale revision returns
+`409 SCENE_EDIT_CONFLICT` without changing any content or tags. Missing or negative
+revisions return `400 VALIDATION_ERROR`. The client must retain its draft and let
+the user reopen the newer scene; it must not automatically retry using a freshly
+read revision. A successful save response supplies the next revision, including
+when the user has continued editing during that request.
+
+Description and tag mutation routes also acquire the row lock and advance the
+revision, so an older full save cannot erase those changes. Thumbnail finalization
+uses the same lock to retain concurrent document edits but does not advance the
+editor revision. Views, votes, saves, comments, availability and playlist membership
+are independent and do not advance it. Full scene replacement does not replace
+playlist membership.
+
+`SceneRevisionIntegrationTests` exercises registration, login, create, update,
+reopen, repair export/import and competing saves over real HTTP against a fresh
+Testcontainers PostgreSQL database. It never connects to local or production
+accounts or scenes. Run it with `./mvnw -Dtest=SceneRevisionIntegrationTests test`
+(Windows: `.\mvnw.cmd -Dtest=SceneRevisionIntegrationTests test`).

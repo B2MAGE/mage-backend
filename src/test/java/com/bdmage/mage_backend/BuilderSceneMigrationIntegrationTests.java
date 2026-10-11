@@ -25,6 +25,32 @@ class BuilderSceneMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 	@Autowired private JdbcTemplate jdbc;
 
 	@Test
+	void initializesEditorRevisionsWithoutChangingExistingScenes() {
+		String schema = "sb08_revision_" + System.nanoTime();
+		try {
+			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
+					.locations("classpath:db/migration").target("21").load().migrate();
+			this.jdbc.update("INSERT INTO " + schema + ".users "
+					+ "(id,email,password_hash,display_name,first_name,last_name,handle) "
+					+ "VALUES (1,'revision@example.test','unused','Revision','Revision','','revision')");
+			this.jdbc.update("INSERT INTO " + schema + ".scenes "
+					+ "(id,owner_user_id,name,description,scene_data,thumbnail_ref,scene_mode) "
+					+ "VALUES (1,1,'Keep name','Keep description',CAST(? AS jsonb),'keep.png','builder-v1')",
+					"{\"schemaVersion\":1,\"kind\":\"builder\",\"builderVersion\":1,\"objects\":[]}");
+			var before = this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id=1");
+			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
+					.locations("classpath:db/migration").load().migrate();
+			var after = this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id=1");
+			assertThat(after.remove("revision")).isEqualTo(0L);
+			assertThat(after).isEqualTo(before);
+			assertThatThrownBy(() -> this.jdbc.update("UPDATE " + schema + ".scenes SET revision=-1 WHERE id=1"))
+					.isInstanceOf(DataIntegrityViolationException.class);
+		} finally {
+			this.jdbc.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+		}
+	}
+
+	@Test
 	void addsBuilderClassificationWithoutRewritingOrPromotingAnyExistingDocument() {
 		String schema = "sb01_upgrade_" + System.nanoTime();
 		try {
@@ -49,7 +75,7 @@ class BuilderSceneMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 			}
 			var before = this.jdbc.queryForList("SELECT * FROM " + schema + ".scenes ORDER BY id");
 			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
-					.locations("classpath:db/migration").load().migrate();
+					.locations("classpath:db/migration").target("21").load().migrate();
 			assertThat(this.jdbc.queryForList("SELECT * FROM " + schema + ".scenes ORDER BY id")).isEqualTo(before);
 			this.jdbc.update("UPDATE " + schema + ".scenes SET scene_mode='builder-v1' WHERE id=4");
 			for (String invalid : new String[] {

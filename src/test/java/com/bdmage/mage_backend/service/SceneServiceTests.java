@@ -65,7 +65,7 @@ class SceneServiceTests {
 			var createError = assertThrows(InvalidSceneDataException.class, () -> service.createScene(
 					42L, "New", null, data, "scenes/pending/42/thumbnails/test.png", null, List.of()));
 			var updateError = assertThrows(InvalidSceneDataException.class, () -> service.updateScene(
-					42L, 15L, "Changed", "Changed", data, List.of()));
+					42L, 15L, 0L, "Changed", "Changed", data, List.of()));
 			assertThat(createError.getDetails()).isEqualTo(updateError.getDetails());
 			assertThat(original.getName()).isEqualTo("Original");
 			assertThat(original.getSceneData()).isEqualTo(originalData);
@@ -104,7 +104,7 @@ class SceneServiceTests {
 		when(repository.findById(15L)).thenReturn(Optional.of(existing));
 
 		assertThatThrownBy(() -> service.updateScene(
-				42L, 15L, "Changed source", null,
+				42L, 15L, 0L, "Changed source", null,
 				customDocument("{\"visualizer\":{\"shader\":\"different-source\"}}"), List.of()))
 				.isInstanceOf(CustomRenderingDisabledException.class);
 		assertThat(existing.getSceneData()).isEqualTo(originalDocument);
@@ -112,7 +112,7 @@ class SceneServiceTests {
 		JsonNode settingsOnly = customDocument(
 				"{\"visualizer\":{\"shader\":\"saved-source\"},\"state\":{\"size\":0.5}}");
 		when(repository.saveAndFlush(existing)).thenReturn(existing);
-		Scene updated = service.updateScene(42L, 15L, "Settings changed", null, settingsOnly, List.of());
+		Scene updated = service.updateScene(42L, 15L, 0L, "Settings changed", null, settingsOnly, List.of());
 		assertThat(updated.getSceneData()).isEqualTo(settingsOnly);
 		assertThat(updated.getName()).isEqualTo("Settings changed");
 	}
@@ -129,7 +129,7 @@ class SceneServiceTests {
 				false, "CUSTOM_RENDERING_DISABLED", "Custom rendering is temporarily unavailable."));
 		Scene historical = new Scene(42L, "Historical", this.objectMapper.readTree("{\"visualizer\":{\"shader\":\"same-source\"}}"));
 		when(repository.findById(15L)).thenReturn(Optional.of(historical));
-		assertThatThrownBy(() -> service.updateScene(42L, 15L, "Replacement", null,
+		assertThatThrownBy(() -> service.updateScene(42L, 15L, 0L, "Replacement", null,
 				customDocument("{\"visualizer\":{\"shader\":\"same-source\"}}"), List.of()))
 				.isInstanceOf(CustomRenderingDisabledException.class);
 		verify(repository, never()).saveAndFlush(any(Scene.class));
@@ -861,7 +861,7 @@ class SceneServiceTests {
 
 		Scene result = sceneService.updateScene(
 				42L,
-				15L,
+				15L, 0L,
 				" Updated Scene ",
 				" Updated description. ",
 				customDocument("""
@@ -889,7 +889,7 @@ class SceneServiceTests {
 
 		assertThatThrownBy(() -> sceneService.updateScene(
 				42L,
-				15L,
+				15L, 0L,
 				"Updated Scene",
 				"Updated description.",
 				this.objectMapper.createObjectNode(), List.of()))

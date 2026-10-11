@@ -98,6 +98,7 @@ public class SceneController {
 		Scene scene = this.sceneService.updateScene(
 				authenticatedUserId,
 				id,
+				request.expectedRevision(),
 				request.name(),
 				request.description(),
 				SceneService.sceneDataJson(request.sceneData()),

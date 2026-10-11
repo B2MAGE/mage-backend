@@ -51,6 +51,7 @@ class SceneAvailabilityMigrationIntegrationTests extends PostgresIntegrationTest
 
 			var after = this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id = 1");
 			assertThat(after.remove("scene_mode")).isEqualTo(Scene.LEGACY_CUSTOM);
+			assertThat(after.remove("revision")).isEqualTo(0L);
 			assertThat(after).isEqualTo(before);
 			assertThat(this.jdbc.queryForObject("SELECT count(*) FROM " + schema + ".scene_availability_controls", Long.class)).isZero();
 			assertThat(this.jdbc.queryForObject("SELECT enabled FROM " + schema + ".custom_rendering_control WHERE id = 1", Boolean.class)).isFalse();

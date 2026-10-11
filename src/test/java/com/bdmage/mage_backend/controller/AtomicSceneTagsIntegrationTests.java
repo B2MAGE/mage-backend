@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.currentSceneRevision;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -66,14 +67,14 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
         assertTags(id, this.first.getId(), this.second.getId());
         ObjectNode replacement = request("Edited", List.of(this.second.getId())).put("description", "Edited description");
         ((ObjectNode) replacement.path("sceneData")).put("templateId", "embedded-scene-1");
-        write(put("/api/scenes/{id}", id), replacement, this.owner.token())
+        write(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)), replacement, this.owner.token())
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Edited"))
                 .andExpect(jsonPath("$.tags[0]").value(this.second.getName()));
         Scene saved = this.scenes.findById(id).orElseThrow();
         assertThat(saved.getDescription()).isEqualTo("Edited description");
         assertThat(saved.getSceneData().path("templateId").asText()).isEqualTo("embedded-scene-1");
         assertTags(id, this.second.getId());
-        write(put("/api/scenes/{id}", id), request("Cleared", List.of()), this.owner.token())
+        write(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)), request("Cleared", List.of()), this.owner.token())
                 .andExpect(status().isOk()).andExpect(jsonPath("$.tags").isEmpty());
         assertTags(id);
         assertThat(this.scenes.findById(id).orElseThrow().getName()).isEqualTo("Cleared");
@@ -85,13 +86,13 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
         Scene original = this.scenes.findById(id).orElseThrow();
         long count = this.scenes.count();
         ObjectNode missingTag = request("Must not persist", List.of(this.second.getId(), Long.MAX_VALUE));
-        for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id))) {
+        for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)))) {
             write(endpoint, missingTag, this.owner.token()).andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value("TAG_NOT_FOUND"));
         }
         ObjectNode invalidScene = request("Invalid document", List.of(this.second.getId()));
         invalidScene.set("sceneData", this.json.createObjectNode());
-        for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id))) {
+        for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)))) {
             write(endpoint, invalidScene, this.owner.token()).andExpect(status().isBadRequest());
         }
         assertThat(this.scenes.count()).isEqualTo(count);
@@ -107,7 +108,7 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
             if (selection.equals("missing")) body.remove("tagIds");
             else if (selection.equals("null")) body.putNull("tagIds");
             else body.putArray("tagIds").addNull();
-            for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id))) {
+            for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)))) {
                 write(endpoint, body, this.owner.token()).andExpect(status().isBadRequest())
                         .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
             }
@@ -132,7 +133,7 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
         this.jdbc.execute("CREATE TRIGGER reject_atomic_test_tag BEFORE INSERT ON scene_tags FOR EACH ROW "
                 + "WHEN (NEW.tag_id = " + this.second.getId() + ") EXECUTE FUNCTION reject_atomic_test_tag()");
         try {
-            for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id))) {
+            for (MockHttpServletRequestBuilder endpoint : List.of(post("/api/scenes"), put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)))) {
                 assertThatThrownBy(() -> write(endpoint, body, this.owner.token()))
                         .hasStackTraceContaining("atomic tag failure");
                 assertThat(this.scenes.count()).isEqualTo(sceneCount);
@@ -160,7 +161,7 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
             List<MockHttpServletRequestBuilder> protectedRequests = List.of(
                     post("/api/tags").content("{\"name\":\"blocked-tag\"}"),
                     post("/api/scenes").content(request("Blocked", List.of()).toString()),
-                    put("/api/scenes/{id}", id).content(request("Blocked", List.of()).toString()),
+                    put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).content(request("Blocked", List.of()).toString()),
                     post("/api/scenes/{id}/tags", id).content("{\"tagId\":" + this.second.getId() + "}"),
                     put("/api/scenes/{id}/tags", id).content("{\"tagIds\":[]}"),
                     delete("/api/scenes/{id}/tags/{tagId}", id, this.first.getId()),
@@ -185,7 +186,7 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
         Scene original = this.scenes.findById(id).orElseThrow();
         Account other = registerAndLogin();
         for (MockHttpServletRequestBuilder endpoint : List.of(
-                put("/api/scenes/{id}", id).content(request("Other account", List.of(this.second.getId())).toString()),
+                put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).content(request("Other account", List.of(this.second.getId())).toString()),
                 post("/api/scenes/{id}/tags", id).content("{\"tagId\":" + this.second.getId() + "}"),
                 put("/api/scenes/{id}/tags", id).content("{\"tagIds\":[]}"),
                 delete("/api/scenes/{id}/tags/{tagId}", id, this.first.getId()))) {
@@ -218,6 +219,7 @@ class AtomicSceneTagsIntegrationTests extends PostgresIntegrationTestSupport {
     private void assertSceneUnchanged(Scene original) {
         Scene actual = this.scenes.findById(original.getId()).orElseThrow();
         assertThat(actual.getName()).isEqualTo(original.getName());
+        assertThat(actual.getRevision()).isEqualTo(original.getRevision());
         assertThat(actual.getDescription()).isEqualTo(original.getDescription());
         assertThat(actual.getSceneData()).isEqualTo(original.getSceneData());
         assertThat(actual.getSceneMode()).isEqualTo(original.getSceneMode());

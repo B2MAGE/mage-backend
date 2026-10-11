@@ -54,7 +54,7 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 			.build();
 	private static final ObjectMapper ERROR_JSON = new ObjectMapper();
 	private static final Set<String> CREATE_FIELDS = Set.of("name", "description", "sceneData", "thumbnailObjectKey", "playlistId", "tagIds");
-	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData", "tagIds");
+	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData", "tagIds", "expectedRevision");
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -194,8 +194,13 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 					throw invalid("sceneData", "Must have at most " + SceneLimits.TOTAL_KEYS + " total fields.");
 				}
 				boolean startsScene = requestRoot && "sceneData".equals(parser.currentName());
+				boolean revision = requestRoot && "expectedRevision".equals(parser.currentName());
 				if (parser.nextToken() == null) {
 					throw new IOException("Missing field value");
+				}
+				if (revision && (parser.currentToken() != JsonToken.VALUE_NUMBER_INT
+						|| parser.getBigIntegerValue().signum() < 0 || parser.getBigIntegerValue().bitLength() > 63)) {
+					throw invalid("expectedRevision", "Expected a nonnegative integer revision.");
 				}
 				readValue(parser, startsScene ? 1 : (sceneDepth > 0 ? sceneDepth + 1 : 0), false, counts);
 			}

@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.currentSceneRevision;
 import static com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -113,7 +114,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		assertThat(created.path("availability").path("available").asBoolean()).isTrue();
 		ObjectNode updatedDocument = (ObjectNode) created.path("sceneData").deepCopy();
 		((ObjectNode) updatedDocument.path("settings").path("effects").path("params").path("rgbShift")).put("amount", 0.04);
-		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(updatedDocument).toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneMode").value("template-v1")).andReturn());
 		JsonNode canonical = updated.path("sceneData");
@@ -123,7 +124,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
 				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(canonical);
 		((ObjectNode) updatedDocument.path("settings").path("effects")).put("shader", "sphere(1)");
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(updatedDocument).toString()))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.settings.effects.shader']").exists());
 		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(canonical);
@@ -179,10 +180,10 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		((ObjectNode) edited.path("objects").get(0).path("operation")).put("radius", 2);
 		((ObjectNode) edited.path("objects").get(0)).withArray("bindings").addObject()
 				.put("target", "scale.x").put("source", "bass-hit").put("amount", 0.7).put("attack", 0.13).put("release", 0.73);
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.strangerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.strangerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(edited).toString())).andExpect(status().isForbidden());
 		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(saved);
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(edited).toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneMode").value("builder-v1"));
 		JsonNode after = this.scenes.findById(id).orElseThrow().getSceneData();
@@ -217,7 +218,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		editedObject.putArray("modifiers").addObject().put("type", "shell").put("thickness", 0.2);
 		editedObject.withArray("modifiers").addObject().put("type", "expand").put("amount", -0.1);
 		((ObjectNode) editedObject.path("motion")).put("speed", 2);
-		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(edited).toString()))
 				.andExpect(status().isOk()).andReturn()).path("sceneData");
 		assertThat(updated).isEqualTo(edited);
@@ -230,7 +231,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(overloaded).toString()))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects']").exists());
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(overloaded).toString()))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects']").exists());
 		assertThat(this.scenes.count()).isEqualTo(sceneCount);
@@ -254,7 +255,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 			long id = created.path("sceneId").asLong();
 			JsonNode expected = row.path("normalized");
 			assertThat(created.path("sceneData")).as(row.path("name").asText()).isEqualTo(expected);
-			JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+			JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON).content(request(expected).toString()))
 					.andExpect(status().isOk()).andReturn());
 			assertThat(updated.path("sceneData")).isEqualTo(expected);
@@ -272,7 +273,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 				.andExpect(status().isOk());
 		ObjectNode edited = builder();
 		edited.putObject("parameters").put("speed", 0.3);
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(edited).put("description", "Updated while blocked").toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.availability.code").value("SCENE_DISABLED"))
 				.andExpect(jsonPath("$.sceneData").doesNotExist());
@@ -306,7 +307,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 					.andExpect(jsonPath("$.details['" + paths[index] + "']").exists());
 			rejected.remove("thumbnailObjectKey");
-			this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+			this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON).content(rejected.toString()))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['" + paths[index] + "']").exists());
 		}
@@ -342,7 +343,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR")).andReturn());
 			assertThat(rejected.path("details").has(invalidPaths.get(invalidIndex++))).isTrue();
 			request.remove("thumbnailObjectKey");
-			this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+			this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON).content(request.toString()))
 					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 		}
@@ -350,7 +351,7 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 			ObjectNode request = request(template()).put(field, "forged");
 			this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON).content(request.toString())).andExpect(status().isBadRequest());
-			this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+			this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 					.contentType(MediaType.APPLICATION_JSON).content(request.toString())).andExpect(status().isBadRequest());
 		}
 		assertThat(this.scenes.count()).isEqualTo(count);
@@ -392,9 +393,9 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(legacy);
 		this.mvc.perform(get("/api/scenes/{id}/repair", id)).andExpect(status().isUnauthorized());
 		this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.strangerToken))).andExpect(status().isForbidden());
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.strangerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.strangerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(template()).toString())).andExpect(status().isForbidden());
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(template()).toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.sceneMode").value("template-v1"))
 				.andExpect(jsonPath("$.availability.available").value(true));
@@ -407,11 +408,11 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		this.mvc.perform(put("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken))
 				.contentType(MediaType.APPLICATION_JSON).content("{\"disabled\":true,\"reason\":\"Keep disabled\"}"))
 				.andExpect(status().isOk());
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON).content(request(template()).toString()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.availability.code").value("SCENE_DISABLED"))
 				.andExpect(jsonPath("$.sceneData").doesNotExist());
-		this.mvc.perform(put("/api/scenes/{id}", id).header("Authorization", bearer(this.ownerToken))
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes)).header("Authorization", bearer(this.ownerToken))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(request(customDocument("{\"visualizer\":{\"shader\":\"sphere(0.2);\"}}")).toString()))
 				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CUSTOM_RENDERING_DISABLED"));

@@ -94,12 +94,15 @@ public final class SceneDocumentValidator {
 	private void validateBuilderRenderingBudget(JsonNode document) {
 		JsonNode objects = document.path("objects");
 		JsonNode costs = BUILDER_RENDERING.path("operationCosts");
+		BuilderCompositionWorkload composition = validateBuilderComposition(document);
 		int expandedPrimitives = 0;
+		int objectFrames = 0;
 		int liveUniforms = 0;
 		int modifierOperations = 0;
 		int arrangementOperations = 0;
 		int animationOperations = 0;
 		for (JsonNode object : objects) {
+			if (object.has("frame")) objectFrames++;
 			int copies = 1;
 			for (JsonNode arrangement : object.path("arrangements")) copies *= arrangement.path("count").intValue();
 			expandedPrimitives += copies;
@@ -115,22 +118,80 @@ public final class SceneDocumentValidator {
 			}
 			liveUniforms += object.path("bindings").size() * costs.path("liveUniformPerBinding").intValue();
 		}
-		Map<String, Integer> workload = Map.of(
-				"expandedPrimitives", expandedPrimitives,
-				"compositionOperations", Math.max(0, expandedPrimitives - 1) * costs.path("compositionPerAdditionalObject").intValue(),
-				"transformOperations", expandedPrimitives * costs.path("transformPerObject").intValue(),
-				"materialOperations", expandedPrimitives * costs.path("materialPerObject").intValue(),
-				"modifierOperations", modifierOperations,
-				"arrangementOperations", arrangementOperations,
-				"animationOperations", animationOperations,
-				"liveUniforms", liveUniforms,
-				"optionalEffects", templateEffectCount(document.path("settings")));
+		Map<String, Integer> workload = Map.ofEntries(
+				Map.entry("expandedPrimitives", expandedPrimitives),
+				Map.entry("compositionOperations", Math.max(0, expandedPrimitives - 1) * costs.path("compositionPerAdditionalObject").intValue()),
+				Map.entry("transformOperations", (expandedPrimitives + objectFrames + composition.groups()) * costs.path("transformPerObject").intValue()),
+				Map.entry("materialOperations", (expandedPrimitives + composition.materialOverrides()) * costs.path("materialPerObject").intValue()),
+				Map.entry("modifierOperations", modifierOperations),
+				Map.entry("arrangementOperations", arrangementOperations),
+				Map.entry("animationOperations", animationOperations),
+				Map.entry("liveUniforms", liveUniforms),
+				Map.entry("groups", composition.groups()),
+				Map.entry("groupDepth", composition.depth()),
+				Map.entry("optionalEffects", templateEffectCount(document.path("settings"))));
 		for (var entry : workload.entrySet()) {
 			int maximum = BUILDER_RENDERING.path("limits").path(entry.getKey()).asInt(-1);
 			if (maximum < 0) throw new IllegalStateException("Incomplete Builder rendering policy.");
 			if (entry.getValue() > maximum) invalid("sceneData.objects",
 					entry.getKey() + " requires " + entry.getValue() + "; maximum is " + maximum + ".");
 		}
+	}
+
+	private record BuilderCompositionWorkload(int groups, int depth, int materialOverrides) {}
+
+	/** A bounded forest: references only establish ownership, never reusable or recursive components. */
+	private BuilderCompositionWorkload validateBuilderComposition(JsonNode document) {
+		if (!document.has("composition")) return new BuilderCompositionWorkload(0, 0, 0);
+		JsonNode composition = document.path("composition");
+		Map<String, String> nodePaths = new LinkedHashMap<>();
+		for (int index = 0; index < document.path("objects").size(); index++) {
+			nodePaths.put(document.path("objects").get(index).path("id").asText(), "sceneData.objects[" + index + "].id");
+		}
+		Map<String, JsonNode> groups = new LinkedHashMap<>();
+		Map<String, String> groupPaths = new LinkedHashMap<>();
+		int materialOverrides = 0;
+		for (int index = 0; index < composition.path("groups").size(); index++) {
+			JsonNode group = composition.path("groups").get(index);
+			String path = "sceneData.composition.groups[" + index + "]";
+			String id = group.path("id").asText();
+			if (nodePaths.putIfAbsent(id, path + ".id") != null) invalid(path + ".id", "Object and group IDs must be unique within the scene.");
+			if (group.path("children").isEmpty()) invalid(path + ".children", "A group must contain at least one object or group.");
+			groups.put(id, group);
+			groupPaths.put(id, path);
+			if (group.has("material")) materialOverrides++;
+		}
+		Set<String> visiting = new HashSet<>();
+		Set<String> visited = new HashSet<>();
+		int maximumDepth = 0;
+		for (int index = 0; index < composition.path("roots").size(); index++) {
+			maximumDepth = Math.max(maximumDepth, visitBuilderNode(composition.path("roots").get(index).asText(),
+					"sceneData.composition.roots[" + index + "]", 0, nodePaths, groups, groupPaths, visiting, visited));
+		}
+		for (var node : nodePaths.entrySet()) {
+			if (!visited.contains(node.getKey())) invalid(node.getValue(), "Every object and group must occur exactly once in the composition; this node is unreachable.");
+		}
+		return new BuilderCompositionWorkload(groups.size(), maximumDepth, materialOverrides);
+	}
+
+	private int visitBuilderNode(String id, String referencePath, int parentDepth, Map<String, String> nodePaths,
+			Map<String, JsonNode> groups, Map<String, String> groupPaths, Set<String> visiting, Set<String> visited) {
+		if (!nodePaths.containsKey(id)) invalid(referencePath, "Unknown object or group reference.");
+		if (visiting.contains(id)) invalid(referencePath, "Composition groups cannot contain cycles.");
+		if (!visited.add(id)) invalid(referencePath, "Each object or group may have only one parent or root position.");
+		JsonNode group = groups.get(id);
+		if (group == null) return parentDepth;
+		int depth = parentDepth + 1;
+		int limit = BUILDER_RENDERING.path("limits").path("groupDepth").asInt();
+		if (depth > limit) invalid(referencePath, "Groups may be nested at most " + limit + " levels deep.");
+		visiting.add(id);
+		int maximumDepth = depth;
+		for (int index = 0; index < group.path("children").size(); index++) {
+			maximumDepth = Math.max(maximumDepth, visitBuilderNode(group.path("children").get(index).asText(),
+					groupPaths.get(id) + ".children[" + index + "]", depth, nodePaths, groups, groupPaths, visiting, visited));
+		}
+		visiting.remove(id);
+		return maximumDepth;
 	}
 
 	private JsonNode validate(JsonNode value, JsonNode rule, String path) {

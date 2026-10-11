@@ -7,7 +7,11 @@ SB-02 adds `builder-rendering.v1.json`, applies its expanded workload policy at
 the API boundary, and authorizes validated `builder-v1` playback independently
 of the custom-source switch. SB-04 validates bounded Expand/Shell/Twist modifiers, nested Line/Ring
 arrangements and per-object spin, then counts their fully expanded workload at
-the API boundary. The contract resources are copied from the frontend repository.
+the API boundary. SB-09 adds optional composition-version-one groups and object
+frames. It validates the ordered forest, hard/smooth unions, shared transforms,
+material overrides and expanded workload. Cycles, missing references, shared
+ownership and unsupported versions are rejected before persistence. The
+contract resources are copied from the frontend repository.
 
 `scene-v1.schema.json`, `template-catalog.v1.json`, and `builder-rendering.v1.json` are exact copies of the
 frontend's `contracts/scenes` resources. Shared conformance cases are copied to

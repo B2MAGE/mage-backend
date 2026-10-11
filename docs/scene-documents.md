@@ -39,6 +39,15 @@ unsupported versions and excess nesting/expanded work. See the
 exact fields and evaluation order. No database migration is required: these
 documents retain the existing `builder-v1` classification and JSONB storage.
 
+SB-05 activates the existing per-object `bindings` contract in the player.
+Each object owns up to four unique property targets; different objects can bind
+the same property to different music or pointer signals. The API validates the
+allowlisted targets/sources, add/replace mode, finite amount/offset and bounded
+attack/release values before saving. Bindings remain attached to stable object
+IDs when the object array is reordered, and stale or invalid saves cannot replace
+newer bindings. Original (`legacy`) and Mapped (`mapped-v1`) scene audio choices
+remain supported. No new persisted fields or database migration are required.
+
 PP-B03 extends template settings with bounded controls for camera position/orientation, motion,
 initial state, music-response mappings, built-in effects and effect order. Existing camera,
 bloom, tint and parameter fields remain canonical. The new fields are optional, and absent

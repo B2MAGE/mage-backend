@@ -118,6 +118,39 @@ class BuilderSceneDocumentValidatorTests {
 	}
 
 	@Test
+	void acceptsEveryExistingSignalWithoutSharingTargetsBetweenObjects() {
+		ObjectNode document = builder();
+		List<String> sources = List.of("bass-level", "bass-hit", "mid-level", "mid-hit",
+				"treble-level", "treble-hit", "overall-level", "overall-hit", "pointer-x", "pointer-y", "pointer-down");
+		for (int index = 0; index < sources.size(); index++) {
+			ObjectNode object = document.withArray("objects").addObject().put("id", "shape-" + index);
+			object.putObject("operation").put("type", "sphere");
+			object.withArray("bindings").addObject().put("target", "position.x").put("source", sources.get(index));
+		}
+		for (String mode : List.of("legacy", "mapped-v1")) {
+			document.putObject("settings").put("audioResponse", mode);
+			JsonNode normalized = this.validator.validateAndNormalize(document);
+			for (int index = 0; index < sources.size(); index++) {
+				assertThat(normalized.path("objects").get(index).path("bindings").get(0).path("source").asText())
+						.isEqualTo(sources.get(index));
+			}
+			assertThat(normalized.path("settings").path("audioResponse").asText()).isEqualTo(mode);
+		}
+	}
+
+	@Test
+	void rejectsNonFiniteBindingNumbersBeforeTheyReachPersistence() {
+		for (String field : List.of("amount", "offset", "attack", "release")) {
+			for (double value : new double[] { Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY }) {
+				ObjectNode document = builderWithObject();
+				((ObjectNode) document.path("objects").get(0)).withArray("bindings").addObject()
+						.put("target", "scale.x").put("source", "bass-hit").put(field, value);
+				assertInvalid(document, "sceneData.objects[0].bindings[0]." + field);
+			}
+		}
+	}
+
+	@Test
 	void countsMaterializedDefaultsAgainstTheUnchangedWholeDocumentBudget() {
 		ObjectNode document = builder();
 		for (int index = 0; index < 16; index++) {

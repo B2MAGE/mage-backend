@@ -95,9 +95,10 @@ public final class SceneDocumentValidator {
 		JsonNode objects = document.path("objects");
 		JsonNode costs = BUILDER_RENDERING.path("operationCosts");
 		BuilderCompositionWorkload composition = validateBuilderComposition(document);
+		BuilderDriverValidator.Workload drivers = BuilderDriverValidator.validate(document, BUILDER_RENDERING.path("driverLimits"));
 		int expandedPrimitives = 0;
 		int objectFrames = 0;
-		int liveUniforms = 0;
+		int liveUniforms = drivers.liveUniforms();
 		int modifierOperations = 0;
 		int arrangementOperations = 0;
 		int animationOperations = 0;
@@ -126,6 +127,8 @@ public final class SceneDocumentValidator {
 				Map.entry("modifierOperations", modifierOperations),
 				Map.entry("arrangementOperations", arrangementOperations),
 				Map.entry("animationOperations", animationOperations),
+				Map.entry("authoredDrivers", drivers.drivers()),
+				Map.entry("driverOperations", drivers.driverNodes()),
 				Map.entry("liveUniforms", liveUniforms),
 				Map.entry("groups", composition.groups()),
 				Map.entry("groupDepth", composition.depth()),

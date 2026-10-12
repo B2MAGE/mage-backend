@@ -251,6 +251,39 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
+	void orderedPropertyDriversPersistAndInvalidEditsLeaveTheSavedDocumentUntouched() throws Exception {
+		ObjectNode document = builder();
+		((ObjectNode) document.path("objects").get(0)).set("drivers", this.json.readTree("""
+				[{"target":"rotation.y","mode":"replace","expression":{"type":"multiply",
+				  "left":{"type":"input","source":"time"},"right":{"type":"constant","value":0.4}}},
+				 {"target":"rotation.y","mode":"add","expression":{"type":"input","source":"bass-hit"}},
+				 {"target":"operation.radius","mode":"multiply","expression":{"type":"clamp","min":0.5,"max":1.5,
+				  "input":{"type":"component","axis":"x","input":{"type":"input","source":"view-ray"}}}}]
+				"""));
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		ObjectNode updatedDocument = (ObjectNode) this.json.readTree(created.path("sceneData").toString());
+		((ObjectNode) updatedDocument.path("objects").get(0).path("drivers").get(0).path("expression").path("right")).put("value", -0.6);
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(created.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(updatedDocument).toString()))
+				.andExpect(status().isOk()).andReturn());
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData"))
+				.isEqualTo(updatedDocument);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(updatedDocument);
+
+		ObjectNode invalid = updatedDocument.deepCopy();
+		((ObjectNode) invalid.path("objects").get(0).path("drivers").get(2).path("expression")).put("max", 0.1);
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects[0].drivers[2].expression.max']").exists());
+		Scene saved = this.scenes.findById(id).orElseThrow();
+		assertThat(saved.getSceneData()).isEqualTo(updatedDocument);
+		assertThat(saved.getRevision()).isEqualTo(updated.path("revision").asLong());
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
 	void groupedBuildersSaveReopenReorderAndExportWithoutLosingTheirComposition() throws Exception {
 		ObjectNode document = builder();
 		document.withArray("objects").addObject().put("id", "box").putObject("operation").put("type", "box");

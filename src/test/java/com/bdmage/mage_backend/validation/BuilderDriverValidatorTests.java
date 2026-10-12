@@ -39,12 +39,12 @@ class BuilderDriverValidatorTests {
 	@Test
 	void acceptsAllApprovedInputsAndRequiresVectorComponentsForScalarTargets() {
 		for (String source : List.of("time", "bass-level", "bass-hit", "mid-level", "mid-hit", "treble-level", "treble-hit",
-				"overall-level", "overall-hit", "pointer-x", "pointer-y", "pointer-down")) {
+				"overall-level", "overall-hit", "pointer-x", "pointer-y", "pointer-down", "scene-size", "scene-pointer-down")) {
 			ObjectNode document = builder();
 			driver(document, "position.x", input(source));
 			assertThat(this.validator.validateAndNormalize(document).path("objects")).hasSize(1);
 		}
-		for (String source : List.of("local-position", "group-position", "world-position", "view-ray")) {
+		for (String source : List.of("local-position", "group-position", "world-position", "view-ray", "scene-pointer")) {
 			ObjectNode document = builder();
 			driver(document, "position.x", input(source));
 			assertInvalid(document, "sceneData.objects[0].drivers[0].expression");
@@ -130,6 +130,25 @@ class BuilderDriverValidatorTests {
 		ObjectNode signals = builder();
 		for (int index = 0; index < 8; index++) driver(signals, "position.x", input("bass-hit"));
 		assertThat(this.validator.validateAndNormalize(signals).path("objects").get(0).path("drivers")).hasSize(8);
+	}
+
+	@Test
+	void nativeScalarInputsConsumeShaderSlotsButReuseTheScenePointerVector() {
+		ObjectNode document = builder();
+		for (int index = 0; index < 3; index++) driver(document, "position.x", tree(4)); // 48 scalar constant slots.
+		ObjectNode fifteenConstants = tree(4).deepCopy();
+		((ObjectNode) fifteenConstants.path("left").path("left")).set("left", constant(0.01));
+		driver(document, "position.x", fifteenConstants); // 63 constants in total.
+		driver(document, "operation.radius", input("scene-size"));
+		ObjectNode component = this.json.createObjectNode().put("type", "component").put("axis", "x");
+		component.set("input", input("scene-pointer"));
+		driver(document, "rotation.x", component);
+		JsonNode normalized = this.validator.validateAndNormalize(document);
+		assertThat(normalized.path("objects").get(0).path("drivers")).hasSize(6);
+		assertThat(this.validator.validateAndNormalize(normalized)).isEqualTo(normalized);
+		driver(document, "rotation.y", input("scene-pointer-down"));
+		assertThatThrownBy(() -> this.validator.validateContract(document)).isInstanceOfSatisfying(InvalidSceneDataException.class,
+				error -> assertThat(error.getDetails()).containsEntry("sceneData.objects", "liveUniforms requires 65; maximum is 64."));
 	}
 
 	@Test

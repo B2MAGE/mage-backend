@@ -284,6 +284,118 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
+	void framesAndProceduralLatticesPersistEditAndExportWithoutLosingDriversOrGroups() throws Exception {
+		ObjectNode document = (ObjectNode) this.json.readTree("""
+				{"schemaVersion":1,"kind":"builder","builderVersion":1,"objects":[
+				 {"id":"frame","name":"Bass cage","operation":{"type":"box-frame","width":1.4,"height":0.8,"depth":1.1,"thickness":0.07},
+				  "frame":{"rotationOrder":"yxz","rotation":{"x":0.1,"y":0.2,"z":0.3}},
+				  "drivers":[{"target":"operation.thickness","mode":"add","expression":{"type":"input","source":"bass-level"}}]},
+				 {"id":"grid","name":"Pointer lattice","operation":{"type":"lattice","iterations":1.99,"spacing":0.4,"thickness":0.015},
+				  "drivers":[{"target":"operation.spacing","mode":"add","expression":{"type":"input","source":"pointer-x"}}]}],
+				 "composition":{"version":1,"roots":["assembly"],"groups":[{"id":"assembly","children":["frame","grid"],
+				  "transform":{"rotationOrder":"zyx","rotation":{"y":0.4}},"operation":{"type":"smooth-union","blend":0.1}}]}}
+				""");
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
+		assertThat(created.path("availability").path("available").asBoolean()).isTrue();
+		ObjectNode canonical = (ObjectNode) created.path("sceneData");
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(canonical);
+		assertThat(canonical.path("objects").get(1).path("operation").path("iterations").asDouble()).isEqualTo(1.99);
+		assertThat(canonical.path("objects").get(0).path("frame").path("rotationOrder").asText()).isEqualTo("yxz");
+		assertThat(canonical.path("composition").path("groups").get(0).path("transform").path("rotationOrder").asText()).isEqualTo("zyx");
+
+		ObjectNode edited = (ObjectNode) this.json.readTree(canonical.toString());
+		((ObjectNode) edited.path("objects").get(0).path("operation")).put("thickness", 0.12);
+		((ObjectNode) edited.path("objects").get(1).path("operation")).put("spacing", 0.5);
+		((ObjectNode) edited.path("composition").path("groups").get(0)).putArray("children").add("grid").add("frame");
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(created.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(edited).toString()))
+				.andExpect(status().isOk()).andReturn());
+		assertThat(updated.path("sceneData")).isEqualTo(edited);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(edited);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(edited);
+
+		ObjectNode invalid = edited.deepCopy();
+		((ObjectNode) invalid.path("objects").get(1).path("operation")).put("iterations", 5.01);
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects[1].operation.iterations']").exists());
+		invalid = edited.deepCopy();
+		((ObjectNode) invalid.path("objects").get(1).path("drivers").get(0)).put("target", "operation.iterations");
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects[1].drivers[0].target']").exists());
+		invalid = edited.deepCopy();
+		((ObjectNode) invalid.path("composition").path("groups").get(0).path("transform")).put("rotationOrder", "xxy");
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.composition.groups[0].transform.rotationOrder']").exists());
+		Scene saved = this.scenes.findById(id).orElseThrow();
+		assertThat(saved.getSceneData()).isEqualTo(edited);
+		assertThat(saved.getRevision()).isEqualTo(updated.path("revision").asLong());
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
+	void nativeRecipeInputsAndRenderingSettingsSurviveCreateUpdateAndReopen() throws Exception {
+		ObjectNode document = builder();
+		document.putObject("rendering").put("maxIterations", 198).put("stepSize", 0.8838993805155669);
+		((ObjectNode) document.path("objects").get(0)).set("drivers", this.json.readTree("""
+				[{"target":"operation.radius","mode":"multiply","expression":{"type":"input","source":"scene-size"}},
+				 {"target":"rotation.y","mode":"add","expression":{"type":"input","source":"scene-pointer-down"}},
+				 {"target":"rotation.x","mode":"add","expression":{"type":"component","axis":"y",
+				   "input":{"type":"input","source":"scene-pointer"}}}]
+				"""));
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
+		ObjectNode updatedDocument = created.path("sceneData").deepCopy();
+		((ObjectNode) updatedDocument.path("rendering")).put("maxIterations", 193).put("stepSize", 0.7999169963821687);
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON)
+				.content(request(updatedDocument).toString())).andExpect(status().isOk()).andReturn());
+		assertThat(updated.path("sceneData")).isEqualTo(updatedDocument);
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(updatedDocument);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn())
+				.path("sceneData")).isEqualTo(updatedDocument);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(updatedDocument);
+		ObjectNode invalid = updatedDocument.deepCopy();
+		((ObjectNode) invalid.path("rendering")).put("maxIterations", 201);
+		this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON)
+				.content(request(invalid).toString())).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.details['sceneData.rendering.maxIterations']").exists());
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(updatedDocument);
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
+	void fullMintRecipeWithNativeInputsAndEverySettingsSectionSurvivesPersistence() throws Exception {
+		JsonNode fixture;
+		try (var input = getClass().getResourceAsStream("/contracts/scenes/current-round-trips.json")) {
+			fixture = this.json.readTree(input).path("cases").valueStream()
+					.filter(row -> row.path("name").asText().equals("builder-mint-halo-with-full-camera-effects-and-audio-settings"))
+					.findFirst().orElseThrow();
+		}
+		JsonNode created = create(fixture.path("input"));
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneData")).isEqualTo(fixture.path("normalized"));
+		ObjectNode updatedDocument = created.path("sceneData").deepCopy();
+		((ObjectNode) updatedDocument.path("parameters")).put("speed", 0.8);
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(currentSceneRevision(this.scenes))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON)
+				.content(request(updatedDocument).toString())).andExpect(status().isOk()).andReturn());
+		assertThat(updated.path("sceneData")).isEqualTo(updatedDocument);
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(updatedDocument);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn())
+				.path("sceneData")).isEqualTo(updatedDocument);
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
 	void groupedBuildersSaveReopenReorderAndExportWithoutLosingTheirComposition() throws Exception {
 		ObjectNode document = builder();
 		document.withArray("objects").addObject().put("id", "box").putObject("operation").put("type", "box");

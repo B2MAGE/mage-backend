@@ -108,6 +108,15 @@ public final class SceneDocumentValidator {
 			for (JsonNode arrangement : object.path("arrangements")) copies *= arrangement.path("count").intValue();
 			expandedPrimitives += copies;
 			arrangementOperations += Math.max(0, copies - 1) * costs.path("arrangementPerAdditionalCopy").intValue();
+			JsonNode operation = object.path("operation");
+			// Frames and folded lattices are procedural geometry, not expanded object arrays.
+			// Charge their bounded SDF work to the existing modifier budget for every copy.
+			modifierOperations += copies * switch (operation.path("type").asText()) {
+				case "box-frame" -> costs.path("box-frame").intValue();
+				case "lattice" -> costs.path("lattice").intValue()
+						+ (int) Math.floor(operation.path("iterations").doubleValue()) * costs.path("latticePerFold").intValue();
+				default -> 0;
+			};
 			for (JsonNode modifier : object.path("modifiers")) {
 				String type = modifier.path("type").asText();
 				String cost = type.equals("expand") ? "expandModifier"

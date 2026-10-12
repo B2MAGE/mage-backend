@@ -141,7 +141,8 @@ class SceneSubmissionRequestFilterTests {
 		String fields = fields(SceneLimits.OBJECT_KEYS);
 		assertAccepted(request("{\"sceneData\":{" + fields + "}}"));
 		assertRejected(request("{\"sceneData\":{" + fields + ",\"extra\":0}}"), 400, "VALIDATION_ERROR");
-		String manyObjects = IntStream.range(0, 8).mapToObj(i -> "\"g" + i + "\":{" + fields + "}").collect(Collectors.joining(","));
+		int excessiveGroups = SceneLimits.TOTAL_KEYS / (SceneLimits.OBJECT_KEYS + 1) + 1;
+		String manyObjects = IntStream.range(0, excessiveGroups).mapToObj(i -> "\"g" + i + "\":{" + fields + "}").collect(Collectors.joining(","));
 		assertRejected(request("{\"sceneData\":{" + manyObjects + "}}"), 400, "VALIDATION_ERROR");
 	}
 

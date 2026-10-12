@@ -151,7 +151,7 @@ class BuilderSceneDocumentValidatorTests {
 	}
 
 	@Test
-	void countsMaterializedDefaultsAgainstTheUnchangedWholeDocumentBudget() {
+	void countsMaterializedDefaultsAgainstTheWholeDocumentBudget() {
 		ObjectNode document = builder();
 		for (int index = 0; index < 16; index++) {
 			ObjectNode object = document.withArray("objects").addObject().put("id", "shape-" + index);
@@ -164,7 +164,7 @@ class BuilderSceneDocumentValidatorTests {
 		assertThat(this.validator.validateContract(document).path("objects")).hasSize(16);
 		assertThatThrownBy(() -> this.validator.validateAndNormalize(document))
 				.isInstanceOfSatisfying(InvalidSceneDataException.class, error ->
-						assertThat(error.getDetails()).containsEntry("sceneData", "Too many total object fields; maximum is 512."));
+						assertThat(error.getDetails()).containsEntry("sceneData", "Too many total object fields; maximum is " + SceneLimits.TOTAL_KEYS + "."));
 	}
 
 	@Test

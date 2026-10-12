@@ -346,11 +346,20 @@ existing unbounded-coordinate path instead of an invalid fixed box bound.
 There are at most 16 objects, one shape operation each, and four bindings per
 object. Disabled/unused data still counts. The existing whole-document policy
 also applies before recursive validation and again after defaults: 256 KiB
-serialized UTF-8, depth 16, 64 items per array, 64 keys per object, 512 total
+serialized UTF-8, depth 16, 64 items per array, 64 keys per object, 768 total
 keys, 2,048 total values, and 64 UTF-8 bytes per key. API request limit remains
 512 KiB. No Builder-specific budget bypass is introduced; rich object settings
 can exhaust the shared total budget before the object-count ceiling. At most
 four optional scene effects can be enabled, including bloom and tint.
+
+SB-11 raises only the transport field count from 512 to 768. The unmodified
+six-object Mint Halo recipe with fully authored camera, effects, motion and
+six audio mappings contains 583 keys, 637 values and 8,741 UTF-8 bytes. Its
+geometry and drivers already fit every rendering budget. This adjustment lets
+the actual editable document pass through storage and playback without
+discarding controls or changing animation. Document bytes/depth/array sizes,
+total values, shader work and runtime ceilings remain unchanged; 769 fields
+still fail transport validation before the contract parser runs.
 
 All numbers must be finite and in range. Wrong types are rejected, not coerced
 or clamped during storage. Duplicate IDs/targets, prototype-related fields,

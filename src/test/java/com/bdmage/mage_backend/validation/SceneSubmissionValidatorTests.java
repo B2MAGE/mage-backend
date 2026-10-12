@@ -252,7 +252,7 @@ class SceneSubmissionValidatorTests {
 		assertInvalid(wide, "sceneData", "object fields");
 		ObjectNode manyKeys = scene("sphere(1)");
 		ArrayNode branches = manyKeys.putArray("branches");
-		for (int branch = 0; branch < 9; branch++) {
+		for (int branch = 0; branch <= SceneLimits.TOTAL_KEYS / 60; branch++) {
 			ObjectNode item = branches.addObject();
 			for (int count = 0; count < 60; count++) {
 				item.put("field" + count, count);
@@ -268,6 +268,26 @@ class SceneSubmissionValidatorTests {
 			}
 		}
 		assertInvalid(manyValues, "sceneData", "JSON values");
+	}
+
+	@Test
+	void acceptsExactlyTheBoundedFieldCountAndRejectsOneAdditionalField() {
+		assertThat(SceneLimits.TOTAL_KEYS).isEqualTo(768);
+		ObjectNode document = this.mapper.createObjectNode();
+		ArrayNode branches = document.putArray("branches");
+		int totalKeys = 1;
+		ObjectNode last = null;
+		while (totalKeys < SceneLimits.TOTAL_KEYS) {
+			last = branches.addObject();
+			for (int field = 0; field < 60 && totalKeys < SceneLimits.TOTAL_KEYS; field++, totalKeys++) {
+				last.put("field" + field, 0);
+			}
+		}
+		this.validator.validateTransportBudget(document);
+		last.put("extra", 0);
+		assertThatThrownBy(() -> this.validator.validateTransportBudget(document))
+				.isInstanceOfSatisfying(InvalidSceneDataException.class, error -> assertThat(error.getDetails())
+						.containsEntry("sceneData", "Too many total object fields; maximum is 768."));
 	}
 
 	@Test

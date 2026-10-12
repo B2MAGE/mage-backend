@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static com.bdmage.mage_backend.support.SceneDocumentFixtures.currentSceneRevision;
+import static com.bdmage.mage_backend.support.SceneDocumentFixtures.expectedSceneRevision;
 import static com.bdmage.mage_backend.support.SceneDocumentFixtures.customDocument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -198,6 +199,55 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		this.mvc.perform(get("/api/scene-availability/{id}", id)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value("AVAILABLE"));
 		this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andExpect(jsonPath("$.sceneData.kind").value("builder"));
+	}
+
+	@Test
+	void independentBindingsSurviveReorderingAndRejectInvalidOrStaleSavesAtomically() throws Exception {
+		ObjectNode document = builder();
+		ObjectNode first = (ObjectNode) document.path("objects").get(0);
+		first.withArray("bindings").addObject().put("target", "scale.x").put("source", "bass-level").put("amount", 0.8);
+		first.withArray("bindings").addObject().put("target", "position.y").put("source", "pointer-y")
+				.put("amount", 2).put("attack", 0).put("release", 0);
+		ObjectNode second = document.withArray("objects").addObject().put("id", "treble-box");
+		second.putObject("operation").put("type", "box");
+		second.withArray("bindings").addObject().put("target", "scale.x").put("source", "treble-hit")
+				.put("mode", "replace").put("amount", 0.4).put("offset", 1).put("attack", 0.02).put("release", 0.5);
+		document.putObject("settings").put("audioResponse", "legacy");
+		JsonNode created = create(document);
+		long id = created.path("sceneId").asLong();
+		ObjectNode saved = (ObjectNode) created.path("sceneData");
+		assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).isEqualTo(saved);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(saved);
+
+		// Reopen the exported JSON, then reorder the objects and change one binding.
+		ObjectNode reordered = (ObjectNode) this.json.readTree(this.json.writeValueAsBytes(saved));
+		JsonNode bass = reordered.path("objects").get(0).deepCopy();
+		JsonNode treble = reordered.path("objects").get(1).deepCopy();
+		reordered.putArray("objects").add(treble).add(bass);
+		((ObjectNode) reordered.path("objects").get(0).path("bindings").get(0)).put("amount", -0.4);
+		((ObjectNode) reordered.path("settings")).put("audioResponse", "mapped-v1");
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(created.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(reordered).toString()))
+				.andExpect(status().isOk()).andReturn());
+		assertThat(updated.path("sceneData")).isEqualTo(reordered);
+		assertThat(updated.path("sceneData").path("objects").get(1).path("bindings")).isEqualTo(saved.path("objects").get(0).path("bindings"));
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(reordered);
+
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(created.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(saved).toString()))
+				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SCENE_EDIT_CONFLICT"));
+		for (String source : List.of("pointer-z", "fetch('NEVER_EXECUTE')")) {
+			ObjectNode invalid = reordered.deepCopy();
+			((ObjectNode) invalid.path("objects").get(0).path("bindings").get(0)).put("source", source);
+			this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+					.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects[0].bindings[0].source']").exists());
+		}
+		Scene persisted = this.scenes.findById(id).orElseThrow();
+		assertThat(persisted.getSceneData()).isEqualTo(reordered);
+		assertThat(persisted.getRevision()).isEqualTo(updated.path("revision").asLong());
+		verifyNoInteractions(this.thumbnails);
 	}
 
 	@Test

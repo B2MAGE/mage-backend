@@ -116,13 +116,25 @@
             "operation": {
               "type": "cylinder"
             }
+          },
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            }
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice"
+            }
           }
         ]
       },
       "valid": true,
       "renderingWorkload": {
-        "expandedPrimitives": 4,
-        "modifierOperations": 0,
+        "expandedPrimitives": 6,
+        "modifierOperations": 8,
         "arrangementOperations": 0,
         "animationOperations": 0,
         "liveUniforms": 0
@@ -279,6 +291,83 @@
               "type": "none"
             },
             "bindings": []
+          },
+          {
+            "id": "frame",
+            "name": "Object",
+            "operation": {
+              "type": "box-frame",
+              "width": 1,
+              "height": 1,
+              "depth": 1,
+              "thickness": 0.08
+            },
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#8066ff",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "bindings": [],
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            }
+          },
+          {
+            "id": "grid",
+            "name": "Object",
+            "operation": {
+              "type": "lattice",
+              "iterations": 2,
+              "spacing": 0.3,
+              "thickness": 0.02
+            },
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#8066ff",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "bindings": [],
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            }
           }
         ],
         "parameters": {
@@ -3152,6 +3241,463 @@
           ]
         }
       }
+    },
+    {
+      "name": "builder-write-frame-and-lattice-defaults",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            }
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice"
+            }
+          }
+        ]
+      },
+      "valid": true,
+      "normalized": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "name": "Object",
+            "operation": {
+              "type": "box-frame",
+              "width": 1,
+              "height": 1,
+              "depth": 1,
+              "thickness": 0.08
+            },
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#8066ff",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "bindings": [],
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            }
+          },
+          {
+            "id": "grid",
+            "name": "Object",
+            "operation": {
+              "type": "lattice",
+              "iterations": 2,
+              "spacing": 0.3,
+              "thickness": 0.02
+            },
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#8066ff",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "bindings": [],
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            }
+          }
+        ],
+        "parameters": {
+          "scale": 10,
+          "speed": 1
+        },
+        "settings": {
+          "skybox": 6,
+          "camera": {
+            "fov": 75,
+            "autoRotate": true,
+            "orbitSpeed": 0.2
+          },
+          "bloom": {
+            "enabled": false,
+            "strength": 1,
+            "radius": 0.2,
+            "threshold": 0.1
+          },
+          "tint": {
+            "enabled": false,
+            "color": "#ffffff"
+          }
+        }
+      },
+      "renderingWorkload": {
+        "expandedPrimitives": 2,
+        "modifierOperations": 8,
+        "arrangementOperations": 0,
+        "animationOperations": 0,
+        "liveUniforms": 0
+      }
+    },
+    {
+      "name": "builder-write-fractional-lattice-and-geometry-drivers",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            },
+            "drivers": [
+              {
+                "target": "operation.thickness",
+                "expression": {
+                  "type": "input",
+                  "source": "bass-level"
+                },
+                "mode": "add"
+              }
+            ]
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice",
+              "iterations": 1.99,
+              "spacing": 0.4,
+              "thickness": 0.0001
+            },
+            "drivers": [
+              {
+                "target": "operation.spacing",
+                "mode": "multiply",
+                "expression": {
+                  "type": "constant",
+                  "value": 0.8
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true,
+      "normalized": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "name": "Object",
+            "operation": {
+              "type": "box-frame",
+              "width": 1,
+              "height": 1,
+              "depth": 1,
+              "thickness": 0.08
+            },
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#8066ff",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "bindings": [],
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            },
+            "drivers": [
+              {
+                "target": "operation.thickness",
+                "expression": {
+                  "type": "input",
+                  "source": "bass-level"
+                },
+                "mode": "add"
+              }
+            ]
+          },
+          {
+            "id": "grid",
+            "name": "Object",
+            "operation": {
+              "type": "lattice",
+              "iterations": 1.99,
+              "spacing": 0.4,
+              "thickness": 0.0001
+            },
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#8066ff",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "bindings": [],
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            },
+            "drivers": [
+              {
+                "target": "operation.spacing",
+                "mode": "multiply",
+                "expression": {
+                  "type": "constant",
+                  "value": 0.8
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "scale": 10,
+          "speed": 1
+        },
+        "settings": {
+          "skybox": 6,
+          "camera": {
+            "fov": 75,
+            "autoRotate": true,
+            "orbitSpeed": 0.2
+          },
+          "bloom": {
+            "enabled": false,
+            "strength": 1,
+            "radius": 0.2,
+            "threshold": 0.1
+          },
+          "tint": {
+            "enabled": false,
+            "color": "#ffffff"
+          }
+        }
+      },
+      "renderingWorkload": {
+        "expandedPrimitives": 2,
+        "modifierOperations": 7,
+        "driverOperations": 2,
+        "authoredDrivers": 2,
+        "liveUniforms": 2
+      }
+    },
+    {
+      "name": "builder-write-lattice-density-exceeds-five",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            }
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice",
+              "iterations": 5.01
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "builder-write-lattice-nonpositive-spacing",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            }
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice",
+              "spacing": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "builder-write-lattice-negative-rod-radius",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            }
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice",
+              "thickness": -0.01
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "builder-write-lattice-source-injection",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            }
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice",
+              "shader": "NEVER_EXECUTE()"
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "builder-write-lattice-density-is-structural",
+      "input": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "frame",
+            "operation": {
+              "type": "box-frame"
+            },
+            "drivers": [
+              {
+                "target": "operation.thickness",
+                "expression": {
+                  "type": "input",
+                  "source": "bass-level"
+                },
+                "mode": "add"
+              }
+            ]
+          },
+          {
+            "id": "grid",
+            "operation": {
+              "type": "lattice",
+              "iterations": 1.99,
+              "spacing": 0.4,
+              "thickness": 0.0001
+            },
+            "drivers": [
+              {
+                "target": "operation.iterations",
+                "mode": "multiply",
+                "expression": {
+                  "type": "constant",
+                  "value": 0.8
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
     }
   ]
 }

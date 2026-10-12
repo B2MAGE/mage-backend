@@ -20,7 +20,9 @@ final class BuilderDriverValidator {
 			"sphere", Set.of("operation.radius"),
 			"box", Set.of("operation.width", "operation.height", "operation.depth"),
 			"torus", Set.of("operation.radius", "operation.tube"),
-			"cylinder", Set.of("operation.radius", "operation.height"));
+			"cylinder", Set.of("operation.radius", "operation.height"),
+			"box-frame", Set.of("operation.width", "operation.height", "operation.depth", "operation.thickness"),
+			"lattice", Set.of("operation.spacing", "operation.thickness"));
 
 	record Workload(int drivers, int driverNodes, int liveUniforms) {}
 	private enum ValueType { SCALAR, VECTOR }

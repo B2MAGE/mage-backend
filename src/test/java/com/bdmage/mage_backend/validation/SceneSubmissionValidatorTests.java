@@ -272,7 +272,7 @@ class SceneSubmissionValidatorTests {
 
 	@Test
 	void acceptsExactlyTheBoundedFieldCountAndRejectsOneAdditionalField() {
-		assertThat(SceneLimits.TOTAL_KEYS).isEqualTo(768);
+		assertThat(SceneLimits.TOTAL_KEYS).isEqualTo(1024);
 		ObjectNode document = this.mapper.createObjectNode();
 		ArrayNode branches = document.putArray("branches");
 		int totalKeys = 1;
@@ -287,7 +287,7 @@ class SceneSubmissionValidatorTests {
 		last.put("extra", 0);
 		assertThatThrownBy(() -> this.validator.validateTransportBudget(document))
 				.isInstanceOfSatisfying(InvalidSceneDataException.class, error -> assertThat(error.getDetails())
-						.containsEntry("sceneData", "Too many total object fields; maximum is 768."));
+						.containsEntry("sceneData", "Too many total object fields; maximum is 1024."));
 	}
 
 	@Test

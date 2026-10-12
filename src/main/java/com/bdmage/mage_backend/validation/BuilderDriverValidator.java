@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 /** Independent API checks for typed, closed Builder expressions. Never evaluates submitted code. */
 final class BuilderDriverValidator {
 
-	private static final Set<String> VECTOR_INPUTS = Set.of("local-position", "group-position", "world-position", "view-ray");
+	private static final Set<String> VECTOR_INPUTS = Set.of("local-position", "group-position", "world-position", "view-ray", "scene-pointer");
 	private static final Set<String> OBJECT_TARGETS = Set.of("position.x", "position.y", "position.z",
 			"rotation.x", "rotation.y", "rotation.z", "scale.x", "scale.y", "scale.z",
 			"material.metalness", "material.shininess");
@@ -82,6 +82,8 @@ final class BuilderDriverValidator {
 					1, node.path("value").isObject() ? 3 : 1);
 			case "input" -> {
 				String source = node.path("source").asText();
+				// Native scalar scene inputs still declare shader input slots. Scene
+				// pointer components reuse the existing built-in mouse vector.
 				if (!source.equals("time") && !VECTOR_INPUTS.contains(source)) signals.add(source);
 				yield new Expression(VECTOR_INPUTS.contains(source) ? ValueType.VECTOR : ValueType.SCALAR, 1, 0);
 			}

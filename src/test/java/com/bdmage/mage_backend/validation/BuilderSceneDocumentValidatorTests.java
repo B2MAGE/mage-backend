@@ -156,6 +156,7 @@ class BuilderSceneDocumentValidatorTests {
 		for (int index = 0; index < 16; index++) {
 			ObjectNode object = document.withArray("objects").addObject().put("id", "shape-" + index);
 			object.putObject("operation").put("type", "sphere");
+			object.putObject("frame"); // Materialized frame defaults also count toward the 1,024-field ceiling.
 			for (String target : List.of("scale.x", "scale.y", "position.x", "position.y")) {
 				object.withArray("bindings").addObject().put("target", target).put("source", "bass-level");
 			}

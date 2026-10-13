@@ -41,6 +41,20 @@ class BuilderDeformationValidatorTests {
 	}
 
 	@Test
+	void proceduralHighlightsPreserveTheirExpressionWithoutRelaxingNumericBaseColorBounds() throws Exception {
+		ObjectNode document = builder();
+		ObjectNode expression = this.json.createObjectNode().put("type", "add");
+		expression.set("left", component("view-ray", "y"));
+		expression.putObject("right").put("type", "constant").put("value", 0.25);
+		driver(object(document), "material.color.g", expression);
+		JsonNode normalized = this.validator.validateAndNormalize(document);
+		assertThat(normalized.path("objects").get(0).path("drivers").get(0).path("expression")).isEqualTo(expression);
+		assertThat(this.validator.validateAndNormalize(this.json.readTree(normalized.toString()))).isEqualTo(normalized);
+		object(document).putObject("material").putObject("color").put("x", 0).put("y", 1.25).put("z", 0);
+		assertInvalid(document, "sceneData.objects[0].material.color.y");
+	}
+
+	@Test
 	void onlyNoiseWithVectorInputAndGroupPositionWithBoundedAncestorAreValid() throws Exception {
 		for (String expression : List.of(
 				"{\"type\":\"noise\",\"input\":{\"type\":\"input\",\"source\":\"time\"}}",
@@ -109,16 +123,17 @@ class BuilderDeformationValidatorTests {
 	void weightsNestedNoiseAndEveryArrangedObjectCopyWithoutMultiplyingGroupWork() {
 		ObjectNode document = builder();
 		ObjectNode object = object(document);
-		object.putArray("arrangements").addObject().put("type", "linear").put("axis", "x").put("count", 8).put("spacing", 1);
-		for (int index = 0; index < 2; index++) driver(object, "position.x", noise(input("local-position")));
-		assertThat(this.validator.validateAndNormalize(document).path("objects")).hasSize(1); // 2 * (8 + 1) * 8 = 144
+		object.putArray("arrangements").addObject().put("type", "linear").put("axis", "x").put("count", 2).put("spacing", 1);
+		object.withArray("arrangements").addObject().put("type", "radial").put("axis", "y").put("count", 8).put("radius", 1);
+		for (int index = 0; index < 7; index++) driver(object, "position.x", noise(input("local-position")));
+		assertThat(this.validator.validateAndNormalize(document).path("objects")).hasSize(1); // 7 * (8 + 1) * 16 = 1008
 		driver(object, "position.x", noise(input("local-position")));
 		assertThatThrownBy(() -> this.validator.validateAndNormalize(document)).isInstanceOfSatisfying(InvalidSceneDataException.class,
-				error -> assertThat(error.getDetails()).containsEntry("sceneData.objects", "driverOperations requires 216; maximum is 192."));
+				error -> assertThat(error.getDetails()).containsEntry("sceneData.objects", "driverOperations requires 1152; maximum is 1024."));
 		object.remove("drivers");
 		ObjectNode group = group(document);
-		for (int index = 0; index < 3; index++) driver(group, "position.x", noise(input("local-position")));
-		assertThat(this.validator.validateAndNormalize(document).path("composition").path("groups")).hasSize(1); // 27, not 216
+		for (int index = 0; index < 8; index++) driver(group, "position.x", noise(input("local-position")));
+		assertThat(this.validator.validateAndNormalize(document).path("composition").path("groups")).hasSize(1); // 72, not 1152
 	}
 
 	@Test

@@ -1,5 +1,6 @@
 package com.bdmage.mage_backend.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
 import com.bdmage.mage_backend.service.ThumbnailStorageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -280,6 +282,90 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 		Scene saved = this.scenes.findById(id).orElseThrow();
 		assertThat(saved.getSceneData()).isEqualTo(updatedDocument);
 		assertThat(saved.getRevision()).isEqualTo(updated.path("revision").asLong());
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
+	void everyEditableCatalogRecipeSavesAndReopensAsAnIndependentBuilderDocument() throws Exception {
+		JsonNode fixture = resource("builder-catalog.v1.fixtures.json");
+		assertThat(fixture.path("contractVersion").asInt()).isEqualTo(1);
+		List<String> templateIds = resource("template-catalog.v1.json").path("templates").valueStream()
+				.map(template -> template.path("templateId").asText()).toList();
+		assertThat(fixture.path("recipes").valueStream().map(recipe -> recipe.path("templateId").asText()).toList())
+				.containsExactlyInAnyOrderElementsOf(templateIds);
+		for (JsonNode recipe : fixture.path("recipes")) {
+			String label = recipe.path("label").asText();
+			JsonNode document = recipe.path("document");
+			assertThat(document.path("kind").asText()).as(label).isEqualTo("builder");
+			assertThat(document.findValues("templateId")).as(label).isEmpty();
+			assertThat(document.findValues("shader")).as(label).isEmpty();
+			JsonNode created = create(document);
+			long id = created.path("sceneId").asLong();
+			assertThat(created.path("sceneMode").asText()).as(label).isEqualTo("builder-v1");
+			assertThat(created.path("availability").path("available").asBoolean()).as(label).isTrue();
+			assertThat(created.path("sceneData")).as(label).isEqualTo(document);
+			JsonNode reopened = body(this.mvc.perform(get("/api/scenes/{id}/repair", id)
+					.header("Authorization", bearer(this.ownerToken))).andExpect(status().isOk()).andReturn());
+			assertThat(reopened.path("sceneData")).as(label).isEqualTo(document);
+
+			// An exported document with fresh object/group IDs must work without a recipe lookup.
+			ObjectNode edited = (ObjectNode) this.json.readTree(reopened.path("sceneData").toString());
+			renameBuilderNodes(edited);
+			ObjectNode first = (ObjectNode) edited.path("objects").get(0);
+			first.put("name", "My edited object");
+			ObjectNode position = (ObjectNode) first.path("transform").path("position");
+			position.put("x", position.path("x").asDouble() + 0.125);
+			JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id)
+					.with(expectedSceneRevision(created.path("revision").asLong()))
+					.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON)
+					.content(request(edited).toString())).andExpect(status().isOk()).andReturn());
+			assertThat(updated.path("sceneData")).as(label).isEqualTo(edited);
+			assertThat(this.scenes.findById(id).orElseThrow().getSceneData()).as(label).isEqualTo(edited);
+			assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk())
+					.andReturn()).path("sceneData")).as(label).isEqualTo(edited);
+			assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id)
+					.header("Authorization", bearer(this.ownerToken))).andExpect(status().isOk())
+					.andReturn()).path("sceneData")).as(label).isEqualTo(edited);
+
+			// A malformed edit cannot partly rename the scene or change the persisted revision.
+			ObjectNode invalid = edited.deepCopy();
+			((ObjectNode) invalid.path("objects").get(0).path("operation")).put("shader", "NEVER_EXECUTE()");
+			this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+					.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON)
+					.content(request(invalid).put("name", "Must not persist").toString()))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects[0].operation.shader']").exists());
+			Scene persisted = this.scenes.findById(id).orElseThrow();
+			assertThat(persisted.getSceneData()).as(label).isEqualTo(edited);
+			assertThat(persisted.getName()).as(label).isEqualTo("Contract scene");
+			assertThat(persisted.getRevision()).as(label).isEqualTo(updated.path("revision").asLong());
+		}
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
+	void oversizedCatalogAdaptationCannotCreateOrPartlyReplaceAnExistingScene() throws Exception {
+		JsonNode recipe = resource("builder-catalog.v1.fixtures.json").path("recipes").valueStream()
+				.filter(row -> row.path("templateId").asText().equals("embedded-scene-13")).findFirst().orElseThrow();
+		JsonNode created = create(recipe.path("document"));
+		long id = created.path("sceneId").asLong();
+		long count = this.scenes.count();
+		ObjectNode invalid = created.path("sceneData").deepCopy();
+		ArrayNode arrangements = ((ObjectNode) invalid.path("objects").get(0)).putArray("arrangements");
+		arrangements.addObject().put("type", "linear").put("axis", "x").put("count", 8).put("spacing", 1);
+		arrangements.addObject().put("type", "radial").put("axis", "y").put("count", 8).put("radius", 1);
+		ObjectNode rejected = request(invalid).put("name", "Too many copies").put("thumbnailObjectKey", "pending/unfinalized.png");
+		this.mvc.perform(post("/api/scenes").header("Authorization", bearer(this.ownerToken))
+				.contentType(MediaType.APPLICATION_JSON).content(rejected.toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects']").exists());
+		rejected.remove("thumbnailObjectKey");
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(created.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(rejected.toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects']").exists());
+		Scene persisted = this.scenes.findById(id).orElseThrow();
+		assertThat(this.scenes.count()).isEqualTo(count);
+		assertThat(persisted.getSceneData()).isEqualTo(created.path("sceneData"));
+		assertThat(persisted.getName()).isEqualTo("Contract scene");
+		assertThat(persisted.getRevision()).isEqualTo(created.path("revision").asLong());
 		verifyNoInteractions(this.thumbnails);
 	}
 
@@ -698,6 +784,29 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CUSTOM_RENDERING_DISABLED"));
 		this.mvc.perform(get("/api/admin/scenes/{id}/availability", id).header("Authorization", bearer(this.operatorToken)))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.disabled").value(true)).andExpect(jsonPath("$.reason").value("Keep disabled"));
+	}
+
+	private JsonNode resource(String file) throws Exception {
+		try (var input = getClass().getResourceAsStream("/contracts/scenes/" + file)) {
+			assertThat(input).as(file).isNotNull();
+			return this.json.readTree(input);
+		}
+	}
+
+	private void renameBuilderNodes(ObjectNode document) {
+		Map<String, String> ids = new HashMap<>();
+		for (JsonNode object : document.path("objects")) ids.put(object.path("id").asText(), "object-" + ids.size());
+		for (JsonNode group : document.path("composition").path("groups")) ids.put(group.path("id").asText(), "group-" + ids.size());
+		for (JsonNode object : document.path("objects")) ((ObjectNode) object).put("id", ids.get(object.path("id").asText()));
+		for (JsonNode group : document.path("composition").path("groups")) {
+			((ObjectNode) group).put("id", ids.get(group.path("id").asText()));
+			replaceNodeReferences((ArrayNode) group.path("children"), ids);
+		}
+		if (document.path("composition").has("roots")) replaceNodeReferences((ArrayNode) document.path("composition").path("roots"), ids);
+	}
+
+	private void replaceNodeReferences(ArrayNode nodes, Map<String, String> ids) {
+		for (int index = 0; index < nodes.size(); index++) nodes.set(index, ids.get(nodes.get(index).asText()));
 	}
 
 	private JsonNode create(JsonNode document) throws Exception {

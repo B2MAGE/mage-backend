@@ -2,10 +2,12 @@
 
 This is the current, small demo workflow. It replaces the old 100-scene source-import
 workflow for new portfolio resets. The committed `catalog.json` and `thumbnails/`
-contain 14 current template scenes, four synthetic accounts, tags, conversations,
-replies, votes, saves and views. There are enough scenes for discovery and owner-library
-pagination. No credentials, database IDs or storage URLs are baked into the fixtures.
-The thumbnail files are actual captures of these settings, reviewed October 9, 2026.
+contain 14 current template scenes and the **Signal Duet** Builder example, four
+synthetic accounts, tags, conversations, replies, votes, saves and views. There are
+enough scenes for discovery and owner-library pagination. No credentials, database
+IDs or storage URLs are baked into the fixtures.
+The thumbnail files are actual captures of these settings: the 14 template images
+were reviewed October 9, 2026, and Signal Duet was captured October 13, 2026.
 
 ## Requirements
 
@@ -62,10 +64,50 @@ runs this workflow automatically.
 
 ## Maintaining examples
 
+### Signal Duet: two independent musical layers
+
+Signal Duet is a concrete Builder document created through **New Template** and
+the ordinary editor controls. The gold **Bass Pearl** stretches vertically on bass
+hits, while the cyan **Treble Halo** moves upward on treble hits. Both follow the
+same track through the existing analyzer and mapped response system. Scene-wide
+Selective mappings are empty so they do not mask these independent responses.
+Without audio, the shapes remain visible in their resting positions.
+
+To recreate it from **Create Scene → Scene → +**:
+
+1. Name the initial sphere **Bass Pearl**. Set radius `0.55`, position X `-1.15`,
+   color `#f6b15c`, metalness `0.5`, and shininess `0.8`.
+2. In **Music & pointer**, add **Height (scale Y) → Bass hits** using
+   **Add to the current value**, Strength `1.5`, Offset `0`, Rise time `0.01`,
+   and Fall time `0.18` seconds.
+3. Add a torus named **Treble Halo**. Set radius `0.68`, tube `0.13`, position X
+   `1.15`, rotation X `0.9`, color `#55dde0`, metalness `0`, and shininess `0.5`.
+4. Give it **Position Y → Treble hits** using **Add to the current value**,
+   Strength `1.1`, Offset `0`, Rise time `0.01`, and Fall time `0.12` seconds.
+   Leave other transforms at their defaults.
+5. Use scene scale and speed `1`, skybox `6`, camera FOV `55`, position
+   `(0, 0, 4.5)`, target `(0, 0, 0)`, zoom `1`, and no automatic orbit. Keep Bloom
+   and Colorify off. In Motion, select **Selective** with no scene-wide mappings.
+6. Add a local track in Live Preview. Change either response, undo/redo the edit,
+   capture a fresh thumbnail, save, and reopen the scene. The concrete settings
+   are in this catalog; the audio file is intentionally not included.
+
+The local SB-06 check used the same excerpt of
+`34910776-for-her-chill-upbeat-summel-travel-vlog-and-ig-music-royalty-free-use-202298.mp3`
+for both objects, including playback, seek and pause. This is a representative
+music check, not a guarantee for every track or device. The broader physical-device
+and music matrix remains in [AR-10 #187](https://github.com/B2MAGE/mage-frontend/issues/187).
+
+The required Builder runtime was already deployed with SB-13. This fixture adds a
+reproducible example; it does not add another editor mode, modify the 14 canonical
+template recipes, publish production data, or change existing local scenes.
+
+### Updating captured examples
+
 Edit the current document directly in `catalog.json`; account, discussion and
 engagement links use stable fixture keys. Keep **Original** and **Selective** as
 supported creative choices. Rose Reverie demonstrates Selective with a saved
-bass-hit mapping; the other examples use Original. Do not convert
+bass-hit mapping; the other template examples use Original. Do not convert
 examples merely because Original's internal identifier is `legacy`.
 
 After a visual change, use Create a scene to preview it and capture a fresh PNG.

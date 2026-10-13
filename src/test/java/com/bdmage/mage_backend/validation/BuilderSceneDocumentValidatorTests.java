@@ -156,16 +156,41 @@ class BuilderSceneDocumentValidatorTests {
 		for (int index = 0; index < 16; index++) {
 			ObjectNode object = document.withArray("objects").addObject().put("id", "shape-" + index);
 			object.putObject("operation").put("type", "sphere");
-			object.putObject("frame"); // Materialized frame defaults also count toward the 1,024-field ceiling.
+			object.putObject("frame"); // Materialized frame/binding defaults count toward the whole-document ceiling.
 			for (String target : List.of("scale.x", "scale.y", "position.x", "position.y")) {
 				object.withArray("bindings").addObject().put("target", target).put("source", "bass-level");
+			}
+			for (int driver = 0; driver < 4; driver++) {
+				JsonNode expression = this.json.createObjectNode().put("type", "input").put("source", "time");
+				if (index < 4) {
+					ObjectNode vector = this.json.createObjectNode().put("type", "constant");
+					vector.putObject("value").put("x", 0).put("y", 0).put("z", 0);
+					expression = vector;
+				}
+				for (int depth = 0; depth < 3; depth++) {
+					ObjectNode add = this.json.createObjectNode().put("type", "add");
+					add.set("left", expression);
+					add.set("right", expression.deepCopy());
+					expression = add;
+				}
+				ObjectNode scalar = index < 4 ? this.json.createObjectNode().put("type", "component").put("axis", "x")
+						: this.json.createObjectNode().put("type", "clamp").put("min", 0).put("max", 1);
+				scalar.set("input", expression);
+				object.withArray("drivers").addObject().put("target", "position.x").put("mode", "add").set("expression", scalar);
 			}
 		}
 		new SceneSubmissionValidator().validateTransportBudget(document);
 		assertThat(this.validator.validateContract(document).path("objects")).hasSize(16);
+		assertThat(fieldCount(document)).isLessThan(SceneLimits.TOTAL_KEYS);
+		assertThat(fieldCount(this.validator.validateContract(document))).isGreaterThan(SceneLimits.TOTAL_KEYS);
 		assertThatThrownBy(() -> this.validator.validateAndNormalize(document))
 				.isInstanceOfSatisfying(InvalidSceneDataException.class, error ->
 						assertThat(error.getDetails()).containsEntry("sceneData", "Too many total object fields; maximum is " + SceneLimits.TOTAL_KEYS + "."));
+	}
+	private int fieldCount(JsonNode node) {
+		int count = node.isObject() ? node.size() : 0;
+		for (JsonNode child : node) count += fieldCount(child);
+		return count;
 	}
 
 	@Test

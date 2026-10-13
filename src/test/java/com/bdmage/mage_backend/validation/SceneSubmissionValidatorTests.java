@@ -253,6 +253,7 @@ class SceneSubmissionValidatorTests {
 		ObjectNode manyKeys = scene("sphere(1)");
 		ArrayNode branches = manyKeys.putArray("branches");
 		for (int branch = 0; branch <= SceneLimits.TOTAL_KEYS / 60; branch++) {
+			if (branches.size() == SceneLimits.ARRAY_ITEMS) branches = manyKeys.putArray("moreBranches");
 			ObjectNode item = branches.addObject();
 			for (int count = 0; count < 60; count++) {
 				item.put("field" + count, count);
@@ -262,9 +263,10 @@ class SceneSubmissionValidatorTests {
 		ObjectNode manyValues = scene("sphere(1)");
 		ArrayNode outer = manyValues.putArray("items");
 		for (int branch = 0; branch < 64; branch++) {
-			ArrayNode inner = outer.addArray();
-			for (int count = 0; count < 64; count++) {
-				inner.add(0);
+			ArrayNode middle = outer.addArray();
+			for (int row = 0; row < 2; row++) {
+				ArrayNode inner = middle.addArray();
+				for (int count = 0; count < 64; count++) inner.add(0);
 			}
 		}
 		assertInvalid(manyValues, "sceneData", "JSON values");
@@ -272,12 +274,16 @@ class SceneSubmissionValidatorTests {
 
 	@Test
 	void acceptsExactlyTheBoundedFieldCountAndRejectsOneAdditionalField() {
-		assertThat(SceneLimits.TOTAL_KEYS).isEqualTo(1024);
+		assertThat(SceneLimits.TOTAL_KEYS).isEqualTo(4096);
 		ObjectNode document = this.mapper.createObjectNode();
 		ArrayNode branches = document.putArray("branches");
 		int totalKeys = 1;
 		ObjectNode last = null;
 		while (totalKeys < SceneLimits.TOTAL_KEYS) {
+			if (branches.size() == SceneLimits.ARRAY_ITEMS) {
+				branches = document.putArray("moreBranches");
+				totalKeys++;
+			}
 			last = branches.addObject();
 			for (int field = 0; field < 60 && totalKeys < SceneLimits.TOTAL_KEYS; field++, totalKeys++) {
 				last.put("field" + field, 0);
@@ -287,7 +293,7 @@ class SceneSubmissionValidatorTests {
 		last.put("extra", 0);
 		assertThatThrownBy(() -> this.validator.validateTransportBudget(document))
 				.isInstanceOfSatisfying(InvalidSceneDataException.class, error -> assertThat(error.getDetails())
-						.containsEntry("sceneData", "Too many total object fields; maximum is 1024."));
+						.containsEntry("sceneData", "Too many total object fields; maximum is 4096."));
 	}
 
 	@Test

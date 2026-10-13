@@ -69,6 +69,17 @@ and the checked-in rendering policy for exact bounds. No database migration or
 new audio behavior is part of this change. Deploy the API support before relying
 on the editor's expanded documents being saved successfully.
 
+SB-13 adds complete editable documents for every selectable template. The shared
+`builder-catalog.v1.fixtures.json` test fixture contains the actual frontend
+recipes, including Prism Core and Rose Circuit, with mapped music response.
+These save as independent `builder-v1` documents: object IDs, nested groups,
+drivers, materials and settings are stored directly, without a template lookup
+or embedded shader. The API integration suite saves each recipe to PostgreSQL,
+exports/reopens it, renames object/group IDs, edits it and checks both public
+and owner reads. Invalid and over-budget replacements leave the prior document,
+scene name and revision intact. The test uses a disposable Testcontainers
+database; it does not seed or reset the ordinary local or hosted demo.
+
 Create accepts only `name`, `description`, `sceneData`, `thumbnailObjectKey`,
 `playlistId`, and `tagIds`; replacement accepts only `name`, `description`,
 `sceneData`, `tagIds`, and `expectedRevision`. Both require the complete `tagIds` array; `[]` clears

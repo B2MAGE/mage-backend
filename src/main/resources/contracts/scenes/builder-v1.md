@@ -293,11 +293,12 @@ uses 51 authored drivers and 735 weighted operations; Prism Core uses 30 drivers
 and 227 operations. They remain bounded documents using the same ordinary
 controls as a scene authored from scratch.
 
-Preview compilation pools equal numeric coefficients into one live uniform
-(vector components and clamp bounds participate in the same pool). Each distinct
+Preview compilation normally gives numeric coefficients independent live slots.
+If that would exceed 64 uniforms, it pools equal coefficients (including vector
+components and clamp bounds). Each distinct
 audio/pointer signal and native scalar scene input requires one shared uniform.
 Time, spatial inputs and the built-in `scene-pointer` vector do not add slots.
-If the document would exceed the existing 64-uniform ceiling, numeric constants
+If pooling still exceeds the existing 64-uniform ceiling, numeric constants
 are emitted as trusted numeric literals instead. Music/pointer signals remain
 live. Saved compilation also uses literals for constants. This avoids allocating
 one GPU uniform per repeated coefficient without changing the authored data.

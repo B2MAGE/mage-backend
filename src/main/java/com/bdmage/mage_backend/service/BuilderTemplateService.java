@@ -13,6 +13,7 @@ import com.bdmage.mage_backend.exception.InvalidThumbnailException;
 import com.bdmage.mage_backend.repository.BuilderTemplateRepository;
 import com.bdmage.mage_backend.validation.SceneDocumentValidator;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -144,7 +145,14 @@ public class BuilderTemplateService {
         if (value == null || !"builder".equals(value.path("kind").asText())) {
             throw new InvalidSceneDataException(Map.of("sceneData.kind", "Personal templates must contain a current Builder document."));
         }
-        return this.validator.validateAndNormalize(value);
+        for (String field : List.of("parameters", "settings")) {
+            if (value.has(field)) throw new InvalidSceneDataException(Map.of("sceneData." + field,
+                    "Personal templates save the Builder design only. Scene settings and global parameters are not allowed."));
+        }
+        // Reuse scene validation and its resource budgets; scene-wide defaults stay out of template storage.
+        ObjectNode normalized = (ObjectNode) this.validator.validateAndNormalize(value);
+        normalized.remove(List.of("parameters", "settings"));
+        return normalized;
     }
 
     private static BuilderTemplateException duplicateName() {

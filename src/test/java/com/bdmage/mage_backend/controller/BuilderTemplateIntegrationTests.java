@@ -83,7 +83,8 @@ class BuilderTemplateIntegrationTests extends PostgresIntegrationTestSupport {
         send("DELETE", path(id) + "?expectedRevision=2", null, 204);
         send("GET", path(id), null, 404);
         assertThat(send("GET", path(cloned.path("templateId").asLong()), null, 200).path("sceneData")).isEqualTo(created.path("sceneData"));
-        assertThat(send("GET", "/api/scenes/" + scene.path("sceneId").asLong(), null, 200).path("sceneData")).isEqualTo(created.path("sceneData"));
+        assertThat(send("GET", "/api/scenes/" + scene.path("sceneId").asLong(), null, 200).path("sceneData")).isEqualTo(scene.path("sceneData"));
+        assertThat(design(scene.path("sceneData"))).isEqualTo(created.path("sceneData"));
     }
 
     @Test
@@ -153,18 +154,45 @@ class BuilderTemplateIntegrationTests extends PostgresIntegrationTestSupport {
     }
 
     @Test
-    void allFourteenCompleteBuilderRecipesSurvivePersonalTemplateStorage() throws Exception {
+    void allFourteenBuilderDesignsSurviveStorageWithoutSceneSettings() throws Exception {
         try (var input = getClass().getResourceAsStream("/contracts/scenes/builder-catalog.v1.fixtures.json")) {
             var recipes = this.json.readTree(input).path("recipes");
             assertThat(recipes).hasSize(14);
             for (JsonNode recipe : recipes) {
-                var created = send("POST", "/api/builder-templates", request(recipe.path("label").asText(), recipe.path("document")), 201);
+                JsonNode design = design(recipe.path("document"));
+                var created = send("POST", "/api/builder-templates", request(recipe.path("label").asText(), design), 201);
                 assertThat(created.path("sceneData")).as(recipe.path("label").asText())
-                        .isEqualTo(new com.bdmage.mage_backend.validation.SceneDocumentValidator().validateAndNormalize(recipe.path("document")));
+                        .isEqualTo(design(new com.bdmage.mage_backend.validation.SceneDocumentValidator().validateAndNormalize(design)));
+                assertThat(created.path("sceneData").has("parameters")).isFalse();
+                assertThat(created.path("sceneData").has("settings")).isFalse();
+                JsonNode stored = this.json.readTree(this.jdbc.queryForObject(
+                        "SELECT scene_data::text FROM builder_templates WHERE id = ?", String.class, created.path("templateId").asLong()));
+                assertThat(stored).isEqualTo(created.path("sceneData"));
                 assertThat(send("GET", path(created.path("templateId").asLong()), null, 200).path("sceneData"))
                         .as(recipe.path("label").asText()).isEqualTo(created.path("sceneData"));
             }
         }
+    }
+
+    @Test
+    void savesDesignOnlyAndRejectsSceneSettingsOnCreateAndUpdateWithoutChangingSavedData() throws Exception {
+        var created = send("POST", "/api/builder-templates", request("Design only", document()), 201);
+        String url = path(created.path("templateId").asLong());
+        assertThat(created.path("sceneData").has("parameters")).isFalse();
+        assertThat(created.path("sceneData").has("settings")).isFalse();
+        for (String field : java.util.List.of("parameters", "settings")) {
+            for (JsonNode value : java.util.List.of(this.json.createObjectNode(), this.json.nullNode())) {
+                ObjectNode fullScene = document().set(field, value);
+                var invalidCreate = send("POST", "/api/builder-templates", request("Not a preset", fullScene), 400);
+                assertThat(invalidCreate.path("details").has("sceneData." + field)).isTrue();
+                send("PUT", url, request("Not a preset", fullScene).put("expectedRevision", 0), 400);
+            }
+        }
+        assertThat(send("GET", url, null, 200)).isEqualTo(created);
+        assertThat(send("GET", "/api/builder-templates", null, 200).get(0)).isEqualTo(created);
+        var updated = send("PUT", url, request("Still design only", created.path("sceneData")).put("expectedRevision", 0), 200);
+        assertThat(updated.path("sceneData")).isEqualTo(created.path("sceneData"));
+        assertThat(updated.path("revision").asLong()).isEqualTo(1);
     }
 
     @Test
@@ -219,6 +247,9 @@ class BuilderTemplateIntegrationTests extends PostgresIntegrationTestSupport {
     }
     private ObjectNode request(String name, JsonNode document) {
         return this.json.createObjectNode().put("name", name).set("sceneData", document);
+    }
+    private ObjectNode design(JsonNode document) {
+        return ((ObjectNode) document.deepCopy()).remove(java.util.List.of("parameters", "settings"));
     }
     private String path(long id) { return "/api/builder-templates/" + id; }
     private String register() throws Exception {

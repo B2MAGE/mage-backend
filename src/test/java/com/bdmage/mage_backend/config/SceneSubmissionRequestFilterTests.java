@@ -157,8 +157,30 @@ class SceneSubmissionRequestFilterTests {
 	@Test
 	void boundsTotalValuesInArraysBeforeBinding() throws Exception {
 		String array = "[" + "0,".repeat(SceneLimits.ARRAY_ITEMS - 1) + "0]";
-		String oversized = "{\"sceneData\":[" + (array + ",").repeat(SceneLimits.ARRAY_ITEMS - 1) + array + "]}";
+		String matrix = "[" + (array + ",").repeat(SceneLimits.ARRAY_ITEMS - 1) + array + "]";
+		int matrixNodes = 1 + SceneLimits.ARRAY_ITEMS * (SceneLimits.ARRAY_ITEMS + 1);
+		int copies = SceneLimits.TOTAL_NODES / matrixNodes + 1;
+		String oversized = "{\"sceneData\":[" + (matrix + ",").repeat(copies - 1) + matrix + "]}";
 		assertRejected(request(oversized), 400, "VALIDATION_ERROR");
+	}
+
+	@Test
+	void personalTemplateSubmissionsHaveTheSameBudgetsAndTheirOwnStrictEnvelope() throws Exception {
+		for (String path : List.of("/api/builder-templates", "/api/%62uilder-templates", "/app/api/builder-templates")) {
+			MockHttpServletRequest input = request("{\"name\":\"Mine\",\"sceneData\":{},\"thumbnailObjectKey\":\"upload\"}");
+			input.setRequestURI(path);
+			if (path.startsWith("/app")) input.setContextPath("/app");
+			assertAccepted(input);
+			input.setContent(new byte[SceneLimits.REQUEST_BYTES + 1]);
+			assertRejected(input, 413, "REQUEST_TOO_LARGE");
+		}
+		MockHttpServletRequest input = request("{\"name\":\"Mine\",\"sceneData\":{},\"ownerUserId\":2}");
+		input.setRequestURI("/api/builder-templates");
+		assertRejected(input, 400, "VALIDATION_ERROR");
+		input = request("{\"name\":\"Mine\",\"expectedRevision\":0.5}");
+		input.setRequestURI("/api/builder-templates/1/name");
+		input.setMethod("PATCH");
+		assertRejected(input, 400, "VALIDATION_ERROR");
 	}
 
 	@Test

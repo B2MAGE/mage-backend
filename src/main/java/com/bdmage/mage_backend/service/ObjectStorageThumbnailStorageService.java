@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -70,6 +71,56 @@ public class ObjectStorageThumbnailStorageService implements ThumbnailStorageSer
 	public FinalizedThumbnail finalizeUpload(Long sceneId, String objectKey) {
 		String normalizedObjectKey = normalizeObjectKey(sceneId, objectKey);
 		return finalizeStoredObject(normalizedObjectKey);
+	}
+
+	@Override
+	public PresignedThumbnailUpload createTemplateUpload(Long ownerUserId, String filename, String contentType) {
+		String extension = CONTENT_TYPE_EXTENSIONS.get(contentType);
+		if (extension == null) throw new InvalidThumbnailException("Thumbnail must be a supported image.");
+		return createPresignedUpload(this.properties.normalizedKeyPrefix() + "/builder-templates/pending/"
+				+ ownerUserId + "/" + UUID.randomUUID() + "." + extension, contentType);
+	}
+
+	@Override
+	public FinalizedThumbnail copyTemplateUpload(Long ownerUserId, String objectKey, String destinationKey) {
+		String prefix = this.properties.normalizedKeyPrefix() + "/builder-templates/";
+		String pendingPrefix = prefix + "pending/" + ownerUserId + "/";
+		if (objectKey == null || !objectKey.startsWith(pendingPrefix)
+				|| !objectKey.substring(pendingPrefix.length()).matches("[a-f0-9-]+\\.(jpg|png|webp|gif)")
+				|| !destinationKey.startsWith(prefix + "saved/")) {
+			throw new InvalidThumbnailException(INVALID_UPLOAD_KEY_MESSAGE);
+		}
+		try {
+			HeadObjectResponse head = this.s3Client.headObject(HeadObjectRequest.builder()
+					.bucket(this.properties.bucket()).key(objectKey).build());
+			validateStoredObject(head);
+			this.s3Client.copyObject(CopyObjectRequest.builder().sourceBucket(this.properties.bucket())
+					.sourceKey(objectKey).copySourceIfMatch(head.eTag())
+					.destinationBucket(this.properties.bucket()).destinationKey(destinationKey).build());
+			return new FinalizedThumbnail(destinationKey, this.properties.toPublicUrl(destinationKey));
+		} catch (InvalidThumbnailException ex) {
+			throw ex;
+		} catch (S3Exception ex) {
+			if (ex.statusCode() == 404 || ex.statusCode() == 412) {
+				throw new InvalidThumbnailException("Uploaded thumbnail was missing or changed. Capture it again.");
+			}
+			throw new ThumbnailStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, ex);
+		} catch (RuntimeException ex) {
+			throw new ThumbnailStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, ex);
+		}
+	}
+
+	@Override
+	public void deleteTemplateAsset(String thumbnailRef) {
+		String key = extractObjectKey(thumbnailRef);
+		if (key == null || !key.startsWith(this.properties.normalizedKeyPrefix() + "/builder-templates/")) {
+			throw new InvalidThumbnailException(INVALID_UPLOAD_KEY_MESSAGE);
+		}
+		try {
+			this.s3Client.deleteObject(DeleteObjectRequest.builder().bucket(this.properties.bucket()).key(key).build());
+		} catch (RuntimeException ex) {
+			throw new ThumbnailStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, ex);
+		}
 	}
 
 	private PresignedThumbnailUpload createPresignedUpload(String objectKey, String contentType) {

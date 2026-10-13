@@ -20,6 +20,16 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    @ExceptionHandler(BuilderTemplateException.class)
+    ResponseEntity<ApiErrorResponse> handleBuilderTemplate(BuilderTemplateException ex, HttpServletRequest request) {
+        Map<String, String> details = switch (ex.getCode()) {
+            case "BUILDER_TEMPLATE_NAME_EXISTS" -> Map.of("name", ex.getMessage());
+            case "BUILDER_TEMPLATE_EDIT_CONFLICT" -> Map.of("expectedRevision", ex.getMessage());
+            default -> Map.of();
+        };
+        return buildResponse(ex.getStatus(), ex.getCode(), ex.getMessage(), details, request.getRequestURI());
+    }
+
 	@ExceptionHandler(SceneEditConflictException.class)
 	ResponseEntity<ApiErrorResponse> handleSceneEditConflict(SceneEditConflictException ex, HttpServletRequest request) {
 		return buildResponse(HttpStatus.CONFLICT, "SCENE_EDIT_CONFLICT", ex.getMessage(), Map.of(), request.getRequestURI());

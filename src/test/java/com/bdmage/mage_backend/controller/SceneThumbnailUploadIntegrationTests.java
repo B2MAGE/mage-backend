@@ -316,6 +316,16 @@ class SceneThumbnailUploadIntegrationTests extends PostgresIntegrationTestSuppor
 		ThumbnailStorageService stubThumbnailStorageService() {
 			return new ThumbnailStorageService() {
 				@Override
+				public PresignedThumbnailUpload createTemplateUpload(Long owner, String filename, String contentType) {
+					throw new UnsupportedOperationException("Not used by scene upload tests");
+				}
+				@Override
+				public FinalizedThumbnail copyTemplateUpload(Long owner, String objectKey, String destinationKey) {
+					throw new UnsupportedOperationException("Not used by scene upload tests");
+				}
+				@Override
+				public void deleteTemplateAsset(String thumbnailRef) { }
+				@Override
 				public PresignedThumbnailUpload createSceneCreationUpload(Long ownerUserId, String filename, String contentType) {
 					return new PresignedThumbnailUpload(
 							"scenes/pending/" + ownerUserId + "/thumbnails/stub-thumb.png",

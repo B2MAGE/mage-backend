@@ -1306,6 +1306,171 @@
         "peter"
       ],
       "views": 3
+    },
+    {
+      "key": "signal-duet",
+      "owner": "peter",
+      "name": "Signal Duet",
+      "description": "Two editable musical layers: the gold pearl stretches on bass hits while the cyan halo rises on treble hits. Add a local song and change either response in Builder.",
+      "sceneData": {
+        "schemaVersion": 1,
+        "kind": "builder",
+        "builderVersion": 1,
+        "objects": [
+          {
+            "id": "object-1",
+            "name": "Bass Pearl",
+            "operation": {
+              "type": "sphere",
+              "radius": 0.55
+            },
+            "transform": {
+              "position": {
+                "x": -1.15,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#f6b15c",
+              "metalness": 0.5,
+              "shininess": 0.8
+            },
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            },
+            "bindings": [
+              {
+                "target": "scale.y",
+                "source": "bass-hit",
+                "mode": "add",
+                "amount": 1.5,
+                "offset": 0,
+                "attack": 0.01,
+                "release": 0.18
+              }
+            ]
+          },
+          {
+            "id": "object-2",
+            "name": "Treble Halo",
+            "operation": {
+              "type": "torus",
+              "radius": 0.68,
+              "tube": 0.13
+            },
+            "transform": {
+              "position": {
+                "x": 1.15,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0.9,
+                "y": 0,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "material": {
+              "color": "#55dde0",
+              "metalness": 0,
+              "shininess": 0.5
+            },
+            "modifiers": [],
+            "arrangements": [],
+            "motion": {
+              "type": "none"
+            },
+            "bindings": [
+              {
+                "target": "position.y",
+                "source": "treble-hit",
+                "mode": "add",
+                "amount": 1.1,
+                "offset": 0,
+                "attack": 0.01,
+                "release": 0.12
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "scale": 1,
+          "speed": 1
+        },
+        "settings": {
+          "skybox": 6,
+          "camera": {
+            "fov": 55,
+            "autoRotate": false,
+            "orbitSpeed": 0.2
+          },
+          "bloom": {
+            "enabled": false,
+            "strength": 1,
+            "radius": 0.2,
+            "threshold": 0.1
+          },
+          "tint": {
+            "enabled": false,
+            "color": "#ffffff"
+          },
+          "audioResponse": "mapped-v1",
+          "audioResponseConfig": {
+            "version": 1,
+            "sensitivity": 1,
+            "mappings": []
+          },
+          "controls": {
+            "position0": {
+              "x": 0,
+              "y": 0,
+              "z": 4.5
+            },
+            "target0": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "zoom0": 1
+          }
+        }
+      },
+      "thumbnail": "thumbnails/signal-duet.png",
+      "tags": [
+        "builder",
+        "music",
+        "layers"
+      ],
+      "discussion": {
+        "author": "ari",
+        "text": "The two objects make the bass and treble easy to compare.",
+        "reply": "Open Builder to change each response independently, or rebuild it from the documented New Template steps."
+      },
+      "likedBy": [
+        "ari"
+      ],
+      "savedBy": [
+        "ari"
+      ],
+      "views": 2
     }
   ]
 }

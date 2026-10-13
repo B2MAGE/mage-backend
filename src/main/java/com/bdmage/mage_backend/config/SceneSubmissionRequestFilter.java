@@ -55,8 +55,8 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 	private static final ObjectMapper ERROR_JSON = new ObjectMapper();
 	private static final Set<String> CREATE_FIELDS = Set.of("name", "description", "sceneData", "thumbnailObjectKey", "playlistId", "tagIds");
 	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData", "tagIds", "expectedRevision");
-	private static final Set<String> TEMPLATE_CREATE_FIELDS = Set.of("name", "sceneData", "thumbnailObjectKey");
-	private static final Set<String> TEMPLATE_UPDATE_FIELDS = Set.of("name", "sceneData", "thumbnailObjectKey", "expectedRevision");
+	private static final Set<String> TEMPLATE_CREATE_FIELDS = Set.of("name", "sceneData");
+	private static final Set<String> TEMPLATE_UPDATE_FIELDS = Set.of("name", "sceneData", "expectedRevision");
 	private static final Set<String> TEMPLATE_RENAME_FIELDS = Set.of("name", "expectedRevision");
 
 	@Override

@@ -167,7 +167,7 @@ class SceneSubmissionRequestFilterTests {
 	@Test
 	void personalTemplateSubmissionsHaveTheSameBudgetsAndTheirOwnStrictEnvelope() throws Exception {
 		for (String path : List.of("/api/builder-templates", "/api/%62uilder-templates", "/app/api/builder-templates")) {
-			MockHttpServletRequest input = request("{\"name\":\"Mine\",\"sceneData\":{},\"thumbnailObjectKey\":\"upload\"}");
+			MockHttpServletRequest input = request("{\"name\":\"Mine\",\"sceneData\":{}}");
 			input.setRequestURI(path);
 			if (path.startsWith("/app")) input.setContextPath("/app");
 			assertAccepted(input);

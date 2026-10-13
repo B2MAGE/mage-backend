@@ -5,14 +5,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import com.bdmage.mage_backend.service.BuilderTemplateAssetCleanup;
 import com.bdmage.mage_backend.service.ThumbnailStorageService;
-import com.bdmage.mage_backend.exception.ThumbnailStorageUnavailableException;
 import com.bdmage.mage_backend.support.PostgresIntegrationTestSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,21 +24,18 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Actual HTTP/login plus disposable PostgreSQL; storage failures are deterministic. */
+/** Actual HTTP/login plus disposable PostgreSQL; personal templates never access object storage. */
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "mage.builder-template.cleanup-delay-ms=3600000")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class BuilderTemplateIntegrationTests extends PostgresIntegrationTestSupport {
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     @LocalServerPort private int port;
     @Autowired private JdbcTemplate jdbc;
-    @Autowired private BuilderTemplateAssetCleanup cleanup;
     @MockitoBean private ThumbnailStorageService thumbnails;
     private String token;
     private String otherToken;
@@ -52,13 +45,6 @@ class BuilderTemplateIntegrationTests extends PostgresIntegrationTestSupport {
         this.token = null;
         this.otherToken = register();
         this.token = register();
-        when(this.thumbnails.createTemplateUpload(anyLong(), anyString(), anyString())).thenAnswer(invocation -> {
-            String key = "scenes/builder-templates/pending/" + invocation.getArgument(0) + "/" + UUID.randomUUID() + ".png";
-            return new ThumbnailStorageService.PresignedThumbnailUpload(key, "https://upload.example.test/" + key,
-                    "PUT", Map.of("Content-Type", "image/png"), Instant.now().plusSeconds(600));
-        });
-        when(this.thumbnails.copyTemplateUpload(anyLong(), anyString(), anyString())).thenAnswer(invocation ->
-                new ThumbnailStorageService.FinalizedThumbnail(invocation.getArgument(2), "https://cdn.test.example.com/" + invocation.getArgument(2)));
     }
 
     @Test
@@ -196,47 +182,20 @@ class BuilderTemplateIntegrationTests extends PostgresIntegrationTestSupport {
     }
 
     @Test
-    void uploadsAreOwnerScopedSingleUseAndCopiedToIndependentAssetsWithDurableCleanup() throws Exception {
-        String upload = upload();
-        String ownerToken = this.token;
-        this.token = this.otherToken;
-        send("POST", "/api/builder-templates", request("Stolen upload", document()).put("thumbnailObjectKey", upload), 400);
-        this.token = ownerToken;
-        var created = send("POST", "/api/builder-templates", request("Thumbnail", document()).put("thumbnailObjectKey", upload), 201);
+    void templatesDoNotAcceptOrReturnThumbnailsAndHaveNoUploadEndpoints() throws Exception {
+        String upload = "scenes/builder-templates/pending/unused.png";
+        send("POST", "/api/builder-templates", request("No thumbnail", document()).put("thumbnailObjectKey", upload), 400);
+        var created = send("POST", "/api/builder-templates", request("Design", document()), 201);
         String url = path(created.path("templateId").asLong());
-        String thumbnail = created.path("thumbnailRef").asText();
-        assertThat(thumbnail).contains("/builder-templates/saved/").doesNotContain("/pending/");
-        send("POST", "/api/builder-templates", request("Replay", document()).put("thumbnailObjectKey", upload), 400);
-        send("POST", "/api/builder-templates", request("Scene asset", document()).put("thumbnailObjectKey", "scenes/1/thumbnails/image.png"), 400);
-        var renamed = send("PATCH", url + "/name", this.json.createObjectNode().put("name", "Image retained").put("expectedRevision", 0), 200);
-        assertThat(renamed.path("thumbnailRef").asText()).isEqualTo(thumbnail);
-        String nextUpload = upload();
-        when(this.thumbnails.copyTemplateUpload(anyLong(), eq(nextUpload), anyString()))
-                .thenThrow(new ThumbnailStorageUnavailableException("Storage unavailable", new RuntimeException("test")));
-        send("PUT", url, request("Failure", document()).put("expectedRevision", 1).put("thumbnailObjectKey", nextUpload), 503);
-        assertThat(send("GET", url, null, 200)).isEqualTo(renamed);
-        // Content changes without a fresh capture deliberately show a fallback instead of a stale thumbnail.
-        var updated = send("PUT", url, request("Updated", document()).put("expectedRevision", 1), 200);
-        assertThat(updated.path("thumbnailRef").isNull()).isTrue();
-        doThrow(new ThumbnailStorageUnavailableException("Storage unavailable", new RuntimeException("test")))
-                .doNothing().when(this.thumbnails).deleteTemplateAsset(thumbnail);
-        this.cleanup.cleanup(); // failure leaves the deletion queued
-        assertThat(this.jdbc.queryForObject("SELECT count(*) FROM builder_template_asset_cleanup WHERE thumbnail_ref = ?", Long.class, thumbnail)).isEqualTo(1);
-        this.cleanup.cleanup();
-        assertThat(this.jdbc.queryForObject("SELECT count(*) FROM builder_template_asset_cleanup WHERE thumbnail_ref = ?", Long.class, thumbnail)).isZero();
-        verify(this.thumbnails, times(2)).deleteTemplateAsset(thumbnail);
-        String abandoned = upload();
-        send("DELETE", "/api/builder-templates/thumbnail/pending?objectKey=" + abandoned, null, 204);
-        send("POST", "/api/builder-templates", request("Abandoned", document()).put("thumbnailObjectKey", abandoned), 400);
-        this.jdbc.update("UPDATE builder_template_asset_cleanup SET not_before = CURRENT_TIMESTAMP");
-        this.cleanup.cleanup();
-        verify(this.thumbnails).deleteTemplateAsset(abandoned);
-        send("DELETE", url + "?expectedRevision=2", null, 204);
-    }
-
-    private String upload() throws Exception {
-        return send("POST", "/api/builder-templates/thumbnail/presign", this.json.createObjectNode()
-                .put("filename", "capture.png").put("contentType", "image/png").put("sizeBytes", 100), 200).path("objectKey").asText();
+        assertThat(created.has("thumbnailRef")).isFalse();
+        send("PUT", url, request("No thumbnail", document()).put("expectedRevision", 0).put("thumbnailObjectKey", upload), 400);
+        assertThat(send("GET", url, null, 200)).isEqualTo(created);
+        assertThat(send("GET", "/api/builder-templates", null, 200).get(0).has("thumbnailRef")).isFalse();
+        send("POST", "/api/builder-templates/thumbnail/presign", this.json.createObjectNode()
+                .put("filename", "capture.png").put("contentType", "image/png").put("sizeBytes", 100), 404);
+        send("DELETE", "/api/builder-templates/thumbnail/pending?objectKey=" + upload, null, 404);
+        send("DELETE", url + "?expectedRevision=0", null, 204);
+        verifyNoInteractions(this.thumbnails);
     }
 
     private ObjectNode document() throws Exception {

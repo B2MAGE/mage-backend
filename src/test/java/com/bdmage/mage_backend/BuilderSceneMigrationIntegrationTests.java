@@ -47,7 +47,7 @@ class BuilderSceneMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 			var existingDesignBefore = this.jdbc.queryForMap("SELECT * FROM " + schema + ".builder_templates WHERE id=2");
 			var sceneBefore = this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id=1");
 			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
-					.locations("classpath:db/migration").load().migrate();
+					.locations("classpath:db/migration").target("24").load().migrate();
 			var templateAfter = this.jdbc.queryForMap("SELECT * FROM " + schema + ".builder_templates WHERE id=1");
 			assertThat(templateAfter.remove("revision")).isEqualTo(8L);
 			templateBefore.remove("revision");
@@ -60,6 +60,38 @@ class BuilderSceneMigrationIntegrationTests extends PostgresIntegrationTestSuppo
 			assertThat(this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id=1")).isEqualTo(sceneBefore);
 			assertThatThrownBy(() -> this.jdbc.update("UPDATE " + schema + ".builder_templates SET scene_data=?::jsonb WHERE id=1", fullScene))
 					.isInstanceOf(DataIntegrityViolationException.class);
+		} finally {
+			this.jdbc.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+		}
+	}
+
+	@Test
+	void removingTemplateImagesPreservesDesignsAndAllSceneData() {
+		String schema = "sb14_no_images_" + System.nanoTime();
+		try {
+			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
+					.locations("classpath:db/migration").target("24").load().migrate();
+			this.jdbc.update("INSERT INTO " + schema + ".users "
+					+ "(id,email,password_hash,display_name,first_name,last_name,handle) "
+					+ "VALUES (1,'design@example.test','unused','Design','Design','','design')");
+			String design = "{\"schemaVersion\":1,\"kind\":\"builder\",\"builderVersion\":1,\"objects\":[]}";
+			this.jdbc.update("INSERT INTO " + schema + ".builder_templates "
+					+ "(id,owner_user_id,name,scene_data,thumbnail_ref,revision) "
+					+ "VALUES (1,1,'Keep design',?::jsonb,'obsolete-template.png',3)", design);
+			this.jdbc.update("INSERT INTO " + schema + ".scenes "
+					+ "(id,owner_user_id,name,scene_data,thumbnail_ref,scene_mode) "
+					+ "VALUES (1,1,'Keep scene',?::jsonb,'keep-scene.png','builder-v1')", design);
+			this.jdbc.update("INSERT INTO " + schema + ".builder_template_uploads VALUES ('old-upload',1,CURRENT_TIMESTAMP,FALSE)");
+			this.jdbc.update("INSERT INTO " + schema + ".builder_template_asset_cleanup VALUES ('old-upload',CURRENT_TIMESTAMP)");
+			var before = this.jdbc.queryForMap("SELECT * FROM " + schema + ".builder_templates WHERE id=1");
+			before.remove("thumbnail_ref");
+			var sceneBefore = this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id=1");
+			Flyway.configure().dataSource(this.dataSource).schemas(schema).defaultSchema(schema)
+					.locations("classpath:db/migration").load().migrate();
+			assertThat(this.jdbc.queryForMap("SELECT * FROM " + schema + ".builder_templates WHERE id=1")).isEqualTo(before);
+			assertThat(this.jdbc.queryForMap("SELECT * FROM " + schema + ".scenes WHERE id=1")).isEqualTo(sceneBefore);
+			assertThat(this.jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema = ? "
+					+ "AND table_name IN ('builder_template_uploads','builder_template_asset_cleanup')", Long.class, schema)).isZero();
 		} finally {
 			this.jdbc.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
 		}

@@ -15,6 +15,6 @@ Use these docs as the source of truth for working in `mage-backend`.
 9. [scene-availability.md](scene-availability.md)
 10. [scene-documents.md](scene-documents.md)
 11. [Current portfolio demo fixtures and reset](../scripts/demo/README.md)
-12. [Personal Builder templates API and thumbnail lifecycle](personal-builder-templates.md)
+12. [Personal Builder templates API](personal-builder-templates.md)
 
 The complete [full-stack deployment guide](full-stack-deployment.md) is included in this repository so Docker/Coolify, storage, and local-review instructions travel with each release.

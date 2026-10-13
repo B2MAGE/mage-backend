@@ -35,14 +35,14 @@ public class BuilderTemplateController {
     ResponseEntity<BuilderTemplateResponse> create(@RequestAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE) Long owner,
             @Valid @RequestBody CreateBuilderTemplateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(this.service.create(owner, request.name(),
-                SceneService.sceneDataJson(request.sceneData()), request.thumbnailObjectKey()));
+                SceneService.sceneDataJson(request.sceneData())));
     }
 
     @PutMapping("/{id}")
     BuilderTemplateResponse update(@RequestAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE) Long owner, @PathVariable Long id,
             @Valid @RequestBody UpdateBuilderTemplateRequest request) {
         return this.service.update(owner, id, request.expectedRevision(), request.name(),
-                SceneService.sceneDataJson(request.sceneData()), request.thumbnailObjectKey());
+                SceneService.sceneDataJson(request.sceneData()));
     }
 
     @PatchMapping("/{id}/name")
@@ -58,15 +58,4 @@ public class BuilderTemplateController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/thumbnail/presign")
-    PresignedThumbnailUploadResponse presign(@RequestAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE) Long owner,
-            @Valid @RequestBody CreateSceneThumbnailUploadRequest request) {
-        return PresignedThumbnailUploadResponse.from(this.service.presign(owner, request.filename(), request.contentType(), request.sizeBytes()));
-    }
-
-    @DeleteMapping("/thumbnail/pending")
-    ResponseEntity<Void> discardUpload(@RequestAttribute(AuthenticatedUserRequest.USER_ID_ATTRIBUTE) Long owner, @RequestParam String objectKey) {
-        this.service.discardUpload(owner, objectKey);
-        return ResponseEntity.noContent().build();
-    }
 }

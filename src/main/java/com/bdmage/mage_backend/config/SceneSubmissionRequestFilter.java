@@ -55,9 +55,19 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 	private static final ObjectMapper ERROR_JSON = new ObjectMapper();
 	private static final Set<String> CREATE_FIELDS = Set.of("name", "description", "sceneData", "thumbnailObjectKey", "playlistId", "tagIds");
 	private static final Set<String> UPDATE_FIELDS = Set.of("name", "description", "sceneData", "tagIds", "expectedRevision");
+	private static final Set<String> TEMPLATE_CREATE_FIELDS = Set.of("name", "sceneData");
+	private static final Set<String> TEMPLATE_UPDATE_FIELDS = Set.of("name", "sceneData", "expectedRevision");
+	private static final Set<String> TEMPLATE_RENAME_FIELDS = Set.of("name", "expectedRevision");
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
+		String path = submissionPath(request);
+		return !("POST".equals(request.getMethod()) && ("/api/scenes".equals(path) || "/api/builder-templates".equals(path)))
+				&& !("PUT".equals(request.getMethod()) && path.matches("/api/(scenes|builder-templates)/[^/]+"))
+				&& !("PATCH".equals(request.getMethod()) && path.matches("/api/builder-templates/[^/]+/name"));
+	}
+
+	private static String submissionPath(HttpServletRequest request) {
 		// The container's servlet path is decoded and excludes the context path.
 		String path = request.getServletPath();
 		if (path == null || path.isEmpty()) {
@@ -67,8 +77,7 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 		if (path.endsWith("/")) {
 			path = path.substring(0, path.length() - 1);
 		}
-		return !("POST".equals(request.getMethod()) && "/api/scenes".equals(path))
-				&& !("PUT".equals(request.getMethod()) && path.matches("/api/scenes/[^/]+"));
+		return path;
 	}
 
 	@Override
@@ -86,7 +95,12 @@ public class SceneSubmissionRequestFilter extends OncePerRequestFilter {
 			} else {
 				body = wireBody;
 			}
-			validateJson(body, "POST".equals(request.getMethod()) ? CREATE_FIELDS : UPDATE_FIELDS);
+			boolean template = submissionPath(request).startsWith("/api/builder-templates");
+			Set<String> fields = template
+					? ("PATCH".equals(request.getMethod()) ? TEMPLATE_RENAME_FIELDS
+							: "POST".equals(request.getMethod()) ? TEMPLATE_CREATE_FIELDS : TEMPLATE_UPDATE_FIELDS)
+					: ("POST".equals(request.getMethod()) ? CREATE_FIELDS : UPDATE_FIELDS);
+			validateJson(body, fields);
 		} catch (SubmissionRejected ex) {
 			writeError(request, response, ex.status, ex.code, ex.getMessage(), ex.details);
 			return;

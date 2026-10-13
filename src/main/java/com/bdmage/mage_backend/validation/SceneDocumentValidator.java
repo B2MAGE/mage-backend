@@ -95,7 +95,7 @@ public final class SceneDocumentValidator {
 		JsonNode objects = document.path("objects");
 		JsonNode costs = BUILDER_RENDERING.path("operationCosts");
 		BuilderCompositionWorkload composition = validateBuilderComposition(document);
-		BuilderDriverValidator.Workload drivers = BuilderDriverValidator.validate(document, BUILDER_RENDERING.path("driverLimits"));
+		BuilderDriverValidator.Workload drivers = BuilderDriverValidator.validate(document, BUILDER_RENDERING.path("driverLimits"), costs);
 		int expandedPrimitives = 0;
 		int objectFrames = 0;
 		int liveUniforms = drivers.liveUniforms();
@@ -118,15 +118,16 @@ public final class SceneDocumentValidator {
 				default -> 0;
 			};
 			for (JsonNode modifier : object.path("modifiers")) {
-				String type = modifier.path("type").asText();
-				String cost = type.equals("expand") ? "expandModifier"
-						: type.equals("shell") ? "shellModifier" : "twistModifier";
-				modifierOperations += copies * costs.path(cost).intValue();
+				modifierOperations += copies * builderModifierCost(modifier, costs);
 			}
 			if (object.path("motion").path("type").asText().equals("spin")) {
 				animationOperations += copies * costs.path("spinPerPrimitive").intValue();
 			}
 			liveUniforms += object.path("bindings").size() * costs.path("liveUniformPerBinding").intValue();
+		}
+		// Group distance modifiers run once after their children's composition.
+		for (JsonNode group : document.path("composition").path("groups")) {
+			for (JsonNode modifier : group.path("modifiers")) modifierOperations += builderModifierCost(modifier, costs);
 		}
 		Map<String, Integer> workload = Map.ofEntries(
 				Map.entry("expandedPrimitives", expandedPrimitives),
@@ -137,7 +138,7 @@ public final class SceneDocumentValidator {
 				Map.entry("arrangementOperations", arrangementOperations),
 				Map.entry("animationOperations", animationOperations),
 				Map.entry("authoredDrivers", drivers.drivers()),
-				Map.entry("driverOperations", drivers.driverNodes()),
+				Map.entry("driverOperations", drivers.driverOperations()),
 				Map.entry("liveUniforms", liveUniforms),
 				Map.entry("groups", composition.groups()),
 				Map.entry("groupDepth", composition.depth()),
@@ -148,6 +149,16 @@ public final class SceneDocumentValidator {
 			if (entry.getValue() > maximum) invalid("sceneData.objects",
 					entry.getKey() + " requires " + entry.getValue() + "; maximum is " + maximum + ".");
 		}
+	}
+
+	private int builderModifierCost(JsonNode modifier, JsonNode costs) {
+		String cost = switch (modifier.path("type").asText()) {
+			case "expand" -> "expandModifier";
+			case "shell" -> "shellModifier";
+			case "twist" -> "twistModifier";
+			default -> throw new IllegalStateException("Unsupported Builder modifier escaped contract validation.");
+		};
+		return costs.path(cost).intValue();
 	}
 
 	private record BuilderCompositionWorkload(int groups, int depth, int materialOverrides) {}

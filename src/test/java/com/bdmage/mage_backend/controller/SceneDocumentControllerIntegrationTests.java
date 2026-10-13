@@ -284,6 +284,46 @@ class SceneDocumentControllerIntegrationTests extends PostgresIntegrationTestSup
 	}
 
 	@Test
+	void proceduralNoiseAndPreciseMaterialsPersistEditAndRejectInvalidSavesAtomically() throws Exception {
+		JsonNode fixture;
+		try (var input = getClass().getResourceAsStream("/contracts/scenes/current-round-trips.json")) {
+			assertThat(input).isNotNull();
+			fixture = this.json.readTree(input).path("cases").valueStream()
+					.filter(row -> row.path("name").asText().equals("deformation-noise-precise-rgb-and-post-composition-modifiers"))
+					.findFirst().orElseThrow();
+		}
+		JsonNode created = create(fixture.path("input"));
+		long id = created.path("sceneId").asLong();
+		assertThat(created.path("sceneMode").asText()).isEqualTo("builder-v1");
+		assertThat(created.path("availability").path("available").asBoolean()).isTrue();
+		assertThat(created.path("sceneData")).isEqualTo(fixture.path("normalized"));
+
+		ObjectNode edited = (ObjectNode) this.json.readTree(created.path("sceneData").toString());
+		JsonNode object = edited.path("objects").get(0);
+		((ObjectNode) object.path("material").path("color")).put("z", 0.1234567890123456);
+		((ObjectNode) object.path("drivers").get(0).path("expression").path("left").path("input").path("left")).put("ancestor", 1);
+		JsonNode group = edited.path("composition").path("groups").get(0);
+		((ObjectNode) group.path("drivers").get(0).path("expression")).put("value", 0.04);
+		JsonNode updated = body(this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(created.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(edited).toString()))
+				.andExpect(status().isOk()).andReturn());
+		assertThat(updated.path("sceneData")).isEqualTo(edited);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}", id)).andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(edited);
+		assertThat(body(this.mvc.perform(get("/api/scenes/{id}/repair", id).header("Authorization", bearer(this.ownerToken)))
+				.andExpect(status().isOk()).andReturn()).path("sceneData")).isEqualTo(edited);
+
+		ObjectNode invalid = edited.deepCopy();
+		((ObjectNode) invalid.path("objects").get(0).path("drivers").get(0).path("expression").path("left")).put("source", "NEVER_EXECUTE()");
+		this.mvc.perform(put("/api/scenes/{id}", id).with(expectedSceneRevision(updated.path("revision").asLong()))
+				.header("Authorization", bearer(this.ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(invalid).toString()))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.details['sceneData.objects[0].drivers[0].expression.left.source']").exists());
+		Scene persisted = this.scenes.findById(id).orElseThrow();
+		assertThat(persisted.getSceneData()).isEqualTo(edited);
+		assertThat(persisted.getRevision()).isEqualTo(updated.path("revision").asLong());
+		verifyNoInteractions(this.thumbnails);
+	}
+
+	@Test
 	void framesAndProceduralLatticesPersistEditAndExportWithoutLosingDriversOrGroups() throws Exception {
 		ObjectNode document = (ObjectNode) this.json.readTree("""
 				{"schemaVersion":1,"kind":"builder","builderVersion":1,"objects":[

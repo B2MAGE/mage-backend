@@ -142,6 +142,11 @@ and operator enable are complete. Retain existing database migrations and stored
 rows; rollback must use a matching frontend/backend contract rather than stripping
 envelopes or rewriting historical data.
 
+Use the shared [contract change and release checklist](https://github.com/B2MAGE/mage-frontend/blob/main/docs/scene-foundations.md#contract-change-and-release-checklist)
+to update the seven contract copies, run the affected independent checks, and
+coordinate API support with the editor and isolated renderer. No historical
+conversion or version-negotiation framework is required.
+
 
 ## Saving an editor draft without overwriting a newer save
 

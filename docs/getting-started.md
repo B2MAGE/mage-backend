@@ -14,14 +14,13 @@ You do not need a separate Maven install. Use the wrapper in the repo.
 ## First Run
 
 1. Clone the repository and enter the project directory.
-2. Copy the example environment file.
+2. Copy the example environment file if this checkout does not already have `.env`.
 3. Start the local stack with Docker Compose.
 
 Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
@@ -29,7 +28,6 @@ macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
 
@@ -38,6 +36,10 @@ This starts:
 - `postgres`: PostgreSQL 16
 - `backend`: the Spring Boot service from this repo
 - `minio` plus its bootstrap helper for local thumbnail storage
+
+For subsequent starts, run only the `docker compose ... up --build` command.
+Normal startup retains accounts, scenes, and thumbnail storage. Stop the stack with
+the same Compose file arguments followed by `stop`; do not reset data as part of startup.
 
 The MinIO override uses the `MAGE_THUMBNAIL_MINIO_*` values in `.env.example`, so you do not need to replace your normal S3 settings just to switch locally.
 
@@ -49,6 +51,13 @@ The split is intentional:
 ## Environment Variables
 
 `.env.example` is set up for the containerized workflow. If you change the datasource host, make sure it still matches the way you are running the app.
+
+The frontend runs separately at `http://127.0.0.1:5178`; follow its
+[local setup guide](https://github.com/B2MAGE/mage-frontend#getting-started) to start the
+app and isolated renderer. Password reset links use that same origin by default
+in the example environment, Compose, and direct IDE/Maven runs.
+Local reset links are printed in backend logs. Set
+`MAGE_PASSWORD_RESET_FRONTEND_BASE_URL` explicitly for a different frontend origin.
 
 ## Verify the Service
 
@@ -111,12 +120,20 @@ Migration rules:
 - use `V<version>__<description>.sql`
 - treat shared migrations as append-only
 
-If local schema state gets messy, the quickest reset is:
+## Deliberately Reset Local Data
+
+Use this only when you intend to delete this Compose stack's database and thumbnail
+storage. It removes local accounts, scenes, and uploaded images. Normal startup and
+schema migrations do not need a reset. Keep the same Compose project name and files
+that you used to start the stack so this targets the intended local environment.
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml down -v
 docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.minio.yml up --build
 ```
+
+For a separately isolated, reproducible portfolio demo, use the
+[committed demo fixtures](../scripts/demo/README.md) and their explicit reset command.
 
 ## Common Local Issues
 

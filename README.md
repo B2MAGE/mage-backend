@@ -31,6 +31,7 @@ For a populated, repeatable portfolio demo, use the [current demo fixtures](scri
 Its explicit reset command targets a separate Docker project. Normal startup preserves data.
 
 The default local workflow uses Docker Compose.
+Copy `.env.example` only for a new checkout; keep your existing `.env` on subsequent starts.
 
 Windows PowerShell:
 
@@ -65,6 +66,12 @@ Once the stack is up:
 - app: `http://localhost:8080`
 - liveness: `GET /health`
 - readiness: `GET /ready`
+
+Start the frontend and its isolated renderer separately using the
+[frontend local setup guide](https://github.com/B2MAGE/mage-frontend#getting-started).
+The app uses `http://127.0.0.1:5178`, which is also the local password-reset link
+origin in `.env.example` and Compose. See [Getting Started](docs/getting-started.md)
+for startup, stopping, and deliberate data resets.
 
 Run tests with:
 

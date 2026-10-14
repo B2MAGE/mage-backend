@@ -13,7 +13,7 @@ public record PasswordResetProperties(
 		String fromEmail,
 		String fromName) {
 
-	private static final String DEFAULT_FRONTEND_BASE_URL = "http://localhost:5173";
+	private static final String DEFAULT_FRONTEND_BASE_URL = "http://127.0.0.1:5178";
 	private static final Duration DEFAULT_TOKEN_TTL = Duration.ofMinutes(30);
 	private static final String DEFAULT_FROM_NAME = "MAGE";
 

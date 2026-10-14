@@ -33,7 +33,7 @@ class PasswordResetServiceTests {
 	private static final Instant NOW = Instant.parse("2026-05-04T12:00:00Z");
 
 	@Test
-	void requestPasswordResetCreatesTokenAndSendsLinkForLocalUser() {
+	void requestPasswordResetCreatesTokenAndSendsLinkToDefaultLocalFrontend() {
 		Dependencies dependencies = dependencies();
 		User user = new User("user@example.com", "stored-password-hash", "Local", "User", "Local User");
 		ReflectionTestUtils.setField(user, "id", 42L);
@@ -57,7 +57,7 @@ class PasswordResetServiceTests {
 		assertThat(savedToken.getUserId()).isEqualTo(42L);
 		assertThat(savedToken.getTokenHash()).hasSize(64);
 		assertThat(savedToken.getExpiresAt()).isEqualTo(expectedExpiration);
-		assertThat(linkCaptor.getValue()).startsWith("http://localhost:5173/reset-password?token=");
+		assertThat(linkCaptor.getValue()).startsWith("http://127.0.0.1:5178/reset-password?token=");
 	}
 
 	@Test
@@ -159,7 +159,7 @@ class PasswordResetServiceTests {
 		UserRepository userRepository = mock(UserRepository.class);
 		PasswordResetProperties properties = new PasswordResetProperties(
 				PasswordResetDeliveryMode.LOG,
-				"http://localhost:5173",
+				null,
 				Duration.ofMinutes(15),
 				null,
 				null);

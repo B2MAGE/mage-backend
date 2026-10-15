@@ -189,6 +189,9 @@ public class SceneService {
 	@Transactional(readOnly = true)
 	public List<Scene> getScenesForUser(Long authenticatedUserId, Long requestedUserId) {
 		requireAuthenticatedUser(authenticatedUserId);
+		if (!authenticatedUserId.equals(requestedUserId)) {
+			throw new SceneOwnershipRequiredException(SCENE_OWNERSHIP_REQUIRED_MESSAGE);
+		}
 		return this.sceneRepository.findAllByOwnerUserId(requestedUserId);
 	}
 

@@ -335,12 +335,8 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	}
 
 	@Test
-	void scenesReturnsRequestedUsersScenesForAuthenticatedRequest() throws Exception {
+	void scenesReturnsOwnersScenesForAuthenticatedRequest() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		User authenticatedUser = this.userRepository.saveAndFlush(new User(
-				"scene-viewer-" + uniqueSuffix + "@example.com",
-				this.passwordHashingService.hash("viewer-password-" + uniqueSuffix),
-				"Scene Viewer"));
 		User ownerUser = this.userRepository.saveAndFlush(new User(
 				"scene-owner-" + uniqueSuffix + "@example.com",
 				this.passwordHashingService.hash("owner-password-" + uniqueSuffix),
@@ -351,7 +347,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(loginRequestBody(authenticatedUser.getEmail(), "viewer-password-" + uniqueSuffix)))
+				.content(loginRequestBody(ownerUser.getEmail(), "owner-password-" + uniqueSuffix)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn();
@@ -378,10 +374,6 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 	@Test
 	void scenesReturnsEmptyListWhenRequestedUserHasNoScenes() throws Exception {
 		String uniqueSuffix = String.valueOf(System.nanoTime());
-		User authenticatedUser = this.userRepository.saveAndFlush(new User(
-				"scene-reader-" + uniqueSuffix + "@example.com",
-				this.passwordHashingService.hash("reader-password-" + uniqueSuffix),
-				"Scene Reader"));
 		User requestedUser = this.userRepository.saveAndFlush(new User(
 				"scene-empty-" + uniqueSuffix + "@example.com",
 				this.passwordHashingService.hash("empty-password-" + uniqueSuffix),
@@ -389,7 +381,7 @@ class UserControllerIntegrationTests extends PostgresIntegrationTestSupport {
 
 		MvcResult loginResult = this.mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(loginRequestBody(authenticatedUser.getEmail(), "reader-password-" + uniqueSuffix)))
+				.content(loginRequestBody(requestedUser.getEmail(), "empty-password-" + uniqueSuffix)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andReturn();

@@ -399,19 +399,31 @@ class SceneServiceTests {
 	}
 
 	@Test
-	void getScenesForUserReturnsScenesOwnedByRequestedUser() throws Exception {
+	void getScenesForUserReturnsScenesOwnedByAuthenticatedUser() throws Exception {
 		SceneRepository sceneRepository = mock(SceneRepository.class);
 		UserRepository userRepository = mock(UserRepository.class);
 		SceneService sceneService = sceneService(sceneRepository, userRepository);
 		Scene firstScene = scene(11L, 77L, "Aurora Drift", Instant.parse("2026-03-26T15:00:00Z"));
 		Scene secondScene = scene(12L, 77L, "Signal Bloom", Instant.parse("2026-03-26T16:00:00Z"));
 
-		when(userRepository.existsById(42L)).thenReturn(true);
+		when(userRepository.existsById(77L)).thenReturn(true);
 		when(sceneRepository.findAllByOwnerUserId(77L)).thenReturn(List.of(firstScene, secondScene));
 
-		List<Scene> scenes = sceneService.getScenesForUser(42L, 77L);
+		List<Scene> scenes = sceneService.getScenesForUser(77L, 77L);
 
 		assertThat(scenes).extracting(Scene::getId).containsExactly(11L, 12L);
+	}
+
+	@Test
+	void getScenesForUserRejectsAnotherUsersLibraryBeforeReadingScenes() {
+		SceneRepository sceneRepository = mock(SceneRepository.class);
+		UserRepository userRepository = mock(UserRepository.class);
+		SceneService sceneService = sceneService(sceneRepository, userRepository);
+		when(userRepository.existsById(42L)).thenReturn(true);
+
+		assertThatThrownBy(() -> sceneService.getScenesForUser(42L, 77L))
+				.isInstanceOf(SceneOwnershipRequiredException.class);
+		verifyNoInteractions(sceneRepository);
 	}
 
 	@Test

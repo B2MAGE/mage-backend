@@ -2,6 +2,7 @@ package com.bdmage.mage_backend.controller;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import com.bdmage.mage_backend.config.AuthenticatedUserRequest;
 import com.bdmage.mage_backend.exception.ApiExceptionHandler;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
@@ -200,7 +201,7 @@ class UserControllerTests {
 	}
 
 	@Test
-	void scenesReturnsRequestedUsersScenes() throws Exception {
+	void scenesReturnsOwnersScenesWithAnalytics() throws Exception {
 		Scene firstScene = scene(
 				15L,
 				77L,
@@ -209,17 +210,17 @@ class UserControllerTests {
 				Instant.parse("2026-03-26T15:30:00Z"));
 		Scene secondScene = scene(16L, 77L, "Signal Bloom", Instant.parse("2026-03-26T16:45:00Z"));
 
-		when(this.sceneService.getScenesForUser(51L, 77L))
+		when(this.sceneService.getScenesForUser(77L, 77L))
 				.thenReturn(List.of(firstScene, secondScene));
 		when(this.userRepository.findAllById(java.util.Set.of(77L)))
 				.thenReturn(List.of(user(77L, "Scene Owner")));
-		when(this.sceneEngagementService.getSceneEngagement(15L, 51L))
-				.thenReturn(new SceneEngagementResponse(18L, 7L, 1L, 3L, null, false));
-		when(this.sceneEngagementService.getSceneEngagement(16L, 51L))
-				.thenReturn(new SceneEngagementResponse(9L, 2L, 0L, 1L, null, false));
+		when(this.sceneEngagementService.getSceneEngagements(List.of(15L, 16L), 77L))
+				.thenReturn(Map.of(
+						15L, new SceneEngagementResponse(18L, 7L, 1L, 3L, 2L, 88, null, false),
+						16L, new SceneEngagementResponse(9L, 2L, 0L, 1L, 0L, 100, null, false)));
 
 		this.mockMvc.perform(get("/api/users/77/scenes")
-				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].sceneId").value(15L))
 				.andExpect(jsonPath("$[0].ownerUserId").value(77L))
@@ -231,6 +232,8 @@ class UserControllerTests {
 				.andExpect(jsonPath("$[0].engagement.views").value(18L))
 				.andExpect(jsonPath("$[0].engagement.upvotes").value(7L))
 				.andExpect(jsonPath("$[0].engagement.downvotes").value(1L))
+				.andExpect(jsonPath("$[0].engagement.comments").value(2L))
+				.andExpect(jsonPath("$[0].engagement.likesRatio").value(88))
 				.andExpect(jsonPath("$[1].sceneId").value(16L))
 				.andExpect(jsonPath("$[1].creatorDisplayName").value("Scene Owner"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"))
@@ -239,11 +242,11 @@ class UserControllerTests {
 
 	@Test
 	void scenesReturnsEmptyListWhenRequestedUserHasNoScenes() throws Exception {
-		when(this.sceneService.getScenesForUser(51L, 77L))
+		when(this.sceneService.getScenesForUser(77L, 77L))
 				.thenReturn(List.of());
 
 		this.mockMvc.perform(get("/api/users/77/scenes")
-				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 51L))
+				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray())
 				.andExpect(jsonPath("$").isEmpty());

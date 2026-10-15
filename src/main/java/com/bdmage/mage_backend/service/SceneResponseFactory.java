@@ -79,6 +79,7 @@ public class SceneResponseFactory {
 		Map<Long, CreatorIdentity> creators = resolveCreatorIdentities(scenes);
 		Map<Long, SceneAvailabilityResponse> availability = this.sceneAvailabilityService.statuses(scenes);
 		List<Long> sceneIds = scenes.stream().map(Scene::getId).toList();
+		Map<Long, SceneEngagementResponse> engagement = this.sceneEngagementService.getSceneEngagements(sceneIds, currentUserId);
 		Map<Long, List<String>> tagsBySceneId = this.sceneTagRepository.findTagNamesBySceneIds(sceneIds).stream()
 				.collect(Collectors.groupingBy(SceneTagNameProjection::getSceneId,
 						Collectors.mapping(SceneTagNameProjection::getTagName, Collectors.toList())));
@@ -95,7 +96,7 @@ public class SceneResponseFactory {
 							creator.avatarGradientStart(),
 							creator.avatarGradientEnd(),
 							tagsBySceneId.getOrDefault(scene.getId(), List.of()),
-							resolveEngagement(scene, currentUserId), availability.get(scene.getId()));
+							engagement.getOrDefault(scene.getId(), SceneEngagementResponse.empty()), availability.get(scene.getId()));
 				})
 				.toList();
 	}

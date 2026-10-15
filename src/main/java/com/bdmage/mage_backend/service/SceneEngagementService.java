@@ -1,5 +1,9 @@
 package com.bdmage.mage_backend.service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.exception.AuthenticationRequiredException;
 import com.bdmage.mage_backend.exception.SceneNotFoundException;
@@ -31,9 +35,15 @@ public class SceneEngagementService {
 
 	@Transactional(readOnly = true)
 	public SceneEngagementResponse getSceneEngagement(Long sceneId, Long currentUserId) {
-		SceneEngagementSummaryProjection summary = this.sceneEngagementRepository
-				.summarizeSceneEngagement(sceneId, currentUserId);
-		return summary != null ? SceneEngagementResponse.from(summary) : SceneEngagementResponse.empty();
+		return getSceneEngagements(List.of(sceneId), currentUserId)
+				.getOrDefault(sceneId, SceneEngagementResponse.empty());
+	}
+
+	@Transactional(readOnly = true)
+	public Map<Long, SceneEngagementResponse> getSceneEngagements(List<Long> sceneIds, Long currentUserId) {
+		if (sceneIds.isEmpty()) return Map.of();
+		return this.sceneEngagementRepository.summarizeSceneEngagement(sceneIds, currentUserId).stream()
+				.collect(Collectors.toMap(SceneEngagementSummaryProjection::getSceneId, SceneEngagementResponse::from));
 	}
 
 	@Transactional

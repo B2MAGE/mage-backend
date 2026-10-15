@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.Map;
 
 import com.bdmage.mage_backend.dto.SceneResponse;
+import com.bdmage.mage_backend.dto.SceneEngagementResponse;
 import com.bdmage.mage_backend.dto.SceneAvailabilityResponse;
 import com.bdmage.mage_backend.model.Scene;
 import com.bdmage.mage_backend.model.User;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class SceneResponseFactoryTests {
@@ -53,6 +55,20 @@ class SceneResponseFactoryTests {
 	void emptyListsDoNotIssueTagOrOwnerQueries() {
 		assertThat(factory.from(List.of())).isEmpty();
 		verifyNoInteractions(users, tags, engagement, availability);
+	}
+
+	@Test
+	void sceneListsResolveEngagementInOneBatchAndMatchBySceneId() {
+		SceneEngagementResponse counted = new SceneEngagementResponse(12, 2, 1, 4, 5, 67, "up", true);
+		when(engagement.getSceneEngagements(List.of(11L, 12L, 13L), 7L))
+				.thenReturn(Map.of(12L, counted));
+
+		List<SceneResponse> result = factory.from(List.of(scene(11L), scene(12L), scene(13L)), 7L);
+
+		assertThat(result).extracting(SceneResponse::engagement)
+				.containsExactly(SceneEngagementResponse.empty(), counted, SceneEngagementResponse.empty());
+		verify(engagement).getSceneEngagements(List.of(11L, 12L, 13L), 7L);
+		verifyNoMoreInteractions(engagement);
 	}
 
 	@Test

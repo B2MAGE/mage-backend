@@ -447,10 +447,10 @@ class SceneControllerTests {
 		when(this.sceneService.getAllScenes()).thenReturn(List.of(firstScene, secondScene));
 		when(this.userRepository.findAllById(java.util.Set.of(77L, 78L)))
 				.thenReturn(List.of(user(77L, "Aurora Artist"), user(78L, "Signal Artist")));
-		when(this.sceneEngagementService.getSceneEngagement(15L, null))
-				.thenReturn(new SceneEngagementResponse(24L, 9L, 3L, 4L, null, false));
-		when(this.sceneEngagementService.getSceneEngagement(16L, null))
-				.thenReturn(new SceneEngagementResponse(12L, 2L, 1L, 1L, null, false));
+		when(this.sceneEngagementService.getSceneEngagements(List.of(15L, 16L), null))
+				.thenReturn(Map.of(
+						15L, new SceneEngagementResponse(24L, 9L, 3L, 4L, 5L, 75, null, false),
+						16L, new SceneEngagementResponse(12L, 2L, 1L, 1L, 0L, 67, null, false)));
 
 		this.mockMvc.perform(get("/api/scenes"))
 				.andExpect(status().isOk())
@@ -463,6 +463,8 @@ class SceneControllerTests {
 				.andExpect(jsonPath("$[0].engagement.upvotes").value(9L))
 				.andExpect(jsonPath("$[0].engagement.downvotes").value(3L))
 				.andExpect(jsonPath("$[0].engagement.saves").value(4L))
+				.andExpect(jsonPath("$[0].engagement.comments").value(5L))
+				.andExpect(jsonPath("$[0].engagement.likesRatio").value(75))
 				.andExpect(jsonPath("$[1].sceneId").value(16L))
 				.andExpect(jsonPath("$[1].creatorDisplayName").value("Signal Artist"))
 				.andExpect(jsonPath("$[1].name").value("Signal Bloom"))
@@ -484,8 +486,8 @@ class SceneControllerTests {
 		when(this.sceneService.getScenesByTag("ambient")).thenReturn(List.of(scene));
 		when(this.userRepository.findAllById(java.util.Set.of(77L)))
 				.thenReturn(List.of(user(77L, "Aurora Artist")));
-		when(this.sceneEngagementService.getSceneEngagement(15L, null))
-				.thenReturn(new SceneEngagementResponse(31L, 4L, 0L, 5L, null, false));
+		when(this.sceneEngagementService.getSceneEngagements(List.of(15L), null))
+				.thenReturn(Map.of(15L, new SceneEngagementResponse(31L, 4L, 0L, 5L, 0L, 100, null, false)));
 
 		this.mockMvc.perform(get("/api/scenes").param("tag", "ambient"))
 				.andExpect(status().isOk())
@@ -647,7 +649,7 @@ class SceneControllerTests {
 		when(this.sceneService.getScene(15L)).thenReturn(scene);
 		when(this.sceneService.getTagNamesForScene(15L)).thenReturn(List.of("ambient", "showcase"));
 		when(this.sceneEngagementService.getSceneEngagement(15L, null))
-				.thenReturn(new SceneEngagementResponse(0L, 0L, 0L, 0L, null, false));
+				.thenReturn(new SceneEngagementResponse(0L, 0L, 0L, 0L, 0L, 0, null, false));
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
 		this.mockMvc.perform(get("/api/scenes/15"))
@@ -687,7 +689,7 @@ class SceneControllerTests {
 		when(this.sceneService.getScene(15L)).thenReturn(scene);
 		when(this.sceneService.getTagNamesForScene(15L)).thenReturn(List.of());
 		when(this.sceneEngagementService.getSceneEngagement(15L, 77L))
-				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 2L, "down", true));
+				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 2L, 0L, 75, "down", true));
 		when(this.userRepository.findById(77L)).thenReturn(Optional.of(user(77L, "Scene Creator")));
 
 		this.mockMvc.perform(get("/api/scenes/15")
@@ -705,7 +707,7 @@ class SceneControllerTests {
 	@Test
 	void recordSceneViewReturnsUpdatedEngagementForPublicRequest() throws Exception {
 		when(this.sceneEngagementService.recordSceneView(15L, null))
-				.thenReturn(new SceneEngagementResponse(13L, 3L, 1L, 2L, null, false));
+				.thenReturn(new SceneEngagementResponse(13L, 3L, 1L, 2L, 0L, 75, null, false));
 
 		this.mockMvc.perform(post("/api/scenes/15/views"))
 				.andExpect(status().isOk())
@@ -720,7 +722,7 @@ class SceneControllerTests {
 	@Test
 	void setSceneVoteReturnsUpdatedEngagementForAuthenticatedUser() throws Exception {
 		when(this.sceneEngagementService.setSceneVote(15L, 77L, "up"))
-				.thenReturn(new SceneEngagementResponse(12L, 4L, 1L, 2L, "up", true));
+				.thenReturn(new SceneEngagementResponse(12L, 4L, 1L, 2L, 0L, 80, "up", true));
 
 		this.mockMvc.perform(put("/api/scenes/15/vote")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L)
@@ -753,7 +755,7 @@ class SceneControllerTests {
 	@Test
 	void clearSceneVoteReturnsUpdatedEngagementForAuthenticatedUser() throws Exception {
 		when(this.sceneEngagementService.clearSceneVote(15L, 77L))
-				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 2L, null, true));
+				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 2L, 0L, 75, null, true));
 
 		this.mockMvc.perform(delete("/api/scenes/15/vote")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
@@ -766,7 +768,7 @@ class SceneControllerTests {
 	@Test
 	void saveSceneReturnsUpdatedEngagementForAuthenticatedUser() throws Exception {
 		when(this.sceneEngagementService.saveScene(15L, 77L))
-				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 3L, "down", true));
+				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 3L, 0L, 75, "down", true));
 
 		this.mockMvc.perform(post("/api/scenes/15/save")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))
@@ -779,7 +781,7 @@ class SceneControllerTests {
 	@Test
 	void unsaveSceneReturnsUpdatedEngagementForAuthenticatedUser() throws Exception {
 		when(this.sceneEngagementService.unsaveScene(15L, 77L))
-				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 2L, "down", false));
+				.thenReturn(new SceneEngagementResponse(12L, 3L, 1L, 2L, 0L, 75, "down", false));
 
 		this.mockMvc.perform(delete("/api/scenes/15/save")
 				.requestAttr(AuthenticatedUserRequest.USER_ID_ATTRIBUTE, 77L))

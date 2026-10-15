@@ -93,6 +93,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `POST /api/scenes`                         | Bearer token | Creates an owned scene with optional description and optionally finalizes a staged thumbnail |
 | `POST /api/scenes/thumbnail/presign`       | Bearer token | Presigns a staged thumbnail upload before scene creation           |
 | `GET /api/scenes`                          | Public       | Supports `?tag=<name>`                                              |
+| `GET /api/scenes/discovery`                | Public       | Metadata-only Explore pages; zero-based `page`, `size` 1–48, optional `tag`, supported `sort` |
 | `POST /api/scenes/{id}/tags`               | Bearer token | Attaches an existing tag to an existing scene                      |
 | `PATCH /api/scenes/{id}/description`       | Bearer token | Owner-only plain-text description add, edit, or clear              |
 | `POST /api/scenes/{id}/thumbnail/presign`  | Bearer token | Owner-only presigned thumbnail upload preparation                   |
@@ -127,6 +128,7 @@ Profile updates also accept optional `avatarGradientStart` and `avatarGradientEn
 - `POST /api/scenes`: `201` on success, `400` for invalid scene data, oversized description, or invalid staged thumbnail state when `thumbnailObjectKey` is supplied, `401` without a valid bearer token
 - `POST /api/scenes/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `401` without a valid bearer token
 - `GET /api/scenes`: `200` on success and public for anonymous discovery, optionally filtered with `?tag=<name>`
+- `GET /api/scenes/discovery`: `200` with `items`, `page`, `size`, `totalElements` and `totalPages`; `400` for invalid pagination/filter/sort values; `401` for an invalid supplied bearer token. No executable documents are returned. Out-of-range pages return empty items with current totals. See the [Explore contract](../README.md#explore-discovery-pages).
 - `POST /api/scenes/{id}/tags`: `201` on success, `404` if the scene or tag is missing, `409` if the link already exists
 - `PATCH /api/scenes/{id}/description`: `200` on success, `400` for oversized description, `401` without a valid bearer token, `403` for non-owner requests, `404` if missing
 - `POST /api/scenes/{id}/thumbnail/presign`: `200` on success, `400` for invalid file metadata, `403` for non-owner requests, `404` if the scene is missing

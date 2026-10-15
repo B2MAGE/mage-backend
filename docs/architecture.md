@@ -144,6 +144,15 @@ queries and multiplied counts. Individual engagement reads use that same path.
 semantics. `SceneService` requires ownership for the My Scenes list; public profiles
 use their separate public lookup and continue to honor source availability.
 
+Explore uses the separate `SceneDiscoveryController` / `SceneDiscoveryService`
+path. `SceneDiscoveryRepository` selects an explicitly bounded metadata page with
+SQL filtering and stable sorting, never loading a `Scene` entity or its JSON
+document. It joins only public creator fields; engagement, tags and availability
+are then resolved in batches for at most 48 returned IDs. View/like rankings are
+computed before pagination. Migration V26 adds the `(created_at, id)` index for
+both chronological directions; existing scene-ID/tag indexes support the other
+lookups. The summary DTO intentionally has no document or compiled-artifact field.
+
 Migration V18 adds `scene_availability_controls` and `custom_rendering_control`. Small JDBC repositories read fresh control state without loading shader source or reusing managed scene entities; conditional PostgreSQL upserts preserve audit data for retries. Content updates cannot overwrite these controls. Public status and scene responses use `Cache-Control: no-store`. The [availability runbook](scene-availability.md) describes the API, default-disabled release gate, deployment implications, and frontend responsibilities.
 
 ## External Boundary

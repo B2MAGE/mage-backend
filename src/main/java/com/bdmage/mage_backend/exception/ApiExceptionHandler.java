@@ -20,6 +20,12 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    @ExceptionHandler(InvalidSceneDiscoveryRequestException.class)
+    ResponseEntity<ApiErrorResponse> handleInvalidSceneDiscovery(
+            InvalidSceneDiscoveryRequestException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage(), ex.getDetails(), request.getRequestURI());
+    }
+
     @ExceptionHandler(BuilderTemplateException.class)
     ResponseEntity<ApiErrorResponse> handleBuilderTemplate(BuilderTemplateException ex, HttpServletRequest request) {
         Map<String, String> details = switch (ex.getCode()) {

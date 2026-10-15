@@ -121,7 +121,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `POST /api/scenes/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                                              |
 | `GET /api/scenes/{id}`                     | Public       | Fetch a scene by id                                                                       |
 | `DELETE /api/scenes/{id}`                  | Bearer token | Delete a scene owned by the authenticated user                                            |
-| `GET /api/users/{id}/scenes`               | Bearer token | List scenes for a specific user                                                           |
+| `GET /api/users/{id}/scenes`               | Owner token  | List the authenticated owner's scenes with engagement summaries                           |
 
 ## Scene Contract
 
@@ -136,6 +136,22 @@ records; this change does not rewrite legacy data.
 Scene lists from `GET /api/scenes` (including tag-filtered results), `GET /api/users/{id}/scenes`, and public profile scene collections use ascending scene ID order. This stable unique-key order does not depend on database query plans; clients may apply their own newest, most-viewed, or other presentation sorting.
 
 Discovery responses include the creator display name, handle, avatar-gradient colors, real engagement metrics, and attached tag names. Attached tags are loaded in one batch for a scene collection. `GET /api/tags` returns stable name-ordered entries containing `tagId`, `name`, and the real attached `sceneCount`; `?attachedOnly=true` excludes unused tags while the default catalogue retains them for the editor.
+
+The shared `engagement` response includes `views`, `upvotes`, `downvotes`, `saves`,
+`comments`, `likesRatio`, `currentUserVote`, and `currentUserSaved`. `comments`
+counts all persisted comments, including replies; deleting a comment or its
+cascaded replies removes them from the count. `likesRatio` is the nearest integer
+percentage of upvotes among votes, or `0` with no votes. Counts are `0` for scenes
+without activity. These fields have the same meaning on owner, public list/profile,
+detail, and engagement mutation responses.
+
+`GET /api/users/{id}/scenes` returns `401` without valid authentication and `403`
+when `{id}` is not the authenticated user. Public creator browsing continues through
+`GET /api/profiles/{handle}`. Collection engagement is loaded in one grouped query
+for the requested scene IDs, alongside the existing batched creator, tag and
+availability lookups. Consumers do not need to load comment threads to build the
+My Scenes table. Availability still suppresses blocked `sceneData` without hiding
+the owner's engagement counts.
 
 `POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value. Owners can add, edit, or clear the description after creation with `PATCH /api/scenes/{id}/description`.
 

@@ -1,5 +1,7 @@
 package com.bdmage.mage_backend.repository;
 
+import java.util.List;
+
 import com.bdmage.mage_backend.model.Scene;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -9,21 +11,40 @@ import org.springframework.data.repository.query.Param;
 public interface SceneEngagementRepository extends Repository<Scene, Long> {
 
 	@Query(value = """
-			SELECT
-			  (SELECT COUNT(*) FROM scene_views svw WHERE svw.scene_id = :sceneId) AS views,
-			  (SELECT COUNT(*) FROM scene_votes sv WHERE sv.scene_id = :sceneId AND sv.vote_value = 1) AS upvotes,
-			  (SELECT COUNT(*) FROM scene_votes sv WHERE sv.scene_id = :sceneId AND sv.vote_value = -1) AS downvotes,
-			  (SELECT COUNT(*) FROM scene_saves ss WHERE ss.scene_id = :sceneId) AS saves,
-			  (SELECT sv.vote_value FROM scene_votes sv WHERE sv.scene_id = :sceneId AND sv.user_id = :currentUserId) AS "currentUserVoteValue",
-			  EXISTS(
-			    SELECT 1
-			    FROM scene_saves ss
-			    WHERE ss.scene_id = :sceneId
-			      AND ss.user_id = :currentUserId
-			  ) AS "currentUserSaved"
+			WITH view_counts AS (
+			  SELECT scene_id, COUNT(*) AS views
+			  FROM scene_views WHERE scene_id IN (:sceneIds) GROUP BY scene_id
+			), vote_counts AS (
+			  SELECT scene_id,
+			    COUNT(*) FILTER (WHERE vote_value = 1) AS upvotes,
+			    COUNT(*) FILTER (WHERE vote_value = -1) AS downvotes,
+			    MAX(CASE WHEN user_id = :currentUserId THEN vote_value END) AS current_user_vote
+			  FROM scene_votes WHERE scene_id IN (:sceneIds) GROUP BY scene_id
+			), save_counts AS (
+			  SELECT scene_id, COUNT(*) AS saves,
+			    BOOL_OR(user_id = :currentUserId) AS current_user_saved
+			  FROM scene_saves WHERE scene_id IN (:sceneIds) GROUP BY scene_id
+			), comment_counts AS (
+			  SELECT scene_id, COUNT(*) AS comments
+			  FROM scene_comments WHERE scene_id IN (:sceneIds) GROUP BY scene_id
+			)
+			SELECT s.id AS "sceneId",
+			  COALESCE(v.views, 0) AS views,
+			  COALESCE(vt.upvotes, 0) AS upvotes,
+			  COALESCE(vt.downvotes, 0) AS downvotes,
+			  COALESCE(sv.saves, 0) AS saves,
+			  COALESCE(c.comments, 0) AS comments,
+			  vt.current_user_vote AS "currentUserVoteValue",
+			  COALESCE(sv.current_user_saved, FALSE) AS "currentUserSaved"
+			FROM scenes s
+			LEFT JOIN view_counts v ON v.scene_id = s.id
+			LEFT JOIN vote_counts vt ON vt.scene_id = s.id
+			LEFT JOIN save_counts sv ON sv.scene_id = s.id
+			LEFT JOIN comment_counts c ON c.scene_id = s.id
+			WHERE s.id IN (:sceneIds)
 			""", nativeQuery = true)
-	SceneEngagementSummaryProjection summarizeSceneEngagement(
-			@Param("sceneId") Long sceneId,
+	List<SceneEngagementSummaryProjection> summarizeSceneEngagement(
+			@Param("sceneIds") List<Long> sceneIds,
 			@Param("currentUserId") Long currentUserId);
 
 	@Modifying

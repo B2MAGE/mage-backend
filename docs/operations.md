@@ -99,7 +99,7 @@ If this returns `503`, the app process is alive but not ready to serve traffic.
 | `POST /api/scenes/{id}/thumbnail/finalize` | Bearer token | Owner-only thumbnail finalize and replacement                       |
 | `GET /api/scenes/{id}`                     | Public       | Scene detail is public                                             |
 | `DELETE /api/scenes/{id}`                  | Bearer token | Owner-only                                                          |
-| `GET /api/users/{id}/scenes`               | Bearer token | User-scoped scene list                                             |
+| `GET /api/users/{id}/scenes`               | Owner token  | Owner scene list with batched engagement summaries                 |
 
 ## Common Success and Failure Signals
 
@@ -133,7 +133,7 @@ Profile updates also accept optional `avatarGradientStart` and `avatarGradientEn
 - `POST /api/scenes/{id}/thumbnail/finalize`: `200` on success, `400` for invalid upload state, `403` for non-owner requests, `404` if the scene is missing
 - `GET /api/scenes/{id}`: `200` on success, `404` if missing
 - `DELETE /api/scenes/{id}`: `204` on success, `403` for non-owner delete attempts, `404` if missing
-- `GET /api/users/{id}/scenes`: `200` on success, `401` without a valid bearer token
+- `GET /api/users/{id}/scenes`: `200` for the authenticated owner, `401` without a valid bearer token, `403` for another user's ID. Use public profiles for creator browsing. Shared engagement fields include reply-inclusive `comments` and integer `likesRatio` (upvote percentage; `0` without votes), as defined in the [scene contract](../README.md#scene-contract).
 
 ## Thumbnail Upload Contract
 

@@ -136,6 +136,14 @@ Within `scenes`, the backend stores the scene name, optional plain-text descript
 
 `SceneResponseFactory` checks availability for all source-bearing public responses, including mutation responses and profile collections. Scene DTOs cannot retain `sceneData` when status is unavailable. Only the explicit owner repair endpoint returns source while blocked, in a separate payload marked `playable: false`.
 
+`SceneResponseFactory` loads collection engagement through `SceneEngagementService`
+in one repository query. The query groups views, votes, saves and comments separately
+for the requested scene IDs before joining the aggregates, avoiding both per-scene
+queries and multiplied counts. Individual engagement reads use that same path.
+`SceneEngagementResponse` defines the shared count and rounded like-percentage
+semantics. `SceneService` requires ownership for the My Scenes list; public profiles
+use their separate public lookup and continue to honor source availability.
+
 Migration V18 adds `scene_availability_controls` and `custom_rendering_control`. Small JDBC repositories read fresh control state without loading shader source or reusing managed scene entities; conditional PostgreSQL upserts preserve audit data for retries. Content updates cannot overwrite these controls. Public status and scene responses use `Cache-Control: no-store`. The [availability runbook](scene-availability.md) describes the API, default-disabled release gate, deployment implications, and frontend responsibilities.
 
 ## External Boundary

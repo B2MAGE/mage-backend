@@ -7,21 +7,29 @@ public record SceneEngagementResponse(
 		long upvotes,
 		long downvotes,
 		long saves,
+		long comments,
+		int likesRatio,
 		String currentUserVote,
 		boolean currentUserSaved) {
 
 	public static SceneEngagementResponse from(SceneEngagementSummaryProjection summary) {
+		long upvotes = longValue(summary.getUpvotes());
+		long downvotes = longValue(summary.getDownvotes());
+		int likesRatio = upvotes == 0 && downvotes == 0 ? 0
+				: (int) Math.round(100.0 * upvotes / ((double) upvotes + downvotes));
 		return new SceneEngagementResponse(
 				longValue(summary.getViews()),
-				longValue(summary.getUpvotes()),
-				longValue(summary.getDownvotes()),
+				upvotes,
+				downvotes,
 				longValue(summary.getSaves()),
+				longValue(summary.getComments()),
+				likesRatio,
 				currentUserVote(summary.getCurrentUserVoteValue()),
 				Boolean.TRUE.equals(summary.getCurrentUserSaved()));
 	}
 
 	public static SceneEngagementResponse empty() {
-		return new SceneEngagementResponse(0L, 0L, 0L, 0L, null, false);
+		return new SceneEngagementResponse(0L, 0L, 0L, 0L, 0L, 0, null, false);
 	}
 
 	private static long longValue(Number value) {

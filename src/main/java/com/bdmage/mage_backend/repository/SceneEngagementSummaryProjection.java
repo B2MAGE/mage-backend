@@ -2,6 +2,8 @@ package com.bdmage.mage_backend.repository;
 
 public interface SceneEngagementSummaryProjection {
 
+	Long getSceneId();
+
 	Number getViews();
 
 	Number getUpvotes();
@@ -9,6 +11,8 @@ public interface SceneEngagementSummaryProjection {
 	Number getDownvotes();
 
 	Number getSaves();
+
+	Number getComments();
 
 	Number getCurrentUserVoteValue();
 

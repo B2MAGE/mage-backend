@@ -122,6 +122,7 @@ See [docs/deployment.md](docs/deployment.md) for the expected reverse-proxy cont
 | `GET /api/scenes/{id}`                     | Public       | Fetch a scene by id                                                                       |
 | `DELETE /api/scenes/{id}`                  | Bearer token | Delete a scene owned by the authenticated user                                            |
 | `GET /api/users/{id}/scenes`               | Owner token  | List the authenticated owner's scenes with engagement summaries                           |
+| `GET /api/scenes/discovery`               | Public       | Bounded Explore page of metadata-only scene summaries                                     |
 
 ## Scene Contract
 
@@ -152,6 +153,43 @@ for the requested scene IDs, alongside the existing batched creator, tag and
 availability lookups. Consumers do not need to load comment threads to build the
 My Scenes table. Availability still suppresses blocked `sceneData` without hiding
 the owner's engagement counts.
+
+### Explore discovery pages
+
+`GET /api/scenes/discovery?page=0&size=12&sort=descending&tag=fire` returns:
+
+```json
+{ "items": [], "page": 0, "size": 12, "totalElements": 0, "totalPages": 0 }
+```
+
+`page` is zero-based (default `0`) and `size` is between `1` and `48` (default `12`).
+Negative pages, invalid numbers, unsupported sorts, oversized tags and page sizes
+outside that range return `400 VALIDATION_ERROR`. A page beyond the last result
+returns empty `items` with the requested page/size and current totals. An empty
+collection has `totalPages: 0`. `tag` is optional, trimmed and lowercased; a blank
+tag selects all scenes, and an unknown tag selects none.
+
+Supported sorts match the existing Explore options: `ascending` orders by creation
+date then ID ascending; `descending`, `featured` and `recommended` order by creation
+date then ID descending. Featured/recommended remain newest-first aliases, not a new
+ranking system. `most-viewed` ranks by total views; `most-liked` ranks by upvote count
+(not percentage). Both use newest date and highest ID to break ties. Sorting and
+tag filtering apply to the whole matching collection before the page is selected.
+
+Each item contains `sceneId`, `ownerUserId`, creator display name/handle/avatar
+colors, `name`, `description`, `thumbnailRef`, `createdAt`, `tags`, shared
+`engagement`, and `availability`. The DTO has **no** `sceneData`, shader source,
+Builder document or compiled-artifact field, and the database page query never
+selects that content. Cards fetch `GET /api/scenes/{id}` only when playback is
+requested. Summaries preserve unavailable-scene metadata and fresh availability
+messages without exposing private moderator reasons. All current scenes are public
+metadata; there is no separate private-scene visibility feature.
+
+Discovery permits anonymous reads, preserves viewer-specific vote/save state when
+a valid bearer token is supplied, and rejects invalid supplied tokens. Responses
+use `Cache-Control: no-store`. Existing full-list, profile, owner-list and detail
+contracts remain unchanged for other consumers; their existing availability and
+ownership restrictions still apply.
 
 `POST /api/scenes` accepts an optional plain-text `description` up to 1000 characters. Blank descriptions are stored as no description, and scene list/detail responses return the stored `description` value. Owners can add, edit, or clear the description after creation with `PATCH /api/scenes/{id}/description`.
 
